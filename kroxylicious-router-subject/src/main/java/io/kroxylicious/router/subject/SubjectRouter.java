@@ -6,8 +6,10 @@
 
 package io.kroxylicious.router.subject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,7 +31,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A {@link RouterFactory} that routes each client connection to a downstream cluster based on the
- * connection's authenticated identity, matched against a static mapping of principal name to route.
+ * connection's authenticated identity, matched against an ordered list of rules.
  */
 @Plugin(configType = SubjectRouter.Config.class)
 public class SubjectRouter implements RouterFactory<SubjectRouter.Config, SubjectRouter.Initialized> {
@@ -43,74 +45,92 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     /**
      * Configuration for {@link SubjectRouter}.
      *
-     * @param singularPrincipalMatch the principal-to-route matching configuration
+     * @param ruleMatch the ordered rule-based matching configuration
      */
-    public record Config(@JsonProperty(required = true) SingularPrincipalMatch singularPrincipalMatch) {}
+    public record Config(@JsonProperty(required = true) RuleMatch ruleMatch) {}
 
     /**
-     * Maps the subject's unique principal of {@code type} to a route via a static {@code routeMapping}.
+     * Evaluates {@code rules} in declaration order against the authenticated subject, using the route
+     * of the first matching rule.
      *
-     * @param type fully-qualified name of a {@link Principal} implementation annotated as singular
-     *             ({@code @Unique} or {@code @SingularPrincipal}); the factory refuses to start if
-     *             the type is not singular
-     * @param routeMapping principal-name-to-route entries; a principal name must not appear more than once
-     * @param defaultRoute route for an authenticated subject whose principal name is absent from
-     *                     {@code routeMapping}, or that carries no principal of {@code type} at all;
-     *                     if {@code null}, such a subject is rejected fail-closed
+     * @param rules ordered rules; the first rule whose {@code hasPrincipals} is fully satisfied by the
+     *              subject wins
+     * @param defaultRoute route for an authenticated subject that no rule matches; if {@code null},
+     *                     such a subject is rejected fail-closed. Never applies to an anonymous subject.
      */
-    public record SingularPrincipalMatch(@JsonProperty(required = true) String type,
-                                         @JsonProperty(required = true) List<RouteMappingEntry> routeMapping,
-                                         @Nullable String defaultRoute) {}
+    public record RuleMatch(@JsonProperty(required = true) List<Rule> rules, @Nullable String defaultRoute) {}
 
     /**
-     * Pairs a principal name with the route its subject should be forwarded to.
+     * A single routing rule.
      *
-     * @param principalName the principal name
-     * @param route the route name, declared in the router's {@code routes} block
+     * @param hasPrincipals map of fully-qualified {@link Principal} implementation name to required
+     *                      principal name; the rule matches only if the subject carries a principal of
+     *                      every listed type, with the exact name given for each. Each referenced type
+     *                      must be annotated {@code @Unique} or {@code @SingularPrincipal} (directly, or
+     *                      via meta-annotation); the factory checks this reflectively in
+     *                      {@code initialize()} and refuses to start otherwise.
+     * @param useRoute the route name, declared in the router's {@code routes} block, to forward to when
+     *                 the rule matches
      */
-    public record RouteMappingEntry(@JsonProperty(required = true) String principalName,
-                                    @JsonProperty(required = true) String route) {}
+    public record Rule(@JsonProperty(required = true) Map<String, String> hasPrincipals,
+                       @JsonProperty(required = true) String useRoute) {}
+
+    /**
+     * A {@link Rule} with its {@code hasPrincipals} types resolved to {@link Principal} classes.
+     *
+     * @param requiredPrincipals principal type to required principal name; the subject must carry a
+     *                           principal of every listed type, with the exact name given, for the rule
+     *                           to match
+     * @param route the route name to forward to when the rule matches
+     */
+    public record CompiledRule(Map<Class<? extends Principal>, String> requiredPrincipals, String route) {}
 
     /**
      * Immutable, thread-safe: shared across all connections of a virtual cluster.
      *
-     * @param principalType the singular principal type matched against the authenticated subject
-     * @param principalToRoute the principal-name-to-route mapping
-     * @param defaultRoute the route for an unmapped subject, or {@code null} to reject it
+     * @param rules ordered, compiled rules
+     * @param defaultRoute the route for an authenticated subject that no rule matches, or {@code null}
+     *                     to reject it
      */
-    public record Initialized(Class<? extends Principal> principalType, Map<String, String> principalToRoute, @Nullable String defaultRoute) {}
+    public record Initialized(List<CompiledRule> rules, @Nullable String defaultRoute) {}
 
     @Override
     public Initialized initialize(RouterFactoryContext context, Config config) throws PluginConfigurationException {
         Config cfg = Plugins.requireConfig(this, config);
-        SingularPrincipalMatch match = cfg.singularPrincipalMatch();
-        Class<? extends Principal> principalType = resolvePrincipalType(match.type());
-        if (!SingularPrincipals.isSingular(principalType)) {
-            throw new PluginConfigurationException(
-                    "singularPrincipalMatch.type " + principalType.getName() + " is not a singular principal type");
-        }
+        RuleMatch ruleMatch = cfg.ruleMatch();
 
-        Map<String, String> principalToRoute = new HashMap<>();
-        for (RouteMappingEntry entry : match.routeMapping()) {
-            if (principalToRoute.putIfAbsent(entry.principalName(), entry.route()) != null) {
-                throw new PluginConfigurationException(
-                        "singularPrincipalMatch.routeMapping contains principal '" + entry.principalName() + "' more than once");
+        Map<String, Class<? extends Principal>> resolvedTypes = new HashMap<>();
+        Set<Map<String, String>> seenPredicates = new HashSet<>();
+        List<CompiledRule> compiledRules = new ArrayList<>();
+        for (Rule rule : ruleMatch.rules()) {
+            if (rule.hasPrincipals() == null || rule.hasPrincipals().isEmpty()) {
+                throw new PluginConfigurationException("ruleMatch.rules entry needs a non-empty hasPrincipals");
             }
+            if (!seenPredicates.add(rule.hasPrincipals())) {
+                throw new PluginConfigurationException("ruleMatch.rules contains more than one rule with hasPrincipals " + rule.hasPrincipals());
+            }
+            Map<Class<? extends Principal>, String> requiredPrincipals = new LinkedHashMap<>();
+            for (Map.Entry<String, String> entry : rule.hasPrincipals().entrySet()) {
+                Class<? extends Principal> type = resolvedTypes.computeIfAbsent(entry.getKey(), SubjectRouter::resolvePrincipalType);
+                requiredPrincipals.put(type, entry.getValue());
+            }
+            compiledRules.add(new CompiledRule(Map.copyOf(requiredPrincipals), rule.useRoute()));
         }
 
         Set<String> routeNames = context.routeNames();
-        Set<String> referenced = new HashSet<>(principalToRoute.values());
-        if (match.defaultRoute() != null) {
-            referenced.add(match.defaultRoute());
+        Set<String> referenced = new HashSet<>();
+        compiledRules.forEach(rule -> referenced.add(rule.route()));
+        if (ruleMatch.defaultRoute() != null) {
+            referenced.add(ruleMatch.defaultRoute());
         }
         referenced.removeAll(routeNames);
         if (!referenced.isEmpty()) {
             throw new PluginConfigurationException(
-                    "singularPrincipalMatch references unknown routes " + referenced + "; declared routes are " + routeNames);
+                    "ruleMatch references unknown routes " + referenced + "; declared routes are " + routeNames);
         }
 
-        context.allowSharedClusterTargets(); // multiple identities may target the same cluster
-        return new Initialized(principalType, Map.copyOf(principalToRoute), match.defaultRoute());
+        context.allowSharedClusterTargets(); // multiple rules may target the same route
+        return new Initialized(List.copyOf(compiledRules), ruleMatch.defaultRoute());
     }
 
     @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "init is marked @Nullable to match the @UnknownNullness contract of RouterFactory#createRouter,"
@@ -118,7 +138,7 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     @Override
     public Router createRouter(RouterFactoryContext context, @Nullable Initialized init) {
         Objects.requireNonNull(init);
-        return new SubjectRoutingHandler(init.principalType(), init.principalToRoute(), init.defaultRoute(), context.routeNames(),
+        return new SubjectRoutingHandler(init.rules(), init.defaultRoute(), context.routeNames(),
                 context.virtualClusterName(), context.routerName());
     }
 
@@ -129,11 +149,15 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
             type = Class.forName(typeName);
         }
         catch (ClassNotFoundException e) {
-            throw new PluginConfigurationException("singularPrincipalMatch.type '" + typeName + "' not found", e);
+            throw new PluginConfigurationException("ruleMatch hasPrincipals type '" + typeName + "' not found", e);
         }
         if (!Principal.class.isAssignableFrom(type)) {
-            throw new PluginConfigurationException("singularPrincipalMatch.type '" + typeName + "' does not implement " + Principal.class.getName());
+            throw new PluginConfigurationException("ruleMatch hasPrincipals type '" + typeName + "' does not implement " + Principal.class.getName());
         }
-        return (Class<? extends Principal>) type;
+        Class<? extends Principal> principalType = (Class<? extends Principal>) type;
+        if (!SingularPrincipals.isSingular(principalType)) {
+            throw new PluginConfigurationException("ruleMatch hasPrincipals type " + principalType.getName() + " is not a singular principal type");
+        }
+        return principalType;
     }
 }

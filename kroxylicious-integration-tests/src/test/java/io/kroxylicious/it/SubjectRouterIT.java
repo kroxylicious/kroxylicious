@@ -209,12 +209,12 @@ class SubjectRouterIT {
         var routeA = new RouteDefinition("route-a", 0, routeAFilterNames, new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
 
-        var singularPrincipalMatch = new SubjectRouter.SingularPrincipalMatch(User.class.getName(),
-                List.of(new SubjectRouter.RouteMappingEntry(principalNameOf(aliceCertGenerator), "route-a"),
-                        new SubjectRouter.RouteMappingEntry(principalNameOf(carolCertGenerator), "route-b")),
+        var ruleMatch = new SubjectRouter.RuleMatch(
+                List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(aliceCertGenerator)), "route-a"),
+                        new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(carolCertGenerator)), "route-b")),
                 null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
-                new SubjectRouter.Config(singularPrincipalMatch), List.of(routeA, routeB));
+                new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
 
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
@@ -323,10 +323,9 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var singularPrincipalMatch = new SubjectRouter.SingularPrincipalMatch(User.class.getName(),
-                List.of(new SubjectRouter.RouteMappingEntry("CN=alice", "route-a")), null);
+        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), "CN=alice"), "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
-                new SubjectRouter.Config(singularPrincipalMatch), List.of(routeA, routeB));
+                new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "subject-router"))
@@ -397,10 +396,9 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var singularPrincipalMatch = new SubjectRouter.SingularPrincipalMatch(User.class.getName(),
-                List.of(new SubjectRouter.RouteMappingEntry(username, "route-a")), null);
+        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), username), "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
-                new SubjectRouter.Config(singularPrincipalMatch), List.of(routeA, routeB));
+                new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withTarget(new RouteTarget(null, "subject-router"))

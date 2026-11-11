@@ -7,12 +7,12 @@ This is a preview feature, gated behind `KROXYLICIOUS_UNLOCK_ROUTING=true` (see 
 
 ## How it routes
 
-The router matches the connection's authenticated `Subject` against a static principal-name-to-route mapping (`singularPrincipalMatch`), then pins the connection to the resolved route:
+The router matches the connection's authenticated `Subject` against an ordered list of rules (`ruleMatch`), then pins the connection to the resolved route:
 
-1. **Authenticated request** — the mapping picks a route for the subject. The first pick pins the connection; a later request that resolves to a *different* route closes the connection rather than switching clusters.
+1. **Authenticated request** — `ruleMatch` evaluates its `rules` in declaration order and uses the route of the first rule whose `hasPrincipals` is fully satisfied by the subject. The first pick pins the connection; a later request that resolves to a *different* route closes the connection rather than switching clusters.
 2. **Anonymous `API_VERSIONS`** — before a client authenticates (mTLS handshake pending, or pre-SASL), the router fans the request out to every configured route and returns the intersection of supported API versions, so the client negotiates a version range every downstream cluster actually supports. See [Anonymous `API_VERSIONS` fan-out](#anonymous-api_versions-fan-out).
 3. **Everything else anonymous, including `SASL_HANDSHAKE`/`SASL_AUTHENTICATE`** — rejected fail-closed. SASL passthrough is not supported: a passthrough-inferred identity is asserted by the backend rather than verified by the proxy, so the router has no verified subject to route on. Deferred to future work.
-4. **No route for the subject** (no principal of the configured type, or its name is absent from `routeMapping`, and no `defaultRoute` is configured) — rejected fail-closed.
+4. **No route for the subject** (no rule's `hasPrincipals` is satisfied, and no `defaultRoute` is configured) — rejected fail-closed.
 
 If the connection is to a broker-specific gateway endpoint (`RouterContext#virtualNode()` non-empty), the router sends there rather than to an arbitrary node of the chosen route, so a client that dialed a specific broker keeps talking to it.
 
@@ -25,16 +25,18 @@ routerDefinitions:
   - name: subject-router
     type: SubjectRouter
     config:
-      singularPrincipalMatch:
-        type: io.kroxylicious.proxy.authentication.User
-        defaultRoute: team-a   # optional
-        routeMapping:
-          - principalName: "CN=alice"
-            route: team-a
-          - principalName: "CN=bob"
-            route: team-a
-          - principalName: "CN=carol"
-            route: team-b
+      ruleMatch:
+        defaultRoute: team-a         # optional
+        rules:
+          - hasPrincipals:
+              io.kroxylicious.proxy.authentication.User: "CN=alice"
+            useRoute: team-a
+          - hasPrincipals:
+              io.kroxylicious.proxy.authentication.User: "CN=bob"
+            useRoute: team-a
+          - hasPrincipals:
+              io.kroxylicious.proxy.authentication.User: "CN=carol"
+            useRoute: team-b
     routes:
       - name: team-a
         id: 0
@@ -48,11 +50,10 @@ routerDefinitions:
 
 | Field | Type | Description |
 |---|---|---|
-| `singularPrincipalMatch.type` | string | Fully-qualified name of a `Principal` implementation annotated `@Unique` or `@SingularPrincipal`. The factory rejects a non-singular type at startup. |
-| `singularPrincipalMatch.routeMapping` | list of `{principalName, route}` | Each entry pairs a principal name with a route declared in the router's `routes`. Startup fails if the same `principalName` appears more than once, or if a `route` is not declared. |
-| `singularPrincipalMatch.defaultRoute` | string, optional | Route for an authenticated subject whose principal name is absent from `routeMapping`, or that carries no principal of `type` at all. Omit to reject such a subject fail-closed. |
+| `ruleMatch.rules` | ordered list of `{hasPrincipals, useRoute}` | `hasPrincipals` maps a fully-qualified `Principal` implementation name (annotated `@Unique` or `@SingularPrincipal`; the factory rejects a non-singular type at startup) to a required principal name. A rule matches only if the subject carries every listed principal, with the exact name given for each. `useRoute` names a route declared in the router's `routes`. The first matching rule wins. Startup fails if a rule's `hasPrincipals` is empty, if two rules have identical `hasPrincipals`, or if a `useRoute` is not declared. |
+| `ruleMatch.defaultRoute` | string, optional | Route for an authenticated subject that no rule matches. Omit to reject such a subject fail-closed. |
 
-The principal matched is `subject.uniquePrincipalOfType(type).map(Principal::name)` — for mTLS against the default `User` type this is the client certificate's subject DN as rendered by `X500Principal.getName(X500Principal.RFC1779, ...)` (with `emailAddress` mapped from its OID); for SASL termination it is the authenticated username.
+A rule's principal match is `subject.uniquePrincipalOfType(type).map(Principal::name)` — for mTLS against the default `User` type this is the client certificate's subject DN as rendered by `X500Principal.getName(X500Principal.RFC1779, ...)` (with `emailAddress` mapped from its OID); for SASL termination it is the authenticated username.
 
 ## Anonymous `API_VERSIONS` fan-out
 
@@ -73,7 +74,7 @@ For an anonymous connection's `API_VERSIONS` request, the router sends the reque
 |---|---|
 | `virtual_cluster` | The virtual cluster name. |
 | `router` | The router name, as declared in `routerDefinitions`. |
-| `reason` | One of a fixed set: `anonymous`, `no-route`, `route-changed`, `fan-out-error`. |
+| `reason` | One of a fixed set: `anonymous`, `unmapped`, `route-changed`, `fan-out-error`. |
 
 `reason` is a bounded enum, not derived from principal names or other unbounded input — this avoids both unbounded metric cardinality and leaking identity data into a metric label. Richer detail (e.g. which two routes conflicted on a mid-connection change) is only in the DEBUG-level log, never in the metric.
 

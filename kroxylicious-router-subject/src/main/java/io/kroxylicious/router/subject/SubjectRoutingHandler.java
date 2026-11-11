@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -50,7 +51,7 @@ class SubjectRoutingHandler implements Router {
      */
     enum RejectReason {
         ANONYMOUS("anonymous"),
-        NO_ROUTE("no-route"),
+        UNMAPPED("unmapped"),
         ROUTE_CHANGED("route-changed"),
         FAN_OUT_ERROR("fan-out-error");
 
@@ -65,8 +66,7 @@ class SubjectRoutingHandler implements Router {
         }
     }
 
-    private final Class<? extends Principal> principalType;
-    private final Map<String, String> principalToRoute;
+    private final List<SubjectRouter.CompiledRule> rules;
     private final @Nullable String defaultRoute;
     private final Set<String> routeNames;
     private final String virtualClusterName;
@@ -79,10 +79,9 @@ class SubjectRoutingHandler implements Router {
      */
     private @Nullable String pinnedRoute;
 
-    SubjectRoutingHandler(Class<? extends Principal> principalType, Map<String, String> principalToRoute, @Nullable String defaultRoute,
+    SubjectRoutingHandler(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute,
                           Set<String> routeNames, String virtualClusterName, String routerName) {
-        this.principalType = principalType;
-        this.principalToRoute = principalToRoute;
+        this.rules = rules;
         this.defaultRoute = defaultRoute;
         this.routeNames = routeNames;
         this.virtualClusterName = virtualClusterName;
@@ -107,12 +106,9 @@ class SubjectRoutingHandler implements Router {
             }
             return reject(ctx, header, request, RejectReason.ANONYMOUS, "anonymous non-ApiVersions request");
         }
-        Optional<String> routeOpt = subject.uniquePrincipalOfType(principalType)
-                .map(Principal::name)
-                .map(principalToRoute::get)
-                .or(() -> Optional.ofNullable(defaultRoute));
+        Optional<String> routeOpt = resolveRoute(subject).or(() -> Optional.ofNullable(defaultRoute));
         if (routeOpt.isEmpty()) {
-            return reject(ctx, header, request, RejectReason.NO_ROUTE, "no route for subject");
+            return reject(ctx, header, request, RejectReason.UNMAPPED, "no rule matched subject");
         }
         String route = routeOpt.get();
         if (pinnedRoute == null) {
@@ -128,6 +124,31 @@ class SubjectRoutingHandler implements Router {
         VirtualNode node = ctx.virtualNode().orElseGet(() -> ctx.anyNode(route));
         return ctx.sendRequest(node, header, request)
                 .thenCompose(response -> ctx.respondWith(response).completed());
+    }
+
+    /**
+     * Evaluates {@code rules} in declaration order, returning the first match's route.
+     */
+    private Optional<String> resolveRoute(Subject subject) {
+        for (SubjectRouter.CompiledRule rule : rules) {
+            if (matches(subject, rule)) {
+                return Optional.of(rule.route());
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean matches(Subject subject, SubjectRouter.CompiledRule rule) {
+        for (Entry<Class<? extends Principal>, String> required : rule.requiredPrincipals().entrySet()) {
+            boolean satisfied = subject.uniquePrincipalOfType(required.getKey())
+                    .map(Principal::name)
+                    .filter(required.getValue()::equals)
+                    .isPresent();
+            if (!satisfied) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

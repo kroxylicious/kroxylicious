@@ -59,7 +59,9 @@ class SubjectRoutingHandlerTest {
 
     private static final RequestHeaderData HEADER = new RequestHeaderData();
     private static final MetadataRequestData REQUEST = new MetadataRequestData();
-    private static final Map<String, String> PRINCIPAL_TO_ROUTE = Map.of("CN=alice", "team-a", "CN=carol", "team-b");
+    private static final List<SubjectRouter.CompiledRule> RULES = List.of(
+            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "team-a"),
+            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=carol"), "team-b"));
 
     @Mock
     private RouterContext ctx;
@@ -123,11 +125,11 @@ class SubjectRoutingHandlerTest {
     }
 
     private SubjectRoutingHandler newHandler() {
-        return newHandler(PRINCIPAL_TO_ROUTE, null);
+        return newHandler(RULES, null);
     }
 
-    private SubjectRoutingHandler newHandler(Map<String, String> principalToRoute, @Nullable String defaultRoute) {
-        return new SubjectRoutingHandler(User.class, principalToRoute, defaultRoute, Set.of("team-a", "team-b"), "vc1", "subj-router");
+    private SubjectRoutingHandler newHandler(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute) {
+        return new SubjectRoutingHandler(rules, defaultRoute, Set.of("team-a", "team-b"), "vc1", "subj-router");
     }
 
     @Test
@@ -230,7 +232,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler(PRINCIPAL_TO_ROUTE, "team-b").onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newHandler(RULES, "team-b").onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -358,4 +360,63 @@ class SubjectRoutingHandlerTest {
                 .tags("virtual_cluster", "vc1", "router", "subj-router", "reason", "anonymous")
                 .counter().count()).isEqualTo(1);
     }
+
+    @Test
+    void unmappedSubjectRejectionIncrementsCounterWithUnmappedReasonTag() {
+        // Given
+        Subject subject = new Subject(Set.of(new User("CN=eve")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+
+        // When
+        newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_subject_router_rejected_total")
+                .tags("virtual_cluster", "vc1", "router", "subj-router", "reason", "unmapped")
+                .counter().count()).isEqualTo(1);
+    }
+
+    @Test
+    void firstMatchingRuleWinsWhenMultipleRulesCouldApply() {
+        // Given: a broader alice-only rule declared before a narrower alice+other-principal rule
+        List<SubjectRouter.CompiledRule> rules = List.of(
+                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "team-a"),
+                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "team-b"));
+        Subject subject = new Subject(Set.of(new User("CN=alice")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(node, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+
+        // When
+        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx, never()).anyNode("team-b");
+    }
+
+    @Test
+    void ruleRequiringMultiplePrincipalTypesNeedsAllToMatch() {
+        // Given
+        List<SubjectRouter.CompiledRule> rules = List.of(
+                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice", OtherPrincipal.class, "x"), "team-a"));
+        Subject subject = new Subject(Set.of(new User("CN=alice")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+
+        // When
+        newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+
+        // Then
+        verify(ctx, never()).anyNode(any());
+    }
+
+    @io.kroxylicious.identity.SingularPrincipal
+    private record OtherPrincipal(String name) implements io.kroxylicious.proxy.authentication.Principal {}
 }
