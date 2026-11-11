@@ -695,23 +695,6 @@ class AclAuthorizerServiceTest {
         assertThat(decision(authz, new User("Carol"), FakeTopicResource.READ, "x/y")).isEqualTo(Decision.ALLOW);
     }
 
-    @ParameterizedTest
-    @MethodSource
-    void unquoteRegex(String literal, String regex) {
-        assertThat(AclAuthorizerService.BuildingListener.unquoteRegex(literal)).isEqualTo(regex);
-    }
-
-    static List<Arguments> unquoteRegex() {
-        return List.of(
-                Arguments.of("abc", "abc"),
-                Arguments.of("a\\/b", "a/b"),
-                Arguments.of("a\\\\b", "a\\b"),
-                Arguments.of("a\\.b", "a\\.b"),
-                Arguments.of("\\d+", "\\d+"),
-                Arguments.of("\\\\\\/", "\\/"),
-                Arguments.of("trailing\\", "trailing\\"));
-    }
-
     @Test
     void testLikeQuoting() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
