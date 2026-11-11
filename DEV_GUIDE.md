@@ -598,6 +598,11 @@ enabled architecture in the registry, because those produce the images users con
 defaults, like an unlabelled pull request: they are a check that the queued changes build together, not a publishing
 step, so they stay cheap.
 
+A `platform/<arch>` label only takes effect on the pull request's next push - the workflow reads the label from the
+pull request event payload, and re-running a workflow replays that same payload rather than fetching the current
+labels. Add the label, then push a new commit (or amend and force-push) to pick it up; re-running the existing run
+will not.
+
 The `platform/<arch>` labels are a general-purpose convention rather than a CI-only one; the same labels are used on
 issues to record which architecture a bug affects.
 
