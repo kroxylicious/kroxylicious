@@ -74,10 +74,17 @@ class SubjectRoutingHandler implements Router {
     private final Meter.MeterProvider<Counter> rejectedCounter;
 
     /**
-     * Set on the first authenticated forward. {@code onRequest} is invoked serially, on the same
-     * event loop thread, for a given connection, so no synchronisation is needed.
+     * Set on the first forward. {@code onRequest} is invoked serially, on the same event loop thread,
+     * for a given connection, so no synchronisation is needed.
      */
     private @Nullable String pinnedRoute;
+
+    /**
+     * Captured from the first request's header and never re-read, anticipating KIP-1313. Distinct
+     * from {@link #clientIdPinned} because a client may legitimately send no {@code client.id}.
+     */
+    private @Nullable String pinnedClientId;
+    private boolean clientIdPinned;
 
     SubjectRoutingHandler(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute,
                           Set<String> routeNames, String virtualClusterName, String routerName) {
@@ -99,18 +106,32 @@ class SubjectRoutingHandler implements Router {
     public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey, short apiVersion,
                                                      RequestHeaderData header, ApiMessage request,
                                                      RouterContext ctx) {
+        if (!clientIdPinned) {
+            pinnedClientId = header.clientId();
+            clientIdPinned = true;
+        }
         Subject subject = ctx.authenticatedSubject();
+        Optional<String> ruleRoute = resolveRoute(subject, pinnedClientId);
+        if (ruleRoute.isPresent()) {
+            return forward(ctx, header, request, ruleRoute.get());
+        }
         if (subject.isAnonymous()) {
             if (apiKey == ApiKeys.API_VERSIONS) {
                 return fanOutApiVersions(header, request, ctx);
             }
-            return reject(ctx, header, request, RejectReason.ANONYMOUS, "anonymous non-ApiVersions request");
+            return reject(ctx, header, request, RejectReason.ANONYMOUS, "anonymous request, no hasClientId rule matched");
         }
-        Optional<String> routeOpt = resolveRoute(subject).or(() -> Optional.ofNullable(defaultRoute));
-        if (routeOpt.isEmpty()) {
-            return reject(ctx, header, request, RejectReason.UNMAPPED, "no rule matched subject");
+        if (defaultRoute != null) {
+            return forward(ctx, header, request, defaultRoute);
         }
-        String route = routeOpt.get();
+        return reject(ctx, header, request, RejectReason.UNMAPPED, "no rule matched subject");
+    }
+
+    /**
+     * Pins the connection to {@code route} on the first forward; closes the connection fail-closed if
+     * a later forward resolves to a different route.
+     */
+    private CompletionStage<RouterResponse> forward(RouterContext ctx, RequestHeaderData header, ApiMessage request, String route) {
         if (pinnedRoute == null) {
             pinnedRoute = route;
         }
@@ -127,18 +148,19 @@ class SubjectRoutingHandler implements Router {
     }
 
     /**
-     * Evaluates {@code rules} in declaration order, returning the first match's route.
+     * Evaluates {@code rules} in declaration order, returning the first match's route. A rule needing
+     * only {@code client.id} can match before, or without, authentication.
      */
-    private Optional<String> resolveRoute(Subject subject) {
+    private Optional<String> resolveRoute(Subject subject, @Nullable String clientId) {
         for (SubjectRouter.CompiledRule rule : rules) {
-            if (matches(subject, rule)) {
+            if (matches(subject, clientId, rule)) {
                 return Optional.of(rule.route());
             }
         }
         return Optional.empty();
     }
 
-    private static boolean matches(Subject subject, SubjectRouter.CompiledRule rule) {
+    private static boolean matches(Subject subject, @Nullable String clientId, SubjectRouter.CompiledRule rule) {
         for (Entry<Class<? extends Principal>, String> required : rule.requiredPrincipals().entrySet()) {
             boolean satisfied = subject.uniquePrincipalOfType(required.getKey())
                     .map(Principal::name)
@@ -148,7 +170,8 @@ class SubjectRoutingHandler implements Router {
                 return false;
             }
         }
-        return true;
+        String requiredClientId = rule.requiredClientId();
+        return requiredClientId == null || requiredClientId.equals(clientId);
     }
 
     /**

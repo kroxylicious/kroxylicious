@@ -60,8 +60,8 @@ class SubjectRoutingHandlerTest {
     private static final RequestHeaderData HEADER = new RequestHeaderData();
     private static final MetadataRequestData REQUEST = new MetadataRequestData();
     private static final List<SubjectRouter.CompiledRule> RULES = List.of(
-            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "team-a"),
-            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=carol"), "team-b"));
+            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), null, "team-a"),
+            new SubjectRouter.CompiledRule(Map.of(User.class, "CN=carol"), null, "team-b"));
 
     @Mock
     private RouterContext ctx;
@@ -381,8 +381,8 @@ class SubjectRoutingHandlerTest {
     void firstMatchingRuleWinsWhenMultipleRulesCouldApply() {
         // Given: a broader alice-only rule declared before a narrower alice+other-principal rule
         List<SubjectRouter.CompiledRule> rules = List.of(
-                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "team-a"),
-                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "team-b"));
+                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), null, "team-a"),
+                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), null, "team-b"));
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
         VirtualNode node = mock(VirtualNode.class);
@@ -405,7 +405,7 @@ class SubjectRoutingHandlerTest {
     void ruleRequiringMultiplePrincipalTypesNeedsAllToMatch() {
         // Given
         List<SubjectRouter.CompiledRule> rules = List.of(
-                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice", OtherPrincipal.class, "x"), "team-a"));
+                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice", OtherPrincipal.class, "x"), null, "team-a"));
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
         when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
@@ -415,6 +415,110 @@ class SubjectRoutingHandlerTest {
 
         // Then
         verify(ctx, never()).anyNode(any());
+    }
+
+    @Test
+    void clientIdOnlyRuleMatchesAnonymousConnection() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setClientId("demo-app");
+        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(Map.of(), "demo-app", "team-a"));
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(node, header, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+
+        // When
+        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx).sendRequest(node, header, REQUEST);
+    }
+
+    @Test
+    void clientIdOnlyRuleSkipsApiVersionsFanOut() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setClientId("demo-app");
+        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(Map.of(), "demo-app", "team-a"));
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        ApiVersionsResponseData upstreamResponse = apiVersionsResponse((short) 0);
+        when(ctx.sendRequest(node, header, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+
+        // When
+        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.API_VERSIONS, (short) 3, header, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx, times(1)).sendRequest(any(), any(), any());
+        verify(ctx, never()).anyNode("team-b");
+    }
+
+    @Test
+    void ruleCombiningHasPrincipalsAndHasClientIdNeedsBothToMatch() {
+        // Given: subject satisfies hasPrincipals but pinned client.id does not match hasClientId
+        RequestHeaderData header = new RequestHeaderData().setClientId("other-app");
+        List<SubjectRouter.CompiledRule> rules = List.of(
+                new SubjectRouter.CompiledRule(Map.of(User.class, "CN=alice"), "alice-app", "team-a"));
+        Subject subject = new Subject(Set.of(new User("CN=alice")));
+        when(ctx.authenticatedSubject()).thenReturn(subject);
+        when(ctx.respondWithError(header, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+
+        // When
+        newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx).toCompletableFuture().join();
+
+        // Then
+        verify(ctx, never()).anyNode(any());
+    }
+
+    @Test
+    void defaultRouteStillNotAppliedToAnonymousSubjectWhenNoRuleMatches() {
+        // Given: a defaultRoute is configured, but the connection is anonymous and no hasClientId rule matches
+        RequestHeaderData header = new RequestHeaderData().setClientId("unrecognised-app");
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        RouterResponse errorResponse = mock(RouterResponse.class);
+        when(ctx.respondWithError(header, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+
+        // When
+        RouterResponse result = newHandler(RULES, "team-a").onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then
+        assertThat(result).isSameAs(errorResponse);
+        verify(ctx, never()).anyNode(any());
+    }
+
+    @Test
+    void clientIdIsPinnedFromFirstRequestAndNotReReadLater() {
+        // Given: the first request's client.id matches a rule and pins the route
+        RequestHeaderData firstHeader = new RequestHeaderData().setClientId("demo-app");
+        List<SubjectRouter.CompiledRule> rules = List.of(new SubjectRouter.CompiledRule(Map.of(), "demo-app", "team-a"));
+        when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
+        VirtualNode node = mock(VirtualNode.class);
+        when(ctx.anyNode("team-a")).thenReturn(node);
+        MetadataResponseData upstreamResponse = new MetadataResponseData();
+        when(ctx.sendRequest(eq(node), any(RequestHeaderData.class), eq(REQUEST))).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
+        RouterResponse routerResponse = mock(RouterResponse.class);
+        when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
+        SubjectRoutingHandler handler = newHandler(rules, null);
+        handler.onRequest(ApiKeys.METADATA, (short) 0, firstHeader, REQUEST, ctx).toCompletableFuture().join();
+
+        // When: a later request on the same connection carries a different client.id
+        RequestHeaderData laterHeader = new RequestHeaderData().setClientId("other-app");
+        RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, laterHeader, REQUEST, ctx)
+                .toCompletableFuture().join();
+
+        // Then: still routed via the pinned "demo-app" client.id, not rejected or re-evaluated against "other-app"
+        assertThat(result).isSameAs(routerResponse);
+        verify(ctx, times(2)).sendRequest(eq(node), any(RequestHeaderData.class), eq(REQUEST));
     }
 
     @io.kroxylicious.identity.SingularPrincipal

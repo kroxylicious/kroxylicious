@@ -210,8 +210,8 @@ class SubjectRouterIT {
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
 
         var ruleMatch = new SubjectRouter.RuleMatch(
-                List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(aliceCertGenerator)), "route-a"),
-                        new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(carolCertGenerator)), "route-b")),
+                List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(aliceCertGenerator)), null, "route-a"),
+                        new SubjectRouter.Rule(Map.of(User.class.getName(), principalNameOf(carolCertGenerator)), null, "route-b")),
                 null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
                 new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
@@ -323,7 +323,7 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), "CN=alice"), "route-a")), null);
+        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), "CN=alice"), null, "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
                 new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
@@ -396,7 +396,7 @@ class SubjectRouterIT {
         var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
         var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
-        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), username), "route-a")), null);
+        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(Map.of(User.class.getName(), username), null, "route-a")), null);
         var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
                 new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
         var vc = new VirtualClusterBuilder()
@@ -434,5 +434,39 @@ class SubjectRouterIT {
         assertThat(consumeFrom(clusterA, "t4-verify-a"))
                 .extracting(ConsumerRecord::key)
                 .contains("t4-sasl-key");
+    }
+
+    @Test
+    void hasClientIdRuleRoutesFullyAnonymousConnectionWithoutAuthentication() {
+        // Given: no mTLS, no SASL termination configured; routing decided purely by client.id
+        var clusterDefA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var ruleMatch = new SubjectRouter.RuleMatch(List.of(new SubjectRouter.Rule(null, "demo-app", "route-a")), null);
+        var routerDef = new RouterDefinition("subject-router", SubjectRouter.class.getName(),
+                new SubjectRouter.Config(ruleMatch), List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "subject-router"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                .build();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefA, clusterDefB)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        // When
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED)
+                .createDefaultKroxyliciousTester();
+                Producer<String, String> producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "demo-app"))) {
+            assertThat(producer.send(new ProducerRecord<>(TOPIC, "t6-demo-key", "t6-demo-value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
+        }
+
+        // Then: routed to cluster-a, as mapped for client.id "demo-app", with no identity established
+        assertThat(consumeFrom(clusterA, "t6-verify-a"))
+                .extracting(ConsumerRecord::key)
+                .contains("t6-demo-key");
     }
 }
