@@ -109,13 +109,13 @@ class ProxyProtocolContextTest {
 
         // When
         var publicContext = ProxyProtocolContext.from(msg).toClientProxyProtocolContext();
-        msg.release();
 
         // Then
         assertThat(publicContext).hasValueSatisfying(c -> {
             assertThat(c.sourceAddress()).isEqualTo(expectedSource);
             assertThat(c.destinationAddress()).isEqualTo(expectedDestination);
         });
+        msg.release();
     }
 
     @Test
@@ -128,13 +128,13 @@ class ProxyProtocolContextTest {
 
         // When
         var publicContext = ProxyProtocolContext.from(msg).toClientProxyProtocolContext();
-        msg.release();
 
         // Then
         assertThat(publicContext).hasValueSatisfying(c -> {
             assertThat(c.sourceAddress()).isEqualTo(expectedSource);
             assertThat(c.destinationAddress()).isEqualTo(expectedDestination);
         });
+        msg.release();
     }
 
     @Test
@@ -145,10 +145,10 @@ class ProxyProtocolContextTest {
 
         // When
         var publicContext = ProxyProtocolContext.from(msg).toClientProxyProtocolContext();
-        msg.release();
 
         // Then
         assertThat(publicContext).isEmpty();
+        msg.release();
     }
 
     @Test
@@ -159,10 +159,10 @@ class ProxyProtocolContextTest {
 
         // When
         var publicContext = ProxyProtocolContext.from(msg).toClientProxyProtocolContext();
-        msg.release();
 
         // Then
         assertThat(publicContext).isEmpty();
+        msg.release();
     }
 
     @Test
@@ -173,10 +173,10 @@ class ProxyProtocolContextTest {
 
         // When
         var publicContext = ProxyProtocolContext.from(msg).toClientProxyProtocolContext();
-        msg.release();
 
         // Then
         assertThat(publicContext).isEmpty();
+        msg.release();
     }
 
     @Test
@@ -187,10 +187,10 @@ class ProxyProtocolContextTest {
 
         // When
         var publicContext = ProxyProtocolContext.from(msg).toClientProxyProtocolContext();
-        msg.release();
 
         // Then
         assertThat(publicContext).isEmpty();
+        msg.release();
     }
 
     @Test

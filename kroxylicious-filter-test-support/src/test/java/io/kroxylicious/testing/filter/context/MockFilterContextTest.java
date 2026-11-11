@@ -6,7 +6,6 @@
 package io.kroxylicious.testing.filter.context;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.List;
@@ -30,7 +29,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
-import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
 import io.kroxylicious.testing.filter.context.MockFilterContext.ClientSaslGestureInvocation.AuthenticationFailure;
@@ -166,32 +164,6 @@ class MockFilterContextTest {
             assertThat(proxyProtocol.sourceAddress()).isSameAs(source);
             assertThat(proxyProtocol.destinationAddress()).isSameAs(destination);
         });
-        assertThat(context.clientAddress()).isSameAs(source);
-    }
-
-    @Test
-    void shouldReturnOverriddenClientProxyProtocolContext() {
-        // given
-        InetSocketAddress source = new InetSocketAddress("192.0.2.20", 54321);
-        InetSocketAddress destination = new InetSocketAddress("198.51.100.6", 9092);
-        ClientProxyProtocolContext proxyProtocolContext = new ClientProxyProtocolContext() {
-            @Override
-            public SocketAddress sourceAddress() {
-                return source;
-            }
-
-            @Override
-            public SocketAddress destinationAddress() {
-                return destination;
-            }
-        };
-        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE)
-                .withClientProxyProtocolContext(proxyProtocolContext)
-                .build();
-
-        // when / then
-        assertThat(context.clientProxyProtocolContext())
-                .hasValueSatisfying(ctx -> assertThat(ctx).isSameAs(proxyProtocolContext));
         assertThat(context.clientAddress()).isSameAs(source);
     }
 

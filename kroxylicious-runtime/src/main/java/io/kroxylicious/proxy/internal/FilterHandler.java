@@ -121,7 +121,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         this.inboundChannel = inboundChannel;
         this.clientConnectionStateMachine = clientConnectionStateMachine;
         this.ordinal = ordinal;
-        this.peerAddress = inboundChannel.remoteAddress();
+        this.peerAddress = Objects.requireNonNull(inboundChannel.remoteAddress(),
+                "expected inbound channel to be connected, but remoteAddress() was null");
     }
 
     @Override

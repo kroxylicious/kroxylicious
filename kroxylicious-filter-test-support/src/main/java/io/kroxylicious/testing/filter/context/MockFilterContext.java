@@ -314,17 +314,6 @@ public class MockFilterContext implements FilterContext {
         }
 
         /**
-         * Configures the PROXY protocol context reported by {@link FilterContext#clientProxyProtocolContext()}.
-         *
-         * @param clientProxyProtocolContext the PROXY protocol context, may be null
-         * @return this builder
-         */
-        public MockFilterContextBuilder withClientProxyProtocolContext(@Nullable ClientProxyProtocolContext clientProxyProtocolContext) {
-            this.clientProxyProtocolContext = clientProxyProtocolContext;
-            return this;
-        }
-
-        /**
          * Configures the context with a client SASL context with the given mechanism and authorization id.
          *
          * @param mechanismName the SASL mechanism name
