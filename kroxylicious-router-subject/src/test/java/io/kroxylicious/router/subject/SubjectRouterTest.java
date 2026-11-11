@@ -23,6 +23,8 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
@@ -39,10 +41,14 @@ class SubjectRouterTest {
     private final SubjectRouter router = new SubjectRouter();
 
     private static SubjectRouter.Rule rule(String principalName, String route) {
-        return new SubjectRouter.Rule(Map.of(User.class.getName(), principalName), route);
+        return new SubjectRouter.Rule(Map.of(User.class.getName(), principalName), null, route);
     }
 
-    private static SubjectRouter.Config config(List<SubjectRouter.Rule> rules, String defaultRoute) {
+    private static SubjectRouter.Rule clientIdRule(String clientId, String route) {
+        return new SubjectRouter.Rule(null, clientId, route);
+    }
+
+    private static SubjectRouter.Config config(List<SubjectRouter.Rule> rules, @Nullable String defaultRoute) {
         return new SubjectRouter.Config(new SubjectRouter.RuleMatch(rules, defaultRoute));
     }
 
@@ -58,6 +64,7 @@ class SubjectRouterTest {
         // Then
         assertThat(initialized.rules()).hasSize(2);
         assertThat(initialized.rules().get(0).requiredPrincipals()).containsExactly(Map.entry(User.class, "alice"));
+        assertThat(initialized.rules().get(0).requiredClientId()).isNull();
         assertThat(initialized.rules().get(0).route()).isEqualTo("team-a");
         assertThat(initialized.rules().get(1).requiredPrincipals()).containsExactly(Map.entry(User.class, "carol"));
         assertThat(initialized.rules().get(1).route()).isEqualTo("team-b");
@@ -69,7 +76,7 @@ class SubjectRouterTest {
     void initializeSupportsRuleRequiringMultiplePrincipalTypes() {
         // Given
         when(context.routeNames()).thenReturn(Set.of("team-a"));
-        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(User.class.getName(), "alice", OtherSingularPrincipal.class.getName(), "x"), "team-a");
+        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(User.class.getName(), "alice", OtherSingularPrincipal.class.getName(), "x"), null, "team-a");
         SubjectRouter.Config config = config(List.of(rule), null);
 
         // When
@@ -81,16 +88,50 @@ class SubjectRouterTest {
     }
 
     @Test
-    void initializeThrowsWhenRuleHasNoHasPrincipals() {
+    void initializeSupportsClientIdOnlyRule() {
         // Given
         when(context.routeNames()).thenReturn(Set.of("team-a"));
-        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(), "team-a");
+        SubjectRouter.Config config = config(List.of(clientIdRule("demo-app", "team-a")), null);
+
+        // When
+        SubjectRouter.Initialized initialized = router.initialize(context, config);
+
+        // Then
+        assertThat(initialized.rules()).singleElement().satisfies(compiled -> {
+            assertThat(compiled.requiredPrincipals()).isEmpty();
+            assertThat(compiled.requiredClientId()).isEqualTo("demo-app");
+            assertThat(compiled.route()).isEqualTo("team-a");
+        });
+    }
+
+    @Test
+    void initializeSupportsRuleCombiningHasPrincipalsAndHasClientId() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a"));
+        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(User.class.getName(), "alice"), "alice-app", "team-a");
+        SubjectRouter.Config config = config(List.of(rule), null);
+
+        // When
+        SubjectRouter.Initialized initialized = router.initialize(context, config);
+
+        // Then
+        assertThat(initialized.rules()).singleElement().satisfies(compiled -> {
+            assertThat(compiled.requiredPrincipals()).containsExactly(Map.entry(User.class, "alice"));
+            assertThat(compiled.requiredClientId()).isEqualTo("alice-app");
+        });
+    }
+
+    @Test
+    void initializeThrowsWhenRuleHasNeitherHasPrincipalsNorHasClientId() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a"));
+        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(), null, "team-a");
         SubjectRouter.Config config = config(List.of(rule), null);
 
         // When / Then
         assertThatThrownBy(() -> router.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
-                .hasMessageContaining("needs a non-empty hasPrincipals");
+                .hasMessageContaining("needs at least one of hasPrincipals or hasClientId");
     }
 
     @Test
@@ -106,10 +147,22 @@ class SubjectRouterTest {
     }
 
     @Test
+    void initializeThrowsWhenTwoClientIdOnlyRulesHaveIdenticalPredicates() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a", "team-b"));
+        SubjectRouter.Config config = config(List.of(clientIdRule("demo-app", "team-a"), clientIdRule("demo-app", "team-b")), null);
+
+        // When / Then
+        assertThatThrownBy(() -> router.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("more than one rule");
+    }
+
+    @Test
     void initializeThrowsWhenTypeIsNotSingular() {
         // Given
         when(context.routeNames()).thenReturn(Set.of("team-a"));
-        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(NonSingularPrincipal.class.getName(), "alice"), "team-a");
+        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(NonSingularPrincipal.class.getName(), "alice"), null, "team-a");
         SubjectRouter.Config config = config(List.of(rule), null);
 
         // When / Then
@@ -122,7 +175,7 @@ class SubjectRouterTest {
     void initializeThrowsWhenTypeIsNotAPrincipal() {
         // Given
         when(context.routeNames()).thenReturn(Set.of("team-a"));
-        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(String.class.getName(), "alice"), "team-a");
+        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of(String.class.getName(), "alice"), null, "team-a");
         SubjectRouter.Config config = config(List.of(rule), null);
 
         // When / Then
@@ -135,7 +188,7 @@ class SubjectRouterTest {
     void initializeThrowsWhenTypeIsUnknown() {
         // Given
         when(context.routeNames()).thenReturn(Set.of("team-a"));
-        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of("not.a.Real.Class", "alice"), "team-a");
+        SubjectRouter.Rule rule = new SubjectRouter.Rule(Map.of("not.a.Real.Class", "alice"), null, "team-a");
         SubjectRouter.Config config = config(List.of(rule), null);
 
         // When / Then
