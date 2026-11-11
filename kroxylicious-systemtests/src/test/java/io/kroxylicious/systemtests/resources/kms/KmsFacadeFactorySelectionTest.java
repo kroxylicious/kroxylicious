@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.systemtests.resources.kms.aws.KubeAwsKmsCloudTestKmsFacadeFactory;
 import io.kroxylicious.systemtests.resources.kms.aws.KubeLocalStackTestKmsFacadeFactory;
+import io.kroxylicious.systemtests.resources.kms.azure.KubeAzureKeyVaultCloudTestKmsFacadeFactory;
 import io.kroxylicious.systemtests.resources.kms.azure.KubeLowKeyVaultTestKmsFacadeFactory;
 import io.kroxylicious.systemtests.resources.kms.fortanix.KubeFortanixTestKmsFacadeFactory;
 import io.kroxylicious.systemtests.resources.kms.vault.KubeVaultKubernetesAuthTestKmsFacadeFactory;
@@ -27,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class KmsFacadeFactorySelectionTest {
 
     @Test
-    void staticCredentialFactoriesAreTheFiveInClusterKubeFactories() {
+    void staticCredentialFactoriesAreTheSixInClusterKubeFactories() {
         // RecordEncryptionST selects every StaticCredentialAuthKmsFacadeFactory.
         assertThat(TestKmsFacadeFactory.getTestKmsFacadeFactories()
                 .filter(StaticCredentialAuthKmsFacadeFactory.class::isInstance))
@@ -37,7 +38,8 @@ class KmsFacadeFactorySelectionTest {
                         KubeLocalStackTestKmsFacadeFactory.class,
                         KubeAwsKmsCloudTestKmsFacadeFactory.class,
                         KubeFortanixTestKmsFacadeFactory.class,
-                        KubeLowKeyVaultTestKmsFacadeFactory.class);
+                        KubeLowKeyVaultTestKmsFacadeFactory.class,
+                        KubeAzureKeyVaultCloudTestKmsFacadeFactory.class);
     }
 
     @Test
