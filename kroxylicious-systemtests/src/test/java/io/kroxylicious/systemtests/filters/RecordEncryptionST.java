@@ -73,14 +73,7 @@ class RecordEncryptionST extends AbstractSystemTests {
         return TestKmsFacadeFactory.getTestKmsFacadeFactories()
                 .filter(StaticCredentialAuthKmsFacadeFactory.class::isInstance)
                 .map(TestKmsFacadeFactory::build)
-                .filter(facade -> {
-                    boolean available = facade.isAvailable();
-                    LOGGER.atInfo()
-                            .addKeyValue("facade", facade.getClass().getSimpleName())
-                            .addKeyValue("available", available)
-                            .log(available ? "KMS facade selected for this run" : "KMS facade skipped, not available");
-                    return available;
-                })
+                .filter(TestKmsFacade::isAvailable)
                 .peek(TestKmsFacade::start);
     }
 

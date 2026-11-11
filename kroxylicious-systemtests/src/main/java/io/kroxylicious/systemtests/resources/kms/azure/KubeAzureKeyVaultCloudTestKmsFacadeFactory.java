@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.kms.azure;
 
+import io.kroxylicious.systemtests.resources.kms.StaticCredentialAuthKmsFacadeFactory;
 import io.kroxylicious.testing.kms.azure.AbstractAzureKeyVaultKmsTestKmsFacadeFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -13,7 +14,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * Factory for {@link KubeAzureKeyVaultCloudTestKmsFacade}s.
  */
-public class KubeAzureKeyVaultCloudTestKmsFacadeFactory extends AbstractAzureKeyVaultKmsTestKmsFacadeFactory {
+public class KubeAzureKeyVaultCloudTestKmsFacadeFactory extends AbstractAzureKeyVaultKmsTestKmsFacadeFactory
+        implements StaticCredentialAuthKmsFacadeFactory {
 
     /**
      * {@inheritDoc}
