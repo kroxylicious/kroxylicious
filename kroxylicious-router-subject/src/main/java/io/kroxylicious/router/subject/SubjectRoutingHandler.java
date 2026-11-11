@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +27,6 @@ import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.common.protocol.Errors;
-import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
@@ -161,11 +159,9 @@ class SubjectRoutingHandler implements Router {
     }
 
     private static boolean matches(Subject subject, @Nullable String clientId, SubjectRouter.CompiledRule rule) {
-        for (Entry<Class<? extends Principal>, String> required : rule.requiredPrincipals().entrySet()) {
-            boolean satisfied = subject.uniquePrincipalOfType(required.getKey())
-                    .map(Principal::name)
-                    .filter(required.getValue()::equals)
-                    .isPresent();
+        for (SubjectRouter.CompiledPrincipalRequirement required : rule.requiredPrincipals()) {
+            boolean satisfied = subject.allPrincipalsOfType(required.type()).stream()
+                    .anyMatch(p -> required.name().equals(p.name()));
             if (!satisfied) {
                 return false;
             }

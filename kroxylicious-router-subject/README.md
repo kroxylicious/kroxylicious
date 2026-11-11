@@ -29,15 +29,24 @@ routerDefinitions:
         defaultRoute: team-a         # optional; authenticated-but-unmapped subjects route here
         rules:
           - hasPrincipals:
-              io.kroxylicious.proxy.authentication.User: "CN=alice"
+              - withType: io.kroxylicious.proxy.authentication.User
+                withName: "CN=alice"
             useRoute: team-a
           - hasPrincipals:
-              io.kroxylicious.proxy.authentication.User: "CN=bob"
+              - withType: io.kroxylicious.proxy.authentication.User
+                withName: "CN=bob"
             useRoute: team-a
           - hasPrincipals:
-              io.kroxylicious.proxy.authentication.User: "CN=carol"
+              - withType: io.kroxylicious.proxy.authentication.User
+                withName: "CN=carol"
             useRoute: team-b
-          - hasClientId: demo-app    # no principal required; matches before/without authentication
+          - hasPrincipals:
+              - withType: com.example.Role
+                withName: developer
+              - withType: com.example.Role
+                withName: team-a       # two pairs of the same type: subject must carry both roles
+            useRoute: team-a
+          - hasClientId: demo-app      # no principal required; matches before/without authentication
             useRoute: team-a
     routes:
       - name: team-a
@@ -52,10 +61,10 @@ routerDefinitions:
 
 | Field | Type | Description |
 |---|---|---|
-| `ruleMatch.rules` | ordered list of `{hasPrincipals, hasClientId, useRoute}` | `hasPrincipals` maps a fully-qualified `Principal` implementation name (annotated `@Unique` or `@SingularPrincipal`; the factory rejects a non-singular type at startup) to a required principal name; the rule matches only if the subject carries every listed principal, with the exact name given for each. `hasClientId` is a required value for the connection's pinned `client.id`. A rule needs at least one of `hasPrincipals`/`hasClientId`; when both are given, the subject must satisfy `hasPrincipals` *and* the pinned `client.id` must equal `hasClientId`. `useRoute` names a route declared in the router's `routes`. The first matching rule wins. Startup fails if a rule has neither predicate, if two rules have identical predicates, or if a `useRoute` is not declared. |
+| `ruleMatch.rules` | ordered list of `{hasPrincipals, hasClientId, useRoute}` | `hasPrincipals` is a list of `{withType, withName}` pairs, `withType` a fully-qualified `Principal` implementation name and `withName` a required principal name; the rule matches only if the subject carries, for every listed pair, a principal of that type with that name. It's a list rather than a map keyed by type because a YAML mapping can't have two keys the same: expressing "both role `developer` and role `team-a`" needs two pairs with the same `withType`. The check is a membership test (`Subject.allPrincipalsOfType(withType)`), so it works the same whether a subject can carry at most one principal of that type (like `User`) or several (like a role/group type). `hasClientId` is a required value for the connection's pinned `client.id`. A rule needs at least one of `hasPrincipals`/`hasClientId`; when both are given, the subject must satisfy every `hasPrincipals` pair *and* the pinned `client.id` must equal `hasClientId`. `useRoute` names a route declared in the router's `routes`. The first matching rule wins. Startup fails if a rule has neither predicate, if two rules have identical predicates (`hasPrincipals` compared order-insensitively), or if a `useRoute` is not declared. |
 | `ruleMatch.defaultRoute` | string, optional | Route for an authenticated subject whose principals and `client.id` match no rule. Never applies to an anonymous subject — see [How it routes](#how-it-routes). If omitted, such a subject is rejected fail-closed. |
 
-A rule's principal match is `subject.uniquePrincipalOfType(type).map(Principal::name)` — for mTLS against the default `User` type this is the client certificate's subject DN as rendered by `X500Principal.getName(X500Principal.RFC1779, ...)` (with `emailAddress` mapped from its OID); for SASL termination it is the authenticated username.
+A `hasPrincipals` pair is checked via `subject.allPrincipalsOfType(withType).stream().anyMatch(p -> p.name().equals(withName))` — for mTLS against the default `User` type this is the client certificate's subject DN as rendered by `X500Principal.getName(X500Principal.RFC1779, ...)` (with `emailAddress` mapped from its OID); for SASL termination it is the authenticated username.
 
 ### `client.id` matching
 

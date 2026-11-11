@@ -9,7 +9,6 @@ package io.kroxylicious.router.subject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -17,7 +16,6 @@ import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.identity.SingularPrincipals;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -63,13 +61,13 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     /**
      * A single routing rule. Needs at least one of {@code hasPrincipals} or {@code hasClientId}.
      *
-     * @param hasPrincipals map of fully-qualified {@link Principal} implementation name to required
-     *                      principal name; the rule matches only if the subject carries a principal of
-     *                      every listed type, with the exact name given for each. Each referenced type
-     *                      must be annotated {@code @Unique} or {@code @SingularPrincipal} (directly, or
-     *                      via meta-annotation); the factory checks this reflectively in
-     *                      {@code initialize()} and refuses to start otherwise. May be {@code null} or
-     *                      empty if {@code hasClientId} is given.
+     * @param hasPrincipals list of {@code {withType, withName}} pairs; the rule matches only if the
+     *                      subject carries, for every listed pair, a principal of that type with that
+     *                      name (checked via {@code Subject.allPrincipalsOfType(withType)}, a membership
+     *                      check rather than a uniqueness check). A list rather than a map keyed by type,
+     *                      since a rule may need two pairs with the same type and different names (for
+     *                      example two {@code Role} principals). May be {@code null} or empty if
+     *                      {@code hasClientId} is given.
      * @param hasClientId required value for the connection's pinned {@code client.id}; unlike
      *                    {@code hasPrincipals}, this can match before, or without, authentication,
      *                    since {@code client.id} is read from the request header rather than the
@@ -78,26 +76,42 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
      * @param useRoute the route name, declared in the router's {@code routes} block, to forward to when
      *                 the rule matches
      */
-    public record Rule(@Nullable Map<String, String> hasPrincipals,
+    public record Rule(@Nullable List<PrincipalRequirement> hasPrincipals,
                        @Nullable String hasClientId,
                        @JsonProperty(required = true) String useRoute) {}
 
     /**
+     * A single {@code hasPrincipals} entry: the subject must carry a principal of {@code withType} named
+     * {@code withName}.
+     *
+     * @param withType fully-qualified {@link Principal} implementation name
+     * @param withName required principal name
+     */
+    public record PrincipalRequirement(@JsonProperty(required = true) String withType, @JsonProperty(required = true) String withName) {}
+
+    /**
+     * A {@link PrincipalRequirement} with {@code withType} resolved to a {@link Principal} class.
+     *
+     * @param type the principal type
+     * @param name the required principal name
+     */
+    public record CompiledPrincipalRequirement(Class<? extends Principal> type, String name) {}
+
+    /**
      * A {@link Rule} with its {@code hasPrincipals} types resolved to {@link Principal} classes.
      *
-     * @param requiredPrincipals principal type to required principal name; the subject must carry a
-     *                           principal of every listed type, with the exact name given, for the rule
-     *                           to match
+     * @param requiredPrincipals every pair the subject must satisfy for the rule to match
      * @param requiredClientId required value for the connection's pinned {@code client.id}, or
      *                         {@code null} if the rule does not match on it
      * @param route the route name to forward to when the rule matches
      */
-    public record CompiledRule(Map<Class<? extends Principal>, String> requiredPrincipals, @Nullable String requiredClientId, String route) {}
+    public record CompiledRule(List<CompiledPrincipalRequirement> requiredPrincipals, @Nullable String requiredClientId, String route) {}
 
     /**
-     * Key used to detect two rules with identical predicates at startup.
+     * Key used to detect two rules with identical predicates at startup. {@code hasPrincipals} is a
+     * {@link Set} here, not a {@link List}: predicate identity is order-insensitive.
      */
-    private record PredicateKey(Map<String, String> hasPrincipals, @Nullable String hasClientId) {}
+    private record PredicateKey(Set<PrincipalRequirement> hasPrincipals, @Nullable String hasClientId) {}
 
     /**
      * Immutable, thread-safe: shared across all connections of a virtual cluster.
@@ -117,20 +131,20 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
         Set<PredicateKey> seenPredicates = new HashSet<>();
         List<CompiledRule> compiledRules = new ArrayList<>();
         for (Rule rule : ruleMatch.rules()) {
-            Map<String, String> hasPrincipals = rule.hasPrincipals() == null ? Map.of() : rule.hasPrincipals();
+            List<PrincipalRequirement> hasPrincipals = rule.hasPrincipals() == null ? List.of() : rule.hasPrincipals();
             if (hasPrincipals.isEmpty() && rule.hasClientId() == null) {
                 throw new PluginConfigurationException("ruleMatch.rules entry needs at least one of hasPrincipals or hasClientId");
             }
-            if (!seenPredicates.add(new PredicateKey(hasPrincipals, rule.hasClientId()))) {
+            if (!seenPredicates.add(new PredicateKey(Set.copyOf(hasPrincipals), rule.hasClientId()))) {
                 throw new PluginConfigurationException(
                         "ruleMatch.rules contains more than one rule with hasPrincipals " + hasPrincipals + " and hasClientId " + rule.hasClientId());
             }
-            Map<Class<? extends Principal>, String> requiredPrincipals = new LinkedHashMap<>();
-            for (Map.Entry<String, String> entry : hasPrincipals.entrySet()) {
-                Class<? extends Principal> type = resolvedTypes.computeIfAbsent(entry.getKey(), SubjectRouter::resolvePrincipalType);
-                requiredPrincipals.put(type, entry.getValue());
+            List<CompiledPrincipalRequirement> requiredPrincipals = new ArrayList<>();
+            for (PrincipalRequirement requirement : hasPrincipals) {
+                Class<? extends Principal> type = resolvedTypes.computeIfAbsent(requirement.withType(), SubjectRouter::resolvePrincipalType);
+                requiredPrincipals.add(new CompiledPrincipalRequirement(type, requirement.withName()));
             }
-            compiledRules.add(new CompiledRule(Map.copyOf(requiredPrincipals), rule.hasClientId(), rule.useRoute()));
+            compiledRules.add(new CompiledRule(List.copyOf(requiredPrincipals), rule.hasClientId(), rule.useRoute()));
         }
 
         Set<String> routeNames = context.routeNames();
@@ -165,15 +179,11 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
             type = Class.forName(typeName);
         }
         catch (ClassNotFoundException e) {
-            throw new PluginConfigurationException("ruleMatch hasPrincipals type '" + typeName + "' not found", e);
+            throw new PluginConfigurationException("ruleMatch hasPrincipals withType '" + typeName + "' not found", e);
         }
         if (!Principal.class.isAssignableFrom(type)) {
-            throw new PluginConfigurationException("ruleMatch hasPrincipals type '" + typeName + "' does not implement " + Principal.class.getName());
+            throw new PluginConfigurationException("ruleMatch hasPrincipals withType '" + typeName + "' does not implement " + Principal.class.getName());
         }
-        Class<? extends Principal> principalType = (Class<? extends Principal>) type;
-        if (!SingularPrincipals.isSingular(principalType)) {
-            throw new PluginConfigurationException("ruleMatch hasPrincipals type " + principalType.getName() + " is not a singular principal type");
-        }
-        return principalType;
+        return (Class<? extends Principal>) type;
     }
 }
