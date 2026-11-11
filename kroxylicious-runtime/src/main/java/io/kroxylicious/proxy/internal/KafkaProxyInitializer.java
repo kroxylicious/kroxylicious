@@ -80,7 +80,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     /** Pipeline name of the idle-state handler applied before the session has authenticated. */
     public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
-    private final boolean tls;
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
@@ -96,7 +95,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     /**
      * Creates an initializer for client connections accepted on a proxy listening port.
      * @param pfr registry used to instantiate plugins referenced by the configuration
-     * @param tls whether the listening port serves TLS connections
      * @param bindingResolver resolver mapping the accepted endpoint (and SNI hostname, if any) to an {@link EndpointBinding}
      * @param endpointReconciler reconciler notified of upstream cluster topology changes
      * @param apiVersionsService service used to intersect API versions with those supported by the proxy
@@ -105,7 +103,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
      */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(PluginFactoryRegistry pfr,
-                                 boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  ApiVersionsServiceImpl apiVersionsService,
@@ -113,7 +110,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  VirtualClusterRegistry virtualClusterRegistry) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
-        this.tls = tls;
         this.bindingResolver = bindingResolver;
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
@@ -143,7 +139,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             ch.pipeline().addLast("ProxyProtocolMessageHandler", new ProxyProtocolMessageHandler(kafkaSession));
         }
 
-        if (tls) {
+        if (bindingCtx.tls()) {
             initTlsChannel(ch, kafkaSession);
         }
         else {
