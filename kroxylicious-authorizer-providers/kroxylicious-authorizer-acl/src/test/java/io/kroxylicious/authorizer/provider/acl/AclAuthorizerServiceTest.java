@@ -675,7 +675,7 @@ class AclAuthorizerServiceTest {
     }
 
     @Test
-    void blockCommentsAreComments() {
+    void shouldAcceptBlockComments() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 /* Rules for team A */
                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
