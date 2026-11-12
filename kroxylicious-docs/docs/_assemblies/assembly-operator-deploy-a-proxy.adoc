@@ -30,6 +30,10 @@ include::../_modules/configuring/con-kafkaproxy.adoc[leveloffset=+2]
 
 include::../_modules/configuring/con-kafkaproxyingress-overview.adoc[leveloffset=+2]
 
+include::../_modules/configuring/con-kafkaproxyingress-loadbalancer-proxy-protocol.adoc[leveloffset=+3]
+
+include::../_modules/configuring/con-kafkaproxyingress-loadbalancer-service-settings.adoc[leveloffset=+3]
+
 include::../_modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+2]
 
 include::../_modules/configuring/con-kafkaservice-by-strimzi-kafka-ref.adoc[leveloffset=+2]
