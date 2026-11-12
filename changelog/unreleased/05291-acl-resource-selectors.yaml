@@ -1,0 +1,4 @@
+title: "feat(authorizer-acl): add AclAuthorizer.resourceSelectors to read the resource name selectors of the rules that apply to a subject and operation"
+type: added
+issues:
+  - 5291
