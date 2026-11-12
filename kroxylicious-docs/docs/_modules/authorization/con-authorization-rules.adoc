@@ -134,6 +134,18 @@ The following User predicates are supported:
 
 |===
 
+== Anonymous clients
+
+A client that has not authenticated has no principals, so no user predicate matches it.
+To write a rule for such clients, use `anonymous User` in place of `User with <user predicate>`:
+
+[source]
+----
+allow anonymous User to READ Topic with name like "public-*";
+----
+
+Rules for anonymous clients apply only to clients that have not authenticated, and other rules never apply to them.
+
 == Resource Predicates
 
 The following resource predicates are supported:
