@@ -26,9 +26,12 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
 
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
@@ -203,13 +206,20 @@ class ServerConnectionStateMachineTest {
     private ServerConnectionStateMachine createConnectableScsm(ClientConnectionStateMachine ccsm,
                                                                VirtualClusterModel virtualCluster,
                                                                EmbeddedChannel[] outboundHolder) {
+        return createConnectableScsm(ccsm, virtualCluster, outboundHolder, noTlsClusterModel());
+    }
+
+    private ServerConnectionStateMachine createConnectableScsm(ClientConnectionStateMachine ccsm,
+                                                               VirtualClusterModel virtualCluster,
+                                                               EmbeddedChannel[] outboundHolder,
+                                                               UpstreamClusterModel upstreamClusterModel) {
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
         when(virtualCluster.socketFrameMaxSizeBytes()).thenReturn(
                 io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         return new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), noTlsClusterModel()) {
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), upstreamClusterModel) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
                                          Channel inboundChannel) {
@@ -884,6 +894,27 @@ class ServerConnectionStateMachineTest {
         var scsm = createScsm();
 
         assertThat(scsm.isUpstreamTls()).isFalse();
+    }
+
+    @Test
+    void connectShouldApplyNamedGroupsToUpstreamSslEngine() {
+        // Given
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        var namedGroups = new AllowDeny<>(List.of("x25519", "secp256r1"), null);
+        var tls = new Tls(null, null, null, null, null, namedGroups);
+        var clusterModel = UpstreamClusterModel.build(new TargetCluster("broker:9092", Optional.of(tls)), null);
+        var scsm = createConnectableScsm(ccsm, virtualCluster, outboundHolder, clusterModel);
+
+        // When
+        scsm.connect(new EmbeddedChannel());
+
+        // Then
+        var sslHandler = (SslHandler) outboundHolder[0].pipeline().get("ssl");
+        assertThat(sslHandler).isNotNull();
+        assertThat(sslHandler.engine().getSSLParameters().getNamedGroups())
+                .containsExactly("x25519", "secp256r1");
     }
 
     // === toString tests ===

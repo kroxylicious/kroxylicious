@@ -230,13 +230,13 @@ where:
 ** `denied` lists the disallowed cipher suites.
 
 
-You can restrict the TLS named groups by specifying either an allow list of named groups to be enabled, in preference
-order, or a deny list of named groups to be disallowed from the platform's default.
-A deny list without an allow list removes the specified groups from the platform's default named groups.
+You can configure the TLS named groups.
+An `allowed` list enumerates the named groups that you can use, in order of preference.
+Alternatively, a `denied` list removes named groups from the platform's default list.
 As these defaults are not exposed by every platform provider or version, a configuration is rejected at startup where
-the defaults are unavailable. If this happens then an allow list will need to be specified.
-If both an allow and a deny list are specified, the resulting list of named groups includes only those groups from the
-allow list that are not in the deny list.
+the defaults are unavailable. If this happens then an `allowed` list will need to be specified.
+If both an `allowed` and a `denied` list are specified, the resulting list of named groups includes only those groups from the
+`allowed` list that are not in the `denied` list.
 If neither list is specified, the virtual cluster uses the default named groups (and preference order) provided by the platform.
 
 When the client connects, it negotiates the most preferred mutually acceptable named group with the virtual cluster.

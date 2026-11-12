@@ -62,6 +62,8 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_DEF_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_CLUSTER_TARGET;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.clusterDefinition;
@@ -453,20 +455,18 @@ class TlsIT extends AbstractTlsIT {
         }
     }
 
-    // Note : when https://github.com/kroxylicious/kroxylicious/pull/4939 is merged I will update the tests to use the custom SSL handshake logic in that PR to test
-    // the negotiated KEM rather than just the connection status
     @Test
     void downstream_SuccessfulTlsWithNamedGroupsAllowed() {
-        // the gateway allows a single named group that a default client offers, so a real key exchange completes
+        // the gateway allows a single named group
         AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1"), null);
         var builder = downstreamTlsBuilder(cluster, tls -> tls.withNamedGroups(namedGroups));
 
-        try (var tester = kroxyliciousTester(builder);
-                var admin = tester.admin("demo",
-                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
-            performClusterOperation(admin);
+        try (var ignored = kroxyliciousTester(builder);
+                // the client offers only the allowed group, so the handshake can only complete by negotiating it
+                var client = new KafkaClient(PROXY_ADDRESS.host(), PROXY_ADDRESS.port(), clientSslContextOffering("secp256r1"))) {
+            assertThat(client.get(apiVersionsRequest())).succeedsWithin(Duration.ofSeconds(10));
+            // the captured server certificate chain confirms the handshake completed, so secp256r1 was the negotiated named group
+            assertThat(client.getServerCertificateChain()).isNotEmpty();
         }
     }
 
@@ -485,16 +485,16 @@ class TlsIT extends AbstractTlsIT {
 
     @Test
     void downstream_SuccessfulTlsWithNamedGroupsDenied() {
-        // the gateway allows two groups but denies one, leaving secp384r1 usable, which a default client offers
+        // the gateway allows two groups but denies one, leaving secp384r1 usable
         AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1", "secp384r1"), Set.of("secp256r1"));
         var builder = downstreamTlsBuilder(cluster, tls -> tls.withNamedGroups(namedGroups));
 
-        try (var tester = kroxyliciousTester(builder);
-                var admin = tester.admin("demo",
-                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
-            performClusterOperation(admin);
+        try (var ignored = kroxyliciousTester(builder);
+                // the client offers only the surviving (non-denied) group, so the handshake can only complete by negotiating it
+                var client = new KafkaClient(PROXY_ADDRESS.host(), PROXY_ADDRESS.port(), clientSslContextOffering("secp384r1"))) {
+            assertThat(client.get(apiVersionsRequest())).succeedsWithin(Duration.ofSeconds(10));
+            // the captured server certificate chain confirms the handshake completed, so secp384r1 was the negotiated named group
+            assertThat(client.getServerCertificateChain()).isNotEmpty();
         }
     }
 
@@ -513,36 +513,9 @@ class TlsIT extends AbstractTlsIT {
 
     @Test
     void upstream_SuccessfulTlsWithProtocolsAllowed() {
-        var bootstrapServers = tlsCluster.getBootstrapServers();
-        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
-        assertThat(brokerTruststore).isNotEmpty();
-        assertThat(brokerTruststorePassword).isNotEmpty();
-
-        var brokerTrustPasswordProvider = constructPasswordProvider(InlinePassword.class, brokerTruststorePassword);
-
         // Protocol we want to use
         AllowDeny<String> protocols = new AllowDeny<>(List.of("TLSv1.2"), null);
-
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addNewClusterDefinition()
-                    .withName(DEFAULT_CLUSTER_DEF_NAME)
-                    .withBootstrapServers(bootstrapServers)
-                    .withNewTls()
-                        .withNewTrustStoreTrust()
-                            .withStoreFile(brokerTruststore)
-                            .withStorePasswordProvider(brokerTrustPasswordProvider)
-                        .endTrustStoreTrust()
-                        .withProtocols(protocols)
-                    .endTls()
-                .endClusterDefinition()
-                .addNewVirtualCluster()
-                    .withName("demo")
-                    .withTarget(DEFAULT_CLUSTER_TARGET)
-                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                .endVirtualCluster();
-        // @formatter:on
+        var builder = upstreamTlsBuilder(null, null, protocols);
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
@@ -553,36 +526,9 @@ class TlsIT extends AbstractTlsIT {
 
     @Test
     void upstream_UnsuccessfulTlsWithProtocolsAllowed() {
-        var bootstrapServers = tlsCluster.getBootstrapServers();
-        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
-        assertThat(brokerTruststore).isNotEmpty();
-        assertThat(brokerTruststorePassword).isNotEmpty();
-
-        var brokerTrustPasswordProvider = constructPasswordProvider(InlinePassword.class, brokerTruststorePassword);
-
         // Protocol we want to use
         AllowDeny<String> protocols = new AllowDeny<>(List.of("TLSv1.1"), null);
-
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addNewClusterDefinition()
-                    .withName(DEFAULT_CLUSTER_DEF_NAME)
-                    .withBootstrapServers(bootstrapServers)
-                    .withNewTls()
-                        .withNewTrustStoreTrust()
-                            .withStoreFile(brokerTruststore)
-                            .withStorePasswordProvider(brokerTrustPasswordProvider)
-                        .endTrustStoreTrust()
-                        .withProtocols(protocols)
-                    .endTls()
-                .endClusterDefinition()
-                .addNewVirtualCluster()
-                    .withName("demo")
-                    .withTarget(DEFAULT_CLUSTER_TARGET)
-                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                .endVirtualCluster();
-        // @formatter:on
+        var builder = upstreamTlsBuilder(null, null, protocols);
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
@@ -677,36 +623,9 @@ class TlsIT extends AbstractTlsIT {
 
     @Test
     void upstream_SuccessfulTlsWithCipherSuitesAllowed() {
-        var bootstrapServers = tlsCluster.getBootstrapServers();
-        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
-        assertThat(brokerTruststore).isNotEmpty();
-        assertThat(brokerTruststorePassword).isNotEmpty();
-
-        var brokerTrustPasswordProvider = constructPasswordProvider(InlinePassword.class, brokerTruststorePassword);
-
         // Cipher we want to use
         AllowDeny<String> cipherSuites = new AllowDeny<>(List.of("TLS_CHACHA20_POLY1305_SHA256"), null);
-
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addNewClusterDefinition()
-                    .withName(DEFAULT_CLUSTER_DEF_NAME)
-                    .withBootstrapServers(bootstrapServers)
-                    .withNewTls()
-                        .withNewTrustStoreTrust()
-                            .withStoreFile(brokerTruststore)
-                            .withStorePasswordProvider(brokerTrustPasswordProvider)
-                        .endTrustStoreTrust()
-                        .withCipherSuites(cipherSuites)
-                    .endTls()
-                .endClusterDefinition()
-                .addNewVirtualCluster()
-                    .withName("demo")
-                    .withTarget(DEFAULT_CLUSTER_TARGET)
-                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                .endVirtualCluster();
-        // @formatter:on
+        var builder = upstreamTlsBuilder(cipherSuites, null, null);
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
@@ -717,40 +636,62 @@ class TlsIT extends AbstractTlsIT {
 
     @Test
     void upstream_UnsuccessfulTlsWithCipherSuitesAllowed() {
-        var bootstrapServers = tlsCluster.getBootstrapServers();
-        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
-        assertThat(brokerTruststore).isNotEmpty();
-        assertThat(brokerTruststorePassword).isNotEmpty();
-
-        var brokerTrustPasswordProvider = constructPasswordProvider(InlinePassword.class, brokerTruststorePassword);
-
         // Cipher we want to use upstream
         AllowDeny<String> upstreamCipherSuites = new AllowDeny<>(List.of("TLS_AES_128_WRONG_CIPHER"), null);
-
-        // @formatter:off
-        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addNewClusterDefinition()
-                    .withName(DEFAULT_CLUSTER_DEF_NAME)
-                    .withBootstrapServers(bootstrapServers)
-                    .withNewTls()
-                        .withNewTrustStoreTrust()
-                            .withStoreFile(brokerTruststore)
-                            .withStorePasswordProvider(brokerTrustPasswordProvider)
-                        .endTrustStoreTrust()
-                        .withCipherSuites(upstreamCipherSuites)
-                    .endTls()
-                .endClusterDefinition()
-                .addNewVirtualCluster()
-                    .withName("demo")
-                    .withTarget(DEFAULT_CLUSTER_TARGET)
-                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
-                .endVirtualCluster();
-        // @formatter:on
+        var builder = upstreamTlsBuilder(upstreamCipherSuites, null, null);
 
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
             // Upstream trying to use invalid cipher
+            performClusterOperationExpectingNodeAssignmentTimeout(admin);
+        }
+    }
+
+    @Test
+    void upstream_SuccessfulTlsWithNamedGroupsAllowed() {
+        // the proxy offers a single named group that the broker supports, so the upstream key exchange completes
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1"), null);
+        var builder = upstreamTlsBuilder(null, namedGroups, null);
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo")) {
+            performClusterOperation(admin);
+        }
+    }
+
+    @Test
+    void upstream_UnsuccessfulTlsWithNamedGroupsAllowed() {
+        // the broker supports the standard named groups, so the allow list is restricted to a group it does not support,
+        // leaving no common group and aborting the upstream handshake
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("NoSuchNamedGroup"), null);
+        var builder = upstreamTlsBuilder(null, namedGroups, null);
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo")) {
+            performClusterOperationExpectingNodeAssignmentTimeout(admin);
+        }
+    }
+
+    @Test
+    void upstream_SuccessfulTlsWithNamedGroupsDenied() {
+        // the proxy allows two groups but denies one, leaving secp384r1, which the broker supports
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1", "secp384r1"), Set.of("secp256r1"));
+        var builder = upstreamTlsBuilder(null, namedGroups, null);
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo")) {
+            performClusterOperation(admin);
+        }
+    }
+
+    @Test
+    void upstream_UnsuccessfulTlsWithNamedGroupsDenied() {
+        // the proxy denies every allowed group, so it offers none and the upstream handshake is aborted
+        AllowDeny<String> namedGroups = new AllowDeny<>(List.of("secp256r1", "secp384r1"), Set.of("secp256r1", "secp384r1"));
+        var builder = upstreamTlsBuilder(null, namedGroups, null);
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo")) {
             performClusterOperationExpectingNodeAssignmentTimeout(admin);
         }
     }
@@ -953,6 +894,42 @@ class TlsIT extends AbstractTlsIT {
                     .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                             .withTls(tlsBuilder.build())
                             .build())
+                .endVirtualCluster();
+        // @formatter:on
+    }
+
+    /**
+     * Helper to create a configuration whose upstream (proxy to broker) TLS restricts the cipher suites, the key exchange
+     * named groups and/or the protocols, trusting the TLS broker's self-signed certificate. Any argument may be null to leave
+     * that aspect unset.
+     */
+    private ConfigurationBuilder upstreamTlsBuilder(@Nullable AllowDeny<String> cipherSuites, @Nullable AllowDeny<String> namedGroups,
+                                                    @Nullable AllowDeny<String> protocols) {
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+        var brokerTrustPasswordProvider = constructPasswordProvider(InlinePassword.class, brokerTruststorePassword);
+
+        // @formatter:off
+        var tls = new TlsBuilder()
+                .withNewTrustStoreTrust()
+                    .withStoreFile(brokerTruststore)
+                    .withStorePasswordProvider(brokerTrustPasswordProvider)
+                .endTrustStoreTrust()
+                .withCipherSuites(cipherSuites)
+                .withNamedGroups(namedGroups)
+                .withProtocols(protocols)
+                .build();
+
+        return KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addNewClusterDefinition()
+                    .withName(DEFAULT_CLUSTER_DEF_NAME)
+                    .withBootstrapServers(tlsCluster.getBootstrapServers())
+                    .withTls(tls)
+                .endClusterDefinition()
+                .addNewVirtualCluster()
+                    .withName("demo")
+                    .withTarget(DEFAULT_CLUSTER_TARGET)
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                 .endVirtualCluster();
         // @formatter:on
     }
