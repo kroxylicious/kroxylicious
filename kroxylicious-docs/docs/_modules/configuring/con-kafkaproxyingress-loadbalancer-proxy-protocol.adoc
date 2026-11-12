@@ -1,0 +1,119 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-kafkaproxyingress-loadbalancer-proxy-protocol-{context}']
+= Configuring PROXY protocol for LoadBalancer ingress
+
+[role="_abstract"]
+When a `loadBalancer` ingress is deployed behind a load balancer that uses the https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt[PROXY protocol], you must configure the ingress to accept PROXY protocol headers. This ensures that the original client connection metadata (source address, destination address, and ports) is preserved and passed to the proxy.
+
+PROXY protocol handling is configured at the `KafkaProxyIngress` level using the `spec.loadBalancer.proxyProtocol.mode` property.
+This setting applies to all virtual clusters that use this ingress.
+
+Both PROXY protocol v1 (text) and v2 (binary) are supported.
+
+== PROXY protocol modes
+
+The `proxyProtocol.mode` property controls how the ingress handles incoming connections.
+Two modes are supported:
+
+`REQUIRED`:: Every incoming connection to the ingress must begin with a valid PROXY protocol header.
+Kroxylicious decodes the header, records the original client connection metadata, and then processes the remainder of the connection as Kafka protocol traffic.
+Connections that do not begin with a PROXY protocol header are rejected and a warning is logged.
+Use this mode when all traffic to the ingress arrives through a PROXY protocol-capable load balancer.
+
+`FORBIDDEN`:: PROXY protocol headers are not permitted on the ingress.
+If a downstream intermediary sends a PROXY protocol header, the connection will be closed and a warning logged.
+Use this mode when clients connect to the ingress directly, or through a load balancer that does not send PROXY protocol headers.
+
+If the `proxyProtocol` block is omitted from the ingress configuration, the effective mode is `FORBIDDEN`.
+You only need to add a `proxyProtocol` block to ingresses that sit behind a PROXY protocol-capable load balancer.
+
+== Enabling PROXY protocol on a LoadBalancer ingress
+
+To enable PROXY protocol on a `loadBalancer` ingress, add a `proxyProtocol` block with `mode: REQUIRED` to the ingress configuration.
+
+.Example `KafkaProxyIngress` configuration with PROXY protocol required
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: load-balancer
+spec:
+  proxyRef:
+    name: simple
+  loadBalancer:
+    bootstrapAddress: "$(virtualClusterName).kafkaproxy.example.com"
+    advertisedBrokerAddressPattern: "broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com"
+    proxyProtocol:
+      mode: REQUIRED
+----
+where:
+
+* `proxyProtocol` configures PROXY protocol handling for the ingress.
+** `mode` is the PROXY protocol mode (`REQUIRED` or `FORBIDDEN`).
+
+== Configuring the upstream load balancer
+
+Setting `proxyProtocol.mode: REQUIRED` on the `KafkaProxyIngress` configures the proxy to expect PROXY protocol headers, but it does not automatically configure the cloud provider's load balancer to send them.
+You must separately configure the load balancer using the cloud provider's mechanisms.
+
+.Example: AWS Network Load Balancer with PROXY protocol
+On AWS, you must add the `service.beta.kubernetes.io/aws-load-balancer-proxy-protocol` annotation to enable PROXY protocol v2 on the Network Load Balancer:
+
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: load-balancer
+spec:
+  proxyRef:
+    name: simple
+  loadBalancer:
+    bootstrapAddress: "$(virtualClusterName).kafkaproxy.example.com"
+    advertisedBrokerAddressPattern: "broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com"
+    proxyProtocol:
+      mode: REQUIRED
+  infrastructure:
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
+----
+
+The `service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"` annotation instructs AWS to enable PROXY protocol v2 on all target groups for the Network Load Balancer.
+
+[IMPORTANT]
+====
+When `mode` is set to `REQUIRED`, a client that connects directly to the ingress without going through the load balancer has its connection rejected, and Kroxylicious logs a warning:
+
+`Connection rejected: PROXY protocol header required but client sent non-PROXY data.
+Ensure the downstream load balancer is configured to send PROXY protocol headers.`
+
+If you see this warning, check that all traffic for the ingress is routed through a load balancer that is configured to send PROXY protocol headers.
+====
+
+[IMPORTANT]
+====
+Kroxylicious trusts the client address contained in the PROXY protocol header.
+Any client that can reach a `REQUIRED` mode ingress directly, bypassing the load balancer, can send a PROXY protocol header carrying a spoofed source address.
+Use network controls, such as firewall rules or security groups, to ensure that only the load balancer can connect to the ports of an ingress that uses `REQUIRED` mode.
+====
+
+[IMPORTANT]
+====
+When `mode` is set to `REQUIRED`, every connection to the ingress must include a PROXY protocol header, including health check connections.
+If the load balancer performs TCP health checks without sending a PROXY protocol header, those connections are rejected and a warning is logged.
+Configure the load balancer to send PROXY protocol headers on health check connections too, or use a health check mechanism that does not connect to the ingress ports.
+====
