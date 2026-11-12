@@ -23,3 +23,4 @@
 - Peter Mendis(https://github.com/livespotty)
 - Rafael Reia(https://github.com/RafaelReia)
 - Aditya Thakur(https://github.com/AdityaThakur1998)
+- Adam Pilkington (https://github.com/MarkNSweep)
