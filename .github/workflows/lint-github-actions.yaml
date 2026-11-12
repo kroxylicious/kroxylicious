@@ -21,6 +21,7 @@ on:
     types: [ opened, synchronize, reopened ]
     paths:
       - .github/workflows/**
+      - .github/actionlint.yaml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -39,4 +40,3 @@ jobs:
         with:
           files: ".github/workflows/*.yml, .github/workflows/*.yaml"
           # .github/actions/**/*.yml shall be excluded as they are composite and not jobs.
-          flags: "-ignore SC2086"
