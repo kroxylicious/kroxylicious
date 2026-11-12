@@ -1,0 +1,4 @@
+title: "fix(authorizer-acl): accept block comments in ACL rules files"
+type: fixed
+issues:
+  - 5314
