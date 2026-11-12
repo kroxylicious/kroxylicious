@@ -50,6 +50,7 @@ import io.kroxylicious.kubernetes.operator.InvalidResourceException;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
+import io.kroxylicious.kubernetes.operator.TestPortConstants;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
@@ -641,12 +642,12 @@ class KafkaProxyReconcilerTest {
         return Stream.of(
                 Arguments.of(ProxyProtocol.Mode.REQUIRED,
                         ProxyProtocolMode.REQUIRED,
-                        new SharedSniContainerPort(9290, "shared-sni-proxy-protocol-port")),
+                        new SharedSniContainerPort(TestPortConstants.PROXY_PROTOCOL_SNI_PORT, "shared-sni-proxy-protocol-port")),
                 Arguments.of(ProxyProtocol.Mode.FORBIDDEN,
                         ProxyProtocolMode.FORBIDDEN,
-                        new SharedSniContainerPort(9291, "shared-sni-port")),
+                        new SharedSniContainerPort(TestPortConstants.PLAIN_SNI_PORT, "shared-sni-port")),
                 Arguments.of(null, null,
-                        new SharedSniContainerPort(9291, "shared-sni-port")));
+                        new SharedSniContainerPort(TestPortConstants.PLAIN_SNI_PORT, "shared-sni-port")));
     }
 
     @ParameterizedTest

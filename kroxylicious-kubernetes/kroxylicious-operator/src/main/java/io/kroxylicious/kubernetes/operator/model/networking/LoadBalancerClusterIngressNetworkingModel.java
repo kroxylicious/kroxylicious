@@ -19,6 +19,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
@@ -84,12 +85,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public Optional<ProxyProtocolMode> proxyProtocolMode() {
-        return Optional.ofNullable(loadBalancer.getProxyProtocol())
-                .map(pp -> pp.getMode())
-                .map(mode -> switch (mode) {
-                    case REQUIRED -> ProxyProtocolMode.REQUIRED;
-                    case FORBIDDEN -> ProxyProtocolMode.FORBIDDEN;
-                });
+        return ResourcesUtil.toProxyProtocolMode(loadBalancer.getProxyProtocol());
     }
 
     @Override

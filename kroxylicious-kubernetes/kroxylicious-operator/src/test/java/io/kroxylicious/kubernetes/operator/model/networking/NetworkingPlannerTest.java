@@ -33,6 +33,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
+import io.kroxylicious.kubernetes.operator.TestPortConstants;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.IngressResolutionResult;
@@ -44,8 +45,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class NetworkingPlannerTest {
-    private static final SharedSniContainerPort PLAIN_SNI_PORT = new SharedSniContainerPort(9291, "shared-sni-port");
-    private static final SharedSniContainerPort PROXY_PROTOCOL_SNI_PORT = new SharedSniContainerPort(9290, "shared-sni-proxy-protocol-port");
+    private static final SharedSniContainerPort PLAIN_SNI_PORT = new SharedSniContainerPort(TestPortConstants.PLAIN_SNI_PORT, "shared-sni-port");
+    private static final SharedSniContainerPort PROXY_PROTOCOL_SNI_PORT = new SharedSniContainerPort(TestPortConstants.PROXY_PROTOCOL_SNI_PORT,
+            "shared-sni-proxy-protocol-port");
 
     private static final String PROXY_NAME = "my-proxy";
     private static final String CLUSTER_IP_INGRESS_NAME = "my-cluster-ip-ingress";
@@ -162,7 +164,7 @@ class NetworkingPlannerTest {
     public static final Ingresses LOAD_BALANCER_2_INGRESSES = new IngressesBuilder().withTls(TLS_2).withNewIngressRef().withName(LOAD_BALANCER_INGRESS_2_NAME)
             .endIngressRef().build();
 
-    public static final int FIRST_IDENTIFYING_PORT = 9292;
+    public static final int FIRST_IDENTIFYING_PORT = TestPortConstants.FIRST_IDENTIFYING_PORT;
     public static final String CLUSTER_NAME_2 = "my-cluster-2";
 
     // @formatter:off

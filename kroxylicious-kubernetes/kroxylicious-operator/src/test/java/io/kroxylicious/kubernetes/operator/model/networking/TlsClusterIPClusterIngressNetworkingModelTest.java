@@ -33,6 +33,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
+import io.kroxylicious.kubernetes.operator.TestPortConstants;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -123,7 +124,8 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.sniHostIdentifiesNode()).isNotNull().satisfies(sni -> {
             assertThat(sni.getBootstrapAddress())
                     .isEqualTo(new HostPort("my-cluster-my-ingress-bootstrap." + NAMESPACE + ".svc.cluster.local", sharedSniPort.containerPort()).toString());
-            assertThat(sni.getAdvertisedBrokerAddressPattern()).isEqualTo("my-cluster-my-ingress-$(nodeId)." + NAMESPACE + ".svc.cluster.local:" + 9292);
+            assertThat(sni.getAdvertisedBrokerAddressPattern())
+                    .isEqualTo("my-cluster-my-ingress-$(nodeId)." + NAMESPACE + ".svc.cluster.local:" + TestPortConstants.FIRST_IDENTIFYING_PORT);
         });
     }
 
@@ -201,15 +203,18 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         var listAssert = assertThat(serviceBuilders).isNotNull().hasSize(3);
 
         listAssert.element(0).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", 9292, sharedSniPort.containerPort());
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(1).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", 9292, sharedSniPort.containerPort());
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(2).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-2", 9292, sharedSniPort.containerPort());
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-2", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
     }
 
@@ -246,15 +251,18 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         var listAssert = assertThat(serviceBuilders).isNotNull().hasSize(3);
 
         listAssert.element(0).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", 9292, sharedSniPort.containerPort());
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(1).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", 9292, sharedSniPort.containerPort());
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(2).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-3", 9292, sharedSniPort.containerPort());
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-3", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
     }
 

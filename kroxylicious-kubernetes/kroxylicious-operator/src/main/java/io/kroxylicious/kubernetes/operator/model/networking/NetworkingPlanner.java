@@ -24,12 +24,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRo
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterIngressNetworkingModelResult;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.IngressResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -310,12 +312,8 @@ public class NetworkingPlanner {
 
         @Override
         public boolean usesProxyProtocol() {
-            return Optional.ofNullable(loadBalancer.getProxyProtocol())
-                    .map(pp -> pp.getMode())
-                    .map(mode -> switch (mode) {
-                        case REQUIRED -> true;
-                        case FORBIDDEN -> false;
-                    })
+            return ResourcesUtil.toProxyProtocolMode(loadBalancer.getProxyProtocol())
+                    .map(mode -> mode == ProxyProtocolMode.REQUIRED)
                     .orElse(false);
         }
     }

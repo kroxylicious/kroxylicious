@@ -157,6 +157,8 @@ spec:
                         to FORBIDDEN mode for security. IMPORTANT: Only enable REQUIRED mode when the upstream
                         load balancer is trusted and configured to send PROXY headers. Accepting PROXY headers
                         from untrusted sources allows clients to spoof their network location.
+                      required:
+                        - mode
                       properties:
                         mode:
                           type: string
