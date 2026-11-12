@@ -556,6 +556,56 @@ There are a number of reasons a pull request can be removed from a merge queue:
 
 If you want to see how merge queues work, see [Merge Queues](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue).
 
+### Container image architectures
+
+The set of CPU architectures we can build container images for is defined in
+[.github/workflows/config/arch-matrix.json](.github/workflows/config/arch-matrix.json). Each entry is keyed by the
+Docker/GOARCH name of the architecture (`amd64`, `arm64`, `ppc64le`, `s390x`) because that is the spelling needed by
+image tags, OCI platform strings and labels. The value records everything CI needs to know to build for it:
+
+| Field          | Meaning                                                                                                                 |
+|----------------|-------------------------------------------------------------------------------------------------------------------------|
+| `enabled`      | Whether the architecture can be built at all. An entry describes an architecture we intend to support; it is only selectable once the Maven profile and runners it needs exist. Asking for a disabled architecture is an error rather than a silent skip. |
+| `default`      | Build this architecture on pull requests that do not request architectures by label, see below.                        |
+| `runs-on`      | The GitHub Actions runner label to build on - either a native runner or an `ubuntu-latest` runner using emulation.       |
+| `dist-profile` | The Maven profiles to activate when building the distribution, which select the architecture's native binaries. The `arm64` entry uses the `aarch64` profile because that is what Maven and Netty call the classifier. |
+| `qemu`         | Whether the build needs QEMU emulation, i.e. there is no native runner for this architecture.                            |
+| `target-netty-classifier` | What Netty calls this architecture in its native library filenames (`x86_64`, `aarch_64`), or `null` where Netty publishes no natives for it. The built image is checked to contain its own target's classifier and no other target's, so a `null` entry still asserts that nothing foreign leaked in. |
+
+Adding an architecture is a matter of adding an entry here and setting `enabled` once the Maven profile selecting its
+native binaries exists; nothing in the workflows names architectures individually.
+
+#### Requesting architectures on a pull request
+
+An unlabelled pull request builds the architectures marked `default` in the registry, because building every
+architecture on every pull request is slow and most changes cannot break an architecture selectively.
+
+To choose the architectures yourself, label the pull request `platform/<arch>`, where `<arch>` is a key of the
+registry - for example `platform/s390x` or `platform/arm64`. The labels combine with each other, so
+`platform/arm64` plus `platform/ppc64le` builds both, but they do not combine with the defaults: as soon as there is
+one `platform/<arch>` label the labels decide the whole set, and `default` no longer applies. A pull request labelled
+only `platform/s390x` therefore builds s390x alone, not s390x and amd64 - add `platform/amd64` as well if you want
+the default architecture too.
+
+A `platform/<arch>` label whose `<arch>` is not a key of the registry fails the build rather than being ignored: a
+green amd64 build is worse than no build at all when the author was aiming at s390x. The build fails if any label is
+unrecognised, including when other labels did match, so a pull request labelled `platform/amd64` and `platform/arm`
+fails instead of quietly building amd64. Label matching is exact, so `platform/AMD64` and `platform/arm` are both
+errors.
+
+Which architectures a build covers follows whether it publishes. Pushes to `main` and release staging build every
+enabled architecture in the registry, because those produce the images users consume. Merge queue runs build the
+defaults, like an unlabelled pull request: they are a check that the queued changes build together, not a publishing
+step, so they stay cheap.
+
+A `platform/<arch>` label only takes effect on the pull request's next push - the workflow reads the label from the
+pull request event payload, and re-running a workflow replays that same payload rather than fetching the current
+labels. Add the label, then push a new commit (or amend and force-push) to pick it up; re-running the existing run
+will not.
+
+The `platform/<arch>` labels are a general-purpose convention rather than a CI-only one; the same labels are used on
+issues to record which architecture a bug affects.
+
 ### Using the GitHub CI workflows against a fork
 
 All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yaml).

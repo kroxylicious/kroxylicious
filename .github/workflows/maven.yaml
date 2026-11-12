@@ -181,12 +181,88 @@ jobs:
             && echo "reference_release_unpublished=false" >> "$GITHUB_OUTPUT" \
             || echo "reference_release_unpublished=true" >> "$GITHUB_OUTPUT"
 
+  # Architecture selection lives here rather than in the reusable workflow because
+  # only the caller can see the pull request's labels.
+
+  select_architectures:
+    runs-on: ubuntu-latest
+    outputs:
+      arches: ${{ steps.arches.outputs.arches }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: 'Select architectures'
+        id: arches
+        env:
+          ARCH_MATRIX_FILE: .github/workflows/config/arch-matrix.json
+          EVENT_NAME: ${{ github.event_name }}
+          # Via env, not inline interpolation: label text is user-supplied.
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          DEFAULTS=$(jq -c '[to_entries[] | select(.value.enabled and .value.default) | .key]' "${ARCH_MATRIX_FILE}")
+
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            # Pushes publish the images users consume, so they cover everything.
+            ARCHES=$(jq -c '[to_entries[] | select(.value.enabled) | .key]' "${ARCH_MATRIX_FILE}")
+          elif [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            # Merge queue runs check that the queued changes build together; they
+            # publish nothing, so they stay as cheap as a default pull request.
+            ARCHES="${DEFAULTS}"
+          else
+            # What a label is allowed to ask for: gated architectures are in the
+            # registry so the shape is ready for them, but cannot be built yet.
+            ENABLED_ARCHES=$(jq -r '[to_entries[] | select(.value.enabled) | .key] | join(", ")' "${ARCH_MATRIX_FILE}")
+
+            UNKNOWN=$(jq -r --argjson labels "${LABELS}" '
+              . as $registry
+              | [$labels[] | select(startswith("platform/")) | ltrimstr("platform/")]
+              | [.[] | select(. as $a | $registry | has($a) | not)]
+              | join(", ")
+            ' "${ARCH_MATRIX_FILE}")
+            if [[ -n "${UNKNOWN}" ]]; then
+              echo "::error::Unknown platform label(s): ${UNKNOWN}. Enabled architectures: ${ENABLED_ARCHES}"
+              exit 1
+            fi
+
+            # Rejected here rather than left to prepare, so that one mistake is
+            # reported once, in the job the reader is already looking at.
+            GATED=$(jq -r --argjson labels "${LABELS}" '
+              [ to_entries[]
+                | select(.value.enabled | not)
+                | select(.key as $k | $labels | index("platform/" + $k))
+                | .key ]
+              | join(", ")
+            ' "${ARCH_MATRIX_FILE}")
+            if [[ -n "${GATED}" ]]; then
+              echo "::error::Platform label(s) for architectures that are not yet buildable: ${GATED}. Enabled architectures: ${ENABLED_ARCHES}"
+              exit 1
+            fi
+
+            # Labels combine with each other, but replace the defaults rather than
+            # extending them: platform/s390x alone means s390x alone.
+            REQUESTED=$(jq -c --argjson labels "${LABELS}" '
+              [to_entries[] | select(.key as $k | $labels | index("platform/" + $k)) | .key]
+            ' "${ARCH_MATRIX_FILE}")
+            if [[ "${REQUESTED}" == "[]" ]]; then
+              ARCHES="${DEFAULTS}"
+            else
+              ARCHES="${REQUESTED}"
+            fi
+          fi
+
+          echo "Selected architectures: ${ARCHES}"
+          echo "arches=${ARCHES}" >> "$GITHUB_OUTPUT"
+
   build_container_images:
-    needs: compute_pom_version
+    needs: [ compute_pom_version, select_architectures ]
     uses: ./.github/workflows/build-kroxylicious-container-images.yaml
     with:
       push-images: ${{ github.event_name == 'push' }}
-      multi-arch: ${{ github.event_name == 'push' }}
+      arches: ${{ needs.select_architectures.outputs.arches }}
       additional-tags: ${{ github.event_name == 'push' && needs.compute_pom_version.outputs.version || '' }}
     secrets:
       REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
