@@ -1,0 +1,9 @@
+# .github/actionlint.yaml
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      - SC2086
+      # $/ is GitHub's self-repository syntax (preferred over ./ by zizmor's self-checkout audit)
+      # but actionlint does not recognise it yet.
+      - 'reusable workflow call "\$/\.'
+      - 'specifying action "\$/\..*" in invalid format because ref is missing'
