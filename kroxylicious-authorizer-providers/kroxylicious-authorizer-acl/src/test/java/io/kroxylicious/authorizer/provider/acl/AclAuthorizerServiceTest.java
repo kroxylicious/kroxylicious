@@ -676,6 +676,27 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.ALLOW);
     }
 
+    /**
+     * A backslash that is not a lexer escape ({@code \\/} or {@code \\\\}) belongs to the regex, and
+     * is kept.
+     */
+    @Test
+    void regexEscapesOtherThanSlashAndBackslashAreKept() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                allow User with name = "Alice" to READ Topic with name matching /orders\\.v1/;
+                allow User with name = "Bob" to READ Topic with name matching /a\\d+/;
+                allow User with name = "Carol" to READ Topic with name matching /x\\/y/;
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "orders.v1")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "ordersXv1")).isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "a12")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "ad")).isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Carol"), FakeTopicResource.READ, "x/y")).isEqualTo(Decision.ALLOW);
+    }
+
     @Test
     void shouldAcceptBlockComments() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""

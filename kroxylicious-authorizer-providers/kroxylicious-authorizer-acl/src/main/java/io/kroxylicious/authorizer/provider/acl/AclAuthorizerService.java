@@ -254,7 +254,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         private String unquoteRegex(TerminalNode string) {
-            return unquote(unwrapDelims(string));
+            return Utils.unquoteRegex(unwrapDelims(string));
         }
 
         private void maybeThrow() {
