@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.tls;
 
 import java.io.IOException;
 import java.security.KeyException;
+import java.security.KeyStoreException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.stream.Stream;
@@ -101,6 +102,46 @@ class NettyKeyProviderTest {
         assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
+    @Test
+    void serverKeyStorePkcs12MissingStorePassword() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.p12"),
+                null,
+                null,
+                PKCS_12));
+
+        assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void serverKeyStorePkcs12KeyPasswordTypo() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.p12"),
+                null,
+                STOREPASS,
+                PKCS_12));
+
+        assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void serverKeyStorePkcs12IncorrectPassword() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.p12"),
+                BADPASS,
+                null,
+                PKCS_12));
+
+        assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void serverKeyStoreWithoutKeyEntry() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("client.p12"),
+                STOREPASS,
+                null,
+                PKCS_12));
+
+        assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(KeyStoreException.class);
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void clientWithKeyStore(String name,
@@ -139,6 +180,46 @@ class NettyKeyProviderTest {
                 null));
 
         assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void clientKeyStorePkcs12MissingStorePassword() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.p12"),
+                null,
+                null,
+                PKCS_12));
+
+        assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void clientKeyStorePkcs12KeyPasswordTypo() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.p12"),
+                null,
+                STOREPASS,
+                PKCS_12));
+
+        assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void clientKeyStorePkcs12IncorrectPassword() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server.p12"),
+                BADPASS,
+                null,
+                PKCS_12));
+
+        assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void clientKeyStoreWithoutKeyEntry() {
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("client.p12"),
+                STOREPASS,
+                null,
+                PKCS_12));
+
+        assertThatCode(keyStore::forClient).hasRootCauseInstanceOf(KeyStoreException.class);
     }
 
     @Test
