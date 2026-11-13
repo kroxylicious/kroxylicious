@@ -60,10 +60,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocolBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.testing.operator.assertj.KafkaServiceStatusAssert;
 import io.kroxylicious.testing.operator.assertj.VirtualKafkaClusterStatusAssert;
 
@@ -964,4 +967,45 @@ class ResourcesUtilTest {
                         Condition.REASON_INVALID_REFERENCED_RESOURCE,
                         "my-cluster-cluster-ca-cert: referenced resource does not contain key ca.crt");
     }
+
+    @Test
+    void toProxyProtocolModeWithNull() {
+        // Given
+        // (null input)
+
+        // When
+        var result = ResourcesUtil.toProxyProtocolMode(null);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void toProxyProtocolModeWithRequired() {
+        // Given
+        var proxyProtocol = new ProxyProtocolBuilder()
+                .withMode(ProxyProtocol.Mode.REQUIRED)
+                .build();
+
+        // When
+        var result = ResourcesUtil.toProxyProtocolMode(proxyProtocol);
+
+        // Then
+        assertThat(result).hasValue(ProxyProtocolMode.REQUIRED);
+    }
+
+    @Test
+    void toProxyProtocolModeWithForbidden() {
+        // Given
+        var proxyProtocol = new ProxyProtocolBuilder()
+                .withMode(ProxyProtocol.Mode.FORBIDDEN)
+                .build();
+
+        // When
+        var result = ResourcesUtil.toProxyProtocolMode(proxyProtocol);
+
+        // Then
+        assertThat(result).hasValue(ProxyProtocolMode.FORBIDDEN);
+    }
+
 }

@@ -95,6 +95,7 @@ import io.kroxylicious.kubernetes.operator.OpenShiftUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestKeyMaterial;
+import io.kroxylicious.kubernetes.operator.TestPortConstants;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.RouteClusterIngressNetworkingModel;
@@ -662,7 +663,7 @@ public class KafkaProxyReconcilerIT {
 
         // Then
         int clientFacingPort = TlsClusterIPClusterIngressNetworkingModel.CLIENT_FACING_PORT;
-        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+        int proxyListenPort = TestPortConstants.PLAIN_SNI_PORT;
         assertProxyConfigContents(proxy, Set.of(downstreamTrustAnchorName), Set.of());
         String baseServiceName = name(resource) + "-" + name(ingress);
 
@@ -724,7 +725,7 @@ public class KafkaProxyReconcilerIT {
 
         // Then
         int clientFacingPort = TlsClusterIPClusterIngressNetworkingModel.CLIENT_FACING_PORT;
-        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+        int proxyListenPort = TestPortConstants.PLAIN_SNI_PORT;
         assertProxyConfigContents(proxy, Set.of(downstreamTrustAnchorName), Set.of());
         String baseServiceName = name(resource) + "-" + name(ingress);
         String baseServiceName2 = name(resource) + "-" + name(ingress2);
@@ -804,7 +805,7 @@ public class KafkaProxyReconcilerIT {
         updateStatusObservedGeneration(clusterUser.create(cluster));
 
         int clientFacingPort = LoadBalancerClusterIngressNetworkingModel.DEFAULT_CLIENT_FACING_LOADBALANCER_PORT;
-        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+        int proxyListenPort = TestPortConstants.PLAIN_SNI_PORT;
 
         AWAIT.alias("shared sni service manifested").untilAsserted(() -> {
             String serviceName = name(loadBalancerIngress);
@@ -943,13 +944,13 @@ public class KafkaProxyReconcilerIT {
                     .cluster(name(fooCluster))
                     .gateway(name(loadBalancerIngressFoo))
                     .sniHostIdentifiesNode()
-                    .hasBootstrapAddress("bootstrap.foo.kafka:" + ProxyDeploymentDependentResource.SHARED_SNI_PORT);
+                    .hasBootstrapAddress("bootstrap.foo.kafka:" + TestPortConstants.PLAIN_SNI_PORT);
 
             assertProxyConfigInConfigMap(proxy)
                     .cluster(name(barCluster))
                     .gateway(name(loadBalancerIngressBar))
                     .sniHostIdentifiesNode()
-                    .hasBootstrapAddress("bootstrap.bar.kafka:" + ProxyDeploymentDependentResource.SHARED_SNI_PORT);
+                    .hasBootstrapAddress("bootstrap.bar.kafka:" + TestPortConstants.PLAIN_SNI_PORT);
         });
     }
 
@@ -1046,7 +1047,7 @@ public class KafkaProxyReconcilerIT {
         updateStatusObservedGeneration(clusterBar);
         clusterBar.setStatus(new VirtualKafkaClusterStatusBuilder().withObservedGeneration(generation(clusterBar)).build());
 
-        int expectedBootstrapPort = 9292;
+        int expectedBootstrapPort = TestPortConstants.FIRST_IDENTIFYING_PORT;
         AWAIT.alias("service configured with a port per node id from the KafkaService, plus a bootstrap port").untilAsserted(() -> {
             String clusterName = name(clusterBar);
             String ingressName = name(ingressBar);
@@ -1115,7 +1116,7 @@ public class KafkaProxyReconcilerIT {
         KafkaService kafkaService = updateStatusObservedGeneration(clusterUser.create(kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP)),
                 CLUSTER_BAR_BOOTSTRAP);
 
-        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+        int proxyListenPort = TestPortConstants.PLAIN_SNI_PORT;
 
         String ingressName = "openshiftroute" + suffix;
         String routeBootstrap = "$(virtualClusterName)-bootstrap." + domain;
@@ -1268,7 +1269,7 @@ public class KafkaProxyReconcilerIT {
         AWAIT.alias("gateway configured as expected").untilAsserted(() -> assertProxyConfigInConfigMap(proxy).cluster(clusterBar.getMetadata().getName())
                 .gateway(name(ingressBar))
                 .portIdentifiesNode()
-                .hasBootstrapAddress(new HostPort("localhost", 9292))
+                .hasBootstrapAddress(new HostPort("localhost", TestPortConstants.FIRST_IDENTIFYING_PORT))
                 .hasNullNodeStartPort()
                 .namedRange("default")
                 .hasStart(0)

@@ -80,7 +80,6 @@ import io.kroxylicious.testing.operator.OperatorTestUtils;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.testing.operator.OperatorTestUtils.uniqueSuffix;
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -637,7 +636,7 @@ class AllReconcilersIT {
                             .singleElement()
                             .satisfies(port -> {
                                 assertThat(port.getPort()).isEqualTo(LoadBalancerClusterIngressNetworkingModel.DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
-                                assertThat(port.getTargetPort()).isEqualTo(new IntOrString(SHARED_SNI_PORT));
+                                assertThat(port.getTargetPort()).isEqualTo(new IntOrString(9291));
                             });
                     assertThat(service.getMetadata().getOwnerReferences())
                             .extracting(OwnerReference::getName)

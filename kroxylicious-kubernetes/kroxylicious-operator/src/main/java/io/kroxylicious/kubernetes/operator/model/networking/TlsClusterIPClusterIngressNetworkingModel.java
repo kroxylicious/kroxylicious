@@ -51,7 +51,7 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                                                         KafkaProxyIngress ingress,
                                                         List<NodeIdRanges> nodeIdRanges,
                                                         Tls tls,
-                                                        int sharedSniPort)
+                                                        SharedSniContainerPort sharedSniPort)
         implements ClusterIngressNetworkingModel {
 
     /** Port used for client-facing TLS connections. */
@@ -64,6 +64,7 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         Objects.requireNonNull(ingress);
         Objects.requireNonNull(nodeIdRanges);
         Objects.requireNonNull(tls);
+        Objects.requireNonNull(sharedSniPort);
         if (nodeIdRanges.isEmpty()) {
             throw new IllegalArgumentException("nodeIdRanges cannot be empty");
         }
@@ -103,7 +104,8 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                 .withMetadata(metadataBuilder.build())
                 .withNewSpec()
                 .withSelector(standardLabels(proxy))
-                .withPorts(new ServicePortBuilder().withProtocol("TCP").withPort(CLIENT_FACING_PORT).withTargetPort(new IntOrString(sharedSniPort)).build())
+                .withPorts(
+                        new ServicePortBuilder().withProtocol("TCP").withPort(CLIENT_FACING_PORT).withTargetPort(new IntOrString(sharedSniPort.containerPort())).build())
                 .endSpec();
     }
 
@@ -131,8 +133,8 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
-    public boolean requiresSharedSniContainerPort() {
-        return true;
+    public Optional<SharedSniContainerPort> sharedSniContainerPort() {
+        return Optional.of(sharedSniPort);
     }
 
     private String bootstrapServers() {
@@ -141,7 +143,7 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
-        HostPort bootstrapAddress = new HostPort(getCrossNamespaceServiceAddress(), sharedSniPort);
+        HostPort bootstrapAddress = new HostPort(getCrossNamespaceServiceAddress(), sharedSniPort.containerPort());
         HostPort advertisedBrokerAddressPattern = new HostPort(crossNamespaceServiceAddress(suffixedServiceName("$(nodeId)"), proxy), CLIENT_FACING_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());

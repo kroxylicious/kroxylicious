@@ -1,0 +1,65 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious"
+    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/component: "proxy"
+  name: "twocluster-proxy-config"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "twocluster"
+data:
+  proxy-config.yaml: |-
+    ---
+    management:
+      endpoints:
+        prometheus: {}
+    clusterDefinitions:
+    - name: "barref"
+      bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
+      bootstrapServerSelection:
+        strategy: "round-robin"
+    - name: "fooref"
+      bootstrapServers: "second-kafka.kafka2.svc.cluster.local:9092"
+      bootstrapServerSelection:
+        strategy: "round-robin"
+    virtualClusters:
+    - name: "bar"
+      target:
+        cluster: "barref"
+      gateways:
+      - name: "load-balancer"
+        sniHostIdentifiesNode:
+          bootstrapAddress: "$(virtualClusterName).kafkaproxy:9290"
+          advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).kafkaproxy:9083"
+        tls:
+          key:
+            privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
+            certificateFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.crt"
+        proxyProtocol:
+          mode: "required"
+    - name: "foo"
+      target:
+        cluster: "fooref"
+      gateways:
+      - name: "load-balancer"
+        sniHostIdentifiesNode:
+          bootstrapAddress: "$(virtualClusterName).kafkaproxy:9290"
+          advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).kafkaproxy:9083"
+        tls:
+          key:
+            privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
+            certificateFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.crt"
+        proxyProtocol:
+          mode: "required"

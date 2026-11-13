@@ -49,6 +49,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -996,4 +998,21 @@ public class ResourcesUtil {
 
         return new ResourceCheckResult<>(null, List.of(clusterCaSecret));
     }
+
+    /**
+     * Converts a Kubernetes API ProxyProtocol configuration to the runtime ProxyProtocolMode.
+     * Returns empty if proxyProtocol is null or mode is null.
+     *
+     * @param proxyProtocol the ProxyProtocol configuration from the Kubernetes API, may be null
+     * @return an Optional containing the corresponding ProxyProtocolMode, or empty if not specified
+     */
+    public static Optional<ProxyProtocolMode> toProxyProtocolMode(@Nullable ProxyProtocol proxyProtocol) {
+        return Optional.ofNullable(proxyProtocol)
+                .map(ProxyProtocol::getMode)
+                .map(mode -> switch (mode) {
+                    case REQUIRED -> ProxyProtocolMode.REQUIRED;
+                    case FORBIDDEN -> ProxyProtocolMode.FORBIDDEN;
+                });
+    }
+
 }

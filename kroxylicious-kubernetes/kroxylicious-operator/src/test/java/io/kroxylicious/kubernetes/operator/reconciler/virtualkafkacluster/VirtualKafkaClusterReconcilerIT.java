@@ -43,6 +43,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
+import io.kroxylicious.kubernetes.operator.TestPortConstants;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigDependentResource;
@@ -302,7 +303,7 @@ class VirtualKafkaClusterReconcilerIT {
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress,
-                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:9292", Protocol.TCP);
+                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:" + TestPortConstants.FIRST_IDENTIFYING_PORT, Protocol.TCP);
     }
 
     @Test
@@ -356,7 +357,7 @@ class VirtualKafkaClusterReconcilerIT {
         // Then
         assertAllConditionsTrue(clusterBar);
         assertClusterIngressStatusPopulated(clusterBar, ingress,
-                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:9292", Protocol.TLS);
+                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:" + TestPortConstants.FIRST_IDENTIFYING_PORT, Protocol.TLS);
     }
 
     @Test
@@ -399,7 +400,7 @@ class VirtualKafkaClusterReconcilerIT {
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress,
-                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:9292", Protocol.TLS);
+                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:" + TestPortConstants.FIRST_IDENTIFYING_PORT, Protocol.TLS);
     }
 
     @Test
@@ -470,7 +471,7 @@ class VirtualKafkaClusterReconcilerIT {
 
         // Then
         assertClusterIngressStatusPopulated(clusterBar, ingress,
-                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:9292", Protocol.TCP);
+                CLUSTER_BAR + suffix + "-" + INGRESS_D + suffix + "-bootstrap.%s.svc.cluster.local:" + TestPortConstants.FIRST_IDENTIFYING_PORT, Protocol.TCP);
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {

@@ -88,6 +88,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -434,11 +435,19 @@ public class KafkaProxyReconciler implements
         else {
             throw new IllegalStateException("Unsupported node identification strategy: " + nodeIdentificationStrategy);
         }
+
+        ProxyProtocolConfig proxyProtocolConfig = buildProxyProtocolConfig(gateway);
+
         return new ConfigurationFragment<>(new VirtualClusterGateway(name(gateway.ingress()),
                 portIdentifiesNode,
                 sniHostIdentifiesNode,
                 tlsConfigFragment.fragment(),
-                null), volumes, mounts);
+                proxyProtocolConfig), volumes, mounts);
+    }
+
+    @Nullable
+    private static ProxyProtocolConfig buildProxyProtocolConfig(ClusterIngressNetworkingModel gateway) {
+        return gateway.proxyProtocolMode().map(ProxyProtocolConfig::new).orElse(null);
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTlsFragment(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls ingressTls) {
