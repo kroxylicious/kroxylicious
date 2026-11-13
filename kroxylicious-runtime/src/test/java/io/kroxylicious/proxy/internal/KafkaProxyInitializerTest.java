@@ -135,6 +135,7 @@ class KafkaProxyInitializerTest {
     private CompletionStage<EndpointBinding> bindingStage;
     private VirtualClusterModel virtualClusterModel;
     private NettySettings proxyNettySettings;
+    private ProxyProtocolMode proxyProtocolMode = ProxyProtocolMode.FORBIDDEN;
 
     @BeforeEach
     void setUp() {
@@ -161,7 +162,7 @@ class KafkaProxyInitializerTest {
         when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
         // noinspection unchecked
         when(acceptingSocketChannel.attr(EndpointRegistry.BINDING_CONTEXT)).thenReturn(bindingContextAttribute);
-        when(bindingContextAttribute.get()).thenReturn(new BindingContext(ProxyProtocolMode.FORBIDDEN));
+        when(bindingContextAttribute.get()).thenReturn(new BindingContext(ProxyProtocolMode.FORBIDDEN, false));
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
     }
 
@@ -398,7 +399,7 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldNotAddHaProxyDecoderWhenModeForbidden(boolean tls) {
         // Given
-        when(bindingContextAttribute.get()).thenReturn(new BindingContext(ProxyProtocolMode.FORBIDDEN));
+        proxyProtocolMode = ProxyProtocolMode.FORBIDDEN;
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
@@ -412,7 +413,7 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldAddHaProxyDecoderWhenModeRequired(boolean tls) {
         // Given
-        when(bindingContextAttribute.get()).thenReturn(new BindingContext(ProxyProtocolMode.REQUIRED));
+        proxyProtocolMode = ProxyProtocolMode.REQUIRED;
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
@@ -669,8 +670,8 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver,
                                                               VirtualClusterRegistry vcc) {
+        when(bindingContextAttribute.get()).thenReturn(new BindingContext(proxyProtocolMode, tls));
         return new KafkaProxyInitializer(pfr,
-                tls,
                 bindingResolver,
                 mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
