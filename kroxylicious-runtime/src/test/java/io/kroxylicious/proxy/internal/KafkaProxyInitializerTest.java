@@ -23,8 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -37,7 +35,6 @@ import io.github.sambarker.logsquelcher.CapturedLogs;
 import io.github.sambarker.logsquelcher.LogSquelcherExtension;
 import io.github.sambarker.logsquelcher.LoggingEventAssert;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
@@ -83,6 +80,7 @@ import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
+import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.PLAIN_RESOLVER_HANDLER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -126,9 +124,6 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("rawtypes")
     @Mock(strictness = Mock.Strictness.LENIENT)
     private Attribute bindingContextAttribute;
-
-    @Captor
-    ArgumentCaptor<ChannelInboundHandlerAdapter> plainChannelResolverCaptor;
 
     private ServiceBasedPluginFactoryRegistry pfr;
     private KafkaProxyInitializer kafkaProxyInitializer;
@@ -216,114 +211,22 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(eq("plainResolver"), isA(ChannelInboundHandlerAdapter.class));
+        verify(channelPipeline).addLast(eq(PLAIN_RESOLVER_HANDLER_NAME), isA(PlainResolverHandler.class));
         assertErrorHandlerAdded();
         verify(channelPipeline, times(0)).addLast(anyString(), isA(SniHandler.class));
     }
 
     @Test
-    void shouldResolveWhenPlainChannelActivated() throws Exception {
+    void shouldInstallPlainResolverHandlerInPlainChannelPipeline() {
         // Given
-        final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
-        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
-        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
-
-        kafkaProxyInitializer.initChannel(channel);
-        final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+        var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> new CompletableFuture<>());
 
         // When
-        plainChannelResolverCaptor.getValue().channelActive(channelHandlerContext);
+        kafkaProxyInitializer.initChannel(embeddedChannel);
 
         // Then
-        verify(bindingResolver).resolve(any(Channel.class), isNull());
-    }
-
-    @Test
-    void shouldRemovePlainChannelInitializerOnceComplete() throws Exception {
-        // Given
-        final EndpointBindingResolver bindingResolver = mock(EndpointBindingResolver.class);
-        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
-        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
-
-        kafkaProxyInitializer.initChannel(channel);
-        final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
-
-        // When
-        plainChannelResolverCaptor.getValue().channelActive(channelHandlerContext);
-
-        // Then
-        verify(channelPipeline).remove(plainChannelResolverCaptor.getValue());
-    }
-
-    @Test
-    void shouldBufferAndReplayChannelReadEventsReceivedWhilePlainBindingPending() throws Exception {
-        // Given
-        var pendingBinding = new CompletableFuture<EndpointBinding>();
-        var bindingResolver = mock(EndpointBindingResolver.class);
-        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(pendingBinding);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
-        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
-        kafkaProxyInitializer.initChannel(channel);
-
-        var ctx = mock(ChannelHandlerContext.class);
-        var resolver = plainChannelResolverCaptor.getValue();
-        resolver.channelActive(ctx);
-
-        var msg1 = new Object();
-        var msg2 = new Object();
-        resolver.channelRead(ctx, msg1);
-        resolver.channelRead(ctx, msg2);
-
-        // When
-        pendingBinding.complete(endpointBinding);
-
-        // Then
-        var order = inOrder(ctx);
-        order.verify(ctx).fireChannelRead(msg1);
-        order.verify(ctx).fireChannelRead(msg2);
-        verify(ctx).fireChannelReadComplete();
-    }
-
-    @Test
-    void shouldNotFireChannelReadCompleteWhenNothingBufferedOnPlainChannelBindingComplete() throws Exception {
-        // Given
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
-        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
-        kafkaProxyInitializer.initChannel(channel);
-
-        var ctx = mock(ChannelHandlerContext.class);
-
-        // When
-        plainChannelResolverCaptor.getValue().channelActive(ctx);
-
-        // Then
-        verify(ctx, never()).fireChannelReadComplete();
-    }
-
-    @Test
-    void shouldReleasePendingMessagesWhenPlainResolverHandlerRemoved() throws Exception {
-        // Given
-        var pendingBinding = new CompletableFuture<EndpointBinding>();
-        var bindingResolver = mock(EndpointBindingResolver.class);
-        when(bindingResolver.resolve(any(Channel.class), isNull())).thenReturn(pendingBinding);
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, bindingResolver);
-        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
-        kafkaProxyInitializer.initChannel(channel);
-
-        var ctx = mock(ChannelHandlerContext.class);
-        var resolver = plainChannelResolverCaptor.getValue();
-        resolver.channelActive(ctx);
-
-        var buf = Unpooled.buffer(4).writeInt(42);
-        resolver.channelRead(ctx, buf);
-
-        // When
-        resolver.handlerRemoved(ctx);
-
-        // Then
-        assertThat(buf.refCnt()).isZero();
+        assertThat(embeddedChannel.pipeline().get(PLAIN_RESOLVER_HANDLER_NAME)).isInstanceOf(PlainResolverHandler.class);
     }
 
     @ParameterizedTest
