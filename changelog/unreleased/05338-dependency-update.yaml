@@ -1,0 +1,4 @@
+title: "build(deps-dev): bump com.azure:azure-identity from 1.16.2 to 1.19.0"
+type: build
+merge_requests:
+  - 5338
