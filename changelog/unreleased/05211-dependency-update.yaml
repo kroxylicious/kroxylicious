@@ -1,0 +1,4 @@
+title: "build(deps): bump kubetest4j.version from 1.3.1 to 1.4.0"
+type: build
+merge_requests:
+  - 5211
