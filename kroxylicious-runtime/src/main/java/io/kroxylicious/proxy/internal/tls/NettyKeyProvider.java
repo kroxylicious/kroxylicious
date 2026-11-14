@@ -10,6 +10,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.KeyStoreException;
+import java.security.UnrecoverableKeyException;
+import java.util.Enumeration;
 import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -110,13 +113,40 @@ public class NettyKeyProvider {
             var password = Optional.ofNullable(store.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
             var keyStore = java.security.KeyStore.getInstance(store.getType());
             keyStore.load(is, password);
+            var keyPassword = Optional.ofNullable(store.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password);
+            validateKeyStore(keyStore, keyPassword, store.storeFile());
             var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            keyManagerFactory.init(keyStore,
-                    Optional.ofNullable(store.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password));
+            keyManagerFactory.init(keyStore, keyPassword);
             return keyManagerFactory;
         }
         catch (GeneralSecurityException | IOException e) {
             throw new RuntimeException("Error building SSLContext from : " + store.storeFile(), e);
+        }
+    }
+
+    private void validateKeyStore(java.security.KeyStore keyStore, @Nullable char[] keyPassword, String storeFile) throws GeneralSecurityException {
+        Enumeration<String> aliases = keyStore.aliases();
+        boolean hasKeyEntry = false;
+        while (aliases.hasMoreElements()) {
+            String alias = aliases.nextElement();
+            if (keyStore.isKeyEntry(alias)) {
+                hasKeyEntry = true;
+                if (keyPassword == null) {
+                    throw new UnrecoverableKeyException("Key entry '" + alias + "' cannot be recovered without a password");
+                }
+                var key = keyStore.getKey(alias, keyPassword);
+                if (key == null) {
+                    throw new UnrecoverableKeyException("Key for alias '" + alias + "' could not be recovered from keystore");
+                }
+                var cert = keyStore.getCertificate(alias);
+                if (cert == null) {
+                    throw new UnrecoverableKeyException(
+                            "Certificate for alias '" + alias + "' could not be recovered from keystore. Check that storePassword is provided and correct.");
+                }
+            }
+        }
+        if (!hasKeyEntry) {
+            throw new KeyStoreException("No key entry found in keystore: " + storeFile);
         }
     }
 
