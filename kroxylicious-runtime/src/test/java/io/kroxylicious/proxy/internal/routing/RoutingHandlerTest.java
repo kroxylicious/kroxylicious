@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -113,7 +114,7 @@ class RoutingHandlerTest {
         if (channel != null) {
             channel.finishAndReleaseAll();
         }
-        if (localChannel != null) {
+        if (localChannel != null && localChannel.isOpen()) {
             localChannel.close().syncUninterruptibly();
         }
         if (eventLoop != null) {
@@ -663,6 +664,46 @@ class RoutingHandlerTest {
         assertClientChannelUsedOnlyOnEventLoop();
         assertHandledOnEventLoop(completionThread.get());
         assertThat(writtenCorrelationIds).containsExactly(CORRELATION_ID + 1);
+    }
+
+    @Test
+    void topLevel_shouldFailOobPromiseWhenEventLoopTerminatesBeforeRouterCompletes() throws Exception {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), oobProduceFrame(CORRELATION_ID, promise, DEFAULT_ROUTE));
+        terminateEventLoop();
+
+        // When
+        CompletableFuture.runAsync(() -> routerFuture.complete(oobErrorResponse())).get(5, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RejectedExecutionException.class);
+    }
+
+    @Test
+    void nested_shouldFailOobPromiseWhenEventLoopTerminatesBeforeRouterCompletes() throws Exception {
+        // Given
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var routerFuture = routeOnEventLoop(nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0))),
+                nestedOobProduceFrame(CORRELATION_ID, promise, ACTIVATION_ROUTE));
+        terminateEventLoop();
+
+        // When
+        CompletableFuture.runAsync(() -> routerFuture.complete(oobErrorResponse())).get(5, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RejectedExecutionException.class);
+    }
+
+    private void terminateEventLoop() throws Exception {
+        localChannel.close().get(5, TimeUnit.SECONDS);
+        eventLoop.shutdownGracefully(0, 1, TimeUnit.SECONDS).get(5, TimeUnit.SECONDS);
     }
 
     private AtomicReference<Thread> captureRoutedRequestCompleteThread() {
