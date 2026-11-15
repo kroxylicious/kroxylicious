@@ -152,6 +152,16 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
+        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/ProxyProtocolEndToEndIT.java/"
+      ],
+      "matchStrings": [
+        "(?<depName>envoyproxy/envoy):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java/"
       ],
       "matchStrings": [
