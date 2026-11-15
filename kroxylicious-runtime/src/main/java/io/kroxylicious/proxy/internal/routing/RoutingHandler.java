@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -376,17 +377,17 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
             if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
-                invokeRouter(ctx, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, oobFrame, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
                         (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
             }
             else {
-                invokeRouter(ctx, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, oobFrame, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
                         (result, error) -> handleNestedOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
             }
         }
         else {
             long seq = sequence;
-            invokeRouter(ctx, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+            invokeRouter(ctx, null, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
                     (result, error) -> handleCompletion(ctx, frame, result, error, apiKey, apiVersion, correlationId, seq));
         }
     }
@@ -400,9 +401,11 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * <p>
      * Completion is dispatched onto the channel's event loop, because the router may complete its
      * stage on any thread while {@link ResponseSequencer} and the {@link ClientConnectionStateMachine}
-     * are loop-confined.
+     * are loop-confined. If the event loop has terminated and rejects the completion, the connection
+     * is already gone, so only the OOB promise (if any) is failed; nothing loop-confined is touched.
      */
     private void invokeRouter(ChannelHandlerContext ctx,
+                              @Nullable InternalRequestFrame<?> oobFrame,
                               ApiKeys apiKey,
                               short apiVersion,
                               RequestHeaderData header,
@@ -429,9 +432,28 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 completion.accept(result, error);
             }
             else {
-                executor.execute(() -> completion.accept(result, error));
+                try {
+                    executor.execute(() -> completion.accept(result, error));
+                }
+                catch (RejectedExecutionException e) {
+                    onCompletionRejected(oobFrame, apiKey, e);
+                }
             }
         });
+    }
+
+    // Netty also rejects when a bounded task queue is full, but the runtime's event loops use
+    // unbounded queues, so a rejection here means the loop has shut down and the connection is gone.
+    private void onCompletionRejected(@Nullable InternalRequestFrame<?> oobFrame, ApiKeys apiKey, RejectedExecutionException e) {
+        LOGGER.atDebug()
+                .setCause(e)
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                .log("Event loop rejected router completion; connection already terminated");
+        if (oobFrame != null) {
+            oobFrame.promise().completeExceptionally(e);
+        }
     }
 
     // --- OOB completion (top-level only) ---
