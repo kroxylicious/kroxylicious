@@ -377,17 +377,17 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
             if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
-                invokeRouter(ctx, oobFrame, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, frame, routingContext,
                         (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
             }
             else {
-                invokeRouter(ctx, oobFrame, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, frame, routingContext,
                         (result, error) -> handleNestedOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
             }
         }
         else {
             long seq = sequence;
-            invokeRouter(ctx, null, apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+            invokeRouter(ctx, frame, routingContext,
                     (result, error) -> handleCompletion(ctx, frame, result, error, apiKey, apiVersion, correlationId, seq));
         }
     }
@@ -405,16 +405,13 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * is already gone, so only the OOB promise (if any) is failed; nothing loop-confined is touched.
      */
     private void invokeRouter(ChannelHandlerContext ctx,
-                              @Nullable InternalRequestFrame<?> oobFrame,
-                              ApiKeys apiKey,
-                              short apiVersion,
-                              RequestHeaderData header,
-                              ApiMessage body,
+                              DecodedRequestFrame<?> frame,
                               RouterContextImpl routingContext,
                               BiConsumer<RouterResponse, Throwable> completion) {
+        ApiKeys apiKey = frame.apiKey();
         CompletionStage<RouterResponse> stage;
         try {
-            stage = Objects.requireNonNull(router).onRequest(apiKey, apiVersion, header, body, routingContext);
+            stage = Objects.requireNonNull(router).onRequest(apiKey, frame.apiVersion(), frame.header(), frame.body(), routingContext);
         }
         catch (Exception t) {
             completion.accept(null, t);
@@ -436,23 +433,28 @@ public class RoutingHandler extends ChannelDuplexHandler {
                     executor.execute(() -> completion.accept(result, error));
                 }
                 catch (RejectedExecutionException e) {
-                    onCompletionRejected(oobFrame, apiKey, e);
+                    onCompletionRejected(frame, e);
                 }
             }
         });
     }
 
-    // Netty also rejects when a bounded task queue is full, but the runtime's event loops use
-    // unbounded queues, so a rejection here means the loop has shut down and the connection is gone.
-    private void onCompletionRejected(@Nullable InternalRequestFrame<?> oobFrame, ApiKeys apiKey, RejectedExecutionException e) {
+    // Netty also rejects when the task queue is full, but the runtime doesn't bound it
+    // (io.netty.eventLoop.maxPendingTasks is left at its default), so a rejection here means
+    // the loop has shut down and the connection is gone.
+    private void onCompletionRejected(DecodedRequestFrame<?> frame, RejectedExecutionException e) {
         LOGGER.atDebug()
                 .setCause(e)
                 .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
                 .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                .addKeyValue(LOG_KEY_API_KEY, frame.apiKey())
                 .log("Event loop rejected router completion; connection already terminated");
-        if (oobFrame != null) {
-            oobFrame.promise().completeExceptionally(e);
+        if (frame instanceof InternalRequestFrame<?> oobFrame) {
+            // Fire-and-forget internal requests carry no promise, so there is nothing to fail.
+            var routing = oobFrame.routing();
+            if (routing != null) {
+                routing.pendingPromise().ifPresent(promise -> promise.completeExceptionally(e));
+            }
         }
     }
 
