@@ -421,9 +421,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
             completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
             return;
         }
-        // Run the completion on the event loop: inline if already there, otherwise queue it.
-        // Hand-written rather than NettyFilterDispatchExecutor.completeOnFilterDispatchThread,
-        // which allocates a future on every request.
+        // Hand-written rather than NettyFilterDispatchExecutor.completeOnFilterDispatchThread: there is no
+        // filter dispatch executor here, and it would allocate a future on every request.
         EventExecutor executor = ctx.executor();
         stage.whenComplete((result, error) -> {
             if (executor.inEventLoop()) {

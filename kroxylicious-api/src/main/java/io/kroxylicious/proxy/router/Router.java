@@ -84,7 +84,9 @@ public interface Router {
      * to their own state.</p>
      *
      * <p>The stage returned by this method may be completed on any thread;
-     * the runtime handles the outcome on the event loop.</p>
+     * the runtime handles the outcome on the event loop. Code a router runs
+     * on its own threads is not on the event loop and must synchronise any
+     * router state it touches.</p>
      *
      * @param apiKey the API key identifying the request type
      * @param apiVersion the API version of the request

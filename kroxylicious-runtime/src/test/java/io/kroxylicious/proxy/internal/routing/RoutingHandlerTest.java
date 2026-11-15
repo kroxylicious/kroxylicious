@@ -15,10 +15,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -29,6 +26,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -82,9 +81,6 @@ import static org.mockito.Mockito.when;
 class RoutingHandlerTest {
 
     private static final int CORRELATION_ID = 42;
-    // Without the event-loop hop roughly 0.1-0.3% of iterations drop a response, so this many fail almost every run.
-    // The deterministic off-event-loop thread tests are the primary guard; this one shows the dropped-response symptom.
-    private static final int RACE_ITERATIONS = 5_000;
     private static final String DEFAULT_ROUTE = "default";
     private static final String ACTIVATION_ROUTE = "route-to-nested";
     private static final PathElement.Route ACTIVATION_ROUTE_PATH = new PathElement.Route(ACTIVATION_ROUTE, PathElement.ClientOrigin.INSTANCE);
@@ -107,11 +103,10 @@ class RoutingHandlerTest {
     private EmbeddedChannel channel;
 
     // Real event loop for tests that complete router futures off the loop; EmbeddedChannel's inEventLoop() is always true.
-    // Created by registerOnEventLoop so tests that only use EmbeddedChannel don't allocate one.
     private DefaultEventLoop eventLoop;
     private LocalChannel localChannel;
-    // Written only on eventLoop; read after a Future.get() barrier.
     private final List<Integer> writtenCorrelationIds = new ArrayList<>();
+    private final Queue<Thread> clientChannelCallThreads = new ConcurrentLinkedQueue<>();
 
     @AfterEach
     void tearDown() {
@@ -136,10 +131,6 @@ class RoutingHandlerTest {
     private RoutingHandler topLevelHandlerWithRoute(String routeName) {
         when(ccsm.sessionId()).thenReturn(SESSION_ID);
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
-        return unstubbedTopLevelHandlerWithRoute(routeName);
-    }
-
-    private RoutingHandler unstubbedTopLevelHandlerWithRoute(String routeName) {
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of());
         var dispatcher = RouteDispatcher.forTopLevel(Map.of(routeName, rd), new IdentityNodeIdMapping(routeName), new HashMap<>(), ccsm);
         return RoutingHandler.topLevel(dispatcher, router, Map.of(), ccsm, null);
@@ -576,6 +567,7 @@ class RoutingHandlerTest {
         completeOffEventLoop(() -> pendingFuture.complete(produceResponse()));
 
         // Then
+        assertClientChannelUsedOnlyOnEventLoop();
         assertHandledOnEventLoop(completionThread.get());
         assertThat(writtenCorrelationIds).containsExactly(CORRELATION_ID);
     }
@@ -590,6 +582,7 @@ class RoutingHandlerTest {
         completeOffEventLoop(() -> pendingFuture.completeExceptionally(new IllegalStateException("router failed")));
 
         // Then
+        assertClientChannelUsedOnlyOnEventLoop();
         assertHandledOnEventLoop(completionThread.get());
         assertThat(localChannel.closeFuture()).succeedsWithin(5, TimeUnit.SECONDS);
     }
@@ -635,7 +628,6 @@ class RoutingHandlerTest {
         when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
         when(router.staticRoutes()).thenReturn(Map.of());
         var promise = new CompletableFuture<ProduceResponseData>();
-        // The nested handler has no ccsm; a dependent registered now runs on whichever thread fails the promise.
         var completionThread = promise.handle((response, error) -> Thread.currentThread());
         var routerFuture = routeOnEventLoop(nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0))),
                 nestedOobProduceFrame(CORRELATION_ID, promise, ACTIVATION_ROUTE));
@@ -652,59 +644,25 @@ class RoutingHandlerTest {
     }
 
     @Test
-    void topLevel_shouldNotDropBufferedResponseWhenEarlierRequestCompletesOffEventLoopConcurrently() throws Exception {
+    void topLevel_shouldDeliverBufferedResponseWhenEarlierRequestCompletesOffEventLoop() throws Exception {
         // Given
-        var routerFutures = new ConcurrentLinkedQueue<CompletableFuture<RouterResponse>>();
-        when(router.onRequest(any(), anyShort(), any(), any(), any()))
-                .thenAnswer(invocation -> routerFutures.remove().minimalCompletionStage());
-        when(ccsm.sessionId()).thenReturn(SESSION_ID);
-        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
-        int dropped = 0;
-
-        // When
-        try (var offLoopThread = Executors.newSingleThreadExecutor()) {
-            for (int i = 0; i < RACE_ITERATIONS; i++) {
-                if (!raceOutOfOrderCompletion(routerFutures, offLoopThread)) {
-                    dropped++;
-                }
-            }
-        }
-
-        // Then
-        assertThat(dropped)
-                .as("iterations (of %d) in which the buffered response for request 2 was dropped", RACE_ITERATIONS)
-                .isZero();
-    }
-
-    /**
-     * Completes request 2 on the event loop and request 1 off it simultaneously; returns whether request 2's response was written.
-     */
-    private boolean raceOutOfOrderCompletion(Queue<CompletableFuture<RouterResponse>> routerFutures, ExecutorService offLoopThread) throws Exception {
+        var completionThread = captureRoutedRequestCompleteThread();
         var first = new CompletableFuture<RouterResponse>();
         var second = new CompletableFuture<RouterResponse>();
-        routerFutures.add(first);
-        routerFutures.add(second);
-        writtenCorrelationIds.clear();
-        registerOnEventLoop(unstubbedTopLevelHandlerWithRoute(DEFAULT_ROUTE));
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(first.minimalCompletionStage(), second.minimalCompletionStage());
+        registerOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE));
         readOnEventLoop(produceFrame(CORRELATION_ID));
         readOnEventLoop(produceFrame(CORRELATION_ID + 1));
+        eventLoop.submit(() -> second.complete(produceResponse())).get(5, TimeUnit.SECONDS);
 
-        var start = new CyclicBarrier(2);
-        // Timed awaits so a failed iteration cannot strand the event loop or executor at the barrier.
-        var onLoop = eventLoop.submit(() -> {
-            start.await(5, TimeUnit.SECONDS);
-            return second.complete(produceResponse());
-        });
-        var offLoop = offLoopThread.submit(() -> {
-            start.await(5, TimeUnit.SECONDS);
-            return first.complete(new RouterResponseImpl.RespondWithoutReply(false));
-        });
-        onLoop.get(5, TimeUnit.SECONDS);
-        offLoop.get(5, TimeUnit.SECONDS);
-        // Barrier: any completion hopped onto the event loop has run once this task does.
-        boolean delivered = eventLoop.submit(() -> writtenCorrelationIds.contains(CORRELATION_ID + 1)).get(5, TimeUnit.SECONDS);
-        localChannel.close().get(5, TimeUnit.SECONDS);
-        return delivered;
+        // When
+        completeOffEventLoop(() -> first.complete(new RouterResponseImpl.RespondWithoutReply(false)));
+
+        // Then
+        assertClientChannelUsedOnlyOnEventLoop();
+        assertHandledOnEventLoop(completionThread.get());
+        assertThat(writtenCorrelationIds).containsExactly(CORRELATION_ID + 1);
     }
 
     private AtomicReference<Thread> captureRoutedRequestCompleteThread() {
@@ -717,9 +675,21 @@ class RoutingHandlerTest {
     }
 
     private void assertHandledOnEventLoop(Thread completionThread) {
+        assertThat(completionThread)
+                .as("router completion was never handled")
+                .isNotNull();
         assertThat(eventLoop.inEventLoop(completionThread))
                 .as("router completion must be handled on the channel's event loop, not the thread that completed the router future")
                 .isTrue();
+    }
+
+    private void assertClientChannelUsedOnlyOnEventLoop() {
+        assertThat(clientChannelCallThreads)
+                .as("router completion never wrote to or flushed the client channel")
+                .isNotEmpty();
+        assertThat(clientChannelCallThreads)
+                .as("the client channel must only be written and flushed from its event loop")
+                .allMatch(eventLoop::inEventLoop);
     }
 
     private CompletableFuture<RouterResponse> routeOnEventLoop(RoutingHandler handler, Object frame) throws Exception {
@@ -740,10 +710,26 @@ class RoutingHandlerTest {
     }
 
     private void registerOnEventLoop(RoutingHandler handler) throws Exception {
-        if (eventLoop == null) {
-            eventLoop = new DefaultEventLoop();
-        }
-        localChannel = new LocalChannel();
+        eventLoop = new DefaultEventLoop();
+        localChannel = new LocalChannel() {
+            @Override
+            public ChannelFuture write(Object msg) {
+                clientChannelCallThreads.add(Thread.currentThread());
+                return super.write(msg);
+            }
+
+            @Override
+            public ChannelFuture writeAndFlush(Object msg) {
+                clientChannelCallThreads.add(Thread.currentThread());
+                return super.writeAndFlush(msg);
+            }
+
+            @Override
+            public Channel flush() {
+                clientChannelCallThreads.add(Thread.currentThread());
+                return super.flush();
+            }
+        };
         eventLoop.register(localChannel).get(5, TimeUnit.SECONDS);
         localChannel.pipeline().addLast(handler, new ChannelOutboundHandlerAdapter() {
             @Override
@@ -763,7 +749,6 @@ class RoutingHandlerTest {
 
     private void completeOffEventLoop(Runnable completer) throws Exception {
         CompletableFuture.runAsync(completer).get(5, TimeUnit.SECONDS);
-        // Barrier: the completion hop is queued on the event loop before runAsync returns, so this task runs after it.
         eventLoop.submit(() -> null).get(5, TimeUnit.SECONDS);
     }
 
