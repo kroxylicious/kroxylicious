@@ -21,6 +21,7 @@ The checklist is used to help Committers judge a PR's readiness for merge.
 Contributors: please check off items you consider done.
 
 - [ ] New tests written (where applicable).
+- [ ] If this PR needs non-default container image architectures (e.g., arm64), add platform labels as described in [DEV_GUIDE.md § Requesting architectures](../blob/main/DEV_GUIDE.md#requesting-architectures-on-a-pull-request).
 - [ ] If making a user-facing change, documentation is provided, or if the intent is to provide documentation in a follow up PR, an issue is raised tracking the need for the documentation update. Link the to issue in this checklist. 
 - [ ] Existing unit/integration/system tests passing.
 - [ ] Any Sonarcloud warnings are addressed (or suppressed with `@SuppressWarnings` and a justifying comment).
