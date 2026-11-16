@@ -159,10 +159,13 @@ jobs:
 
           # Capture time before dispatch so the poll can ignore runs from prior staging attempts
           DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # A release ships every architecture we can build, not just the ones a
+          # pull request would check.
+          ARCHES=$(jq -c '[to_entries[] | select(.value.enabled) | .key]' .github/workflows/config/arch-matrix.json)
           gh workflow run build-kroxylicious-container-images.yaml \
             --ref "${WORK_BRANCH}-rel" \
             --field push-images=true \
-            --field multi-arch=true
+            --field "arches=${ARCHES}"
 
           # Poll until the triggered run appears (dispatch registration can take a few seconds)
           RUN_ID=""
@@ -209,7 +212,26 @@ jobs:
           OPERATOR="${REGISTRY}/${ORG}/${{ vars.OPERATOR_IMAGE_NAME }}"
           ADMISSION="${REGISTRY}/${ORG}/${{ vars.ADMISSION_IMAGE_NAME }}"
 
+          # The per-architecture image entries are generated from the registry so
+          # that staging an architecture and recording it cannot drift apart.
+          PROXY_ARCH_IMAGES=$(jq -c \
+            --arg proxy "${PROXY}" \
+            --arg shaTag "${SHA_TAG}" \
+            --arg releaseVersion "${VERSION}" \
+            '[ to_entries[]
+               | select(.value.enabled)
+               | { key: .key,
+                   value: {
+                     ref: "\($proxy):\($shaTag)-\(.key)",
+                     builtFrom: {
+                       pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"),
+                       profiles: (.value["dist-profile"] | split(","))
+                     }
+                   } } ]
+             | from_entries' .github/workflows/config/arch-matrix.json)
+
           jq -n \
+            --argjson proxyArchImages "${PROXY_ARCH_IMAGES}" \
             --arg deploymentId "${{ env.DEPLOYMENT_ID }}" \
             --arg releaseVersion "${VERSION}" \
             --arg developmentVersion "${{ github.event.inputs.development-version }}" \
@@ -217,8 +239,6 @@ jobs:
             --arg releaseCommitSha "${RELEASE_SHA}" \
             --arg imageWorkflowRunId "${{ env.DOCKER_RUN_ID }}" \
             --arg websiteRepository "${{ github.event.inputs.website-repository }}" \
-            --arg proxyAmd64Ref "${PROXY}:${SHA_TAG}-amd64" \
-            --arg proxyArm64Ref "${PROXY}:${SHA_TAG}-arm64" \
             --arg proxyManifest "${PROXY}:${SHA_TAG}" \
             --arg proxyDigest "${PROXY_DIGEST}" \
             --arg operatorManifest "${OPERATOR}:${SHA_TAG}" \
@@ -235,11 +255,7 @@ jobs:
               websiteRepository: $websiteRepository,
               stagedArtifacts: {
                 proxy: {
-                  images: {
-                    manifestImage: { ref: $proxyManifest, digest: $proxyDigest },
-                    amd64: { ref: $proxyAmd64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist"] } },
-                    arm64: { ref: $proxyArm64Ref, builtFrom: { pom: ("io.kroxylicious:kroxylicious-app:" + $releaseVersion + ":pom"), profiles: ["dist", "aarch64"] } }
-                  }
+                  images: ({ manifestImage: { ref: $proxyManifest, digest: $proxyDigest } } + $proxyArchImages)
                 },
                 operator: {
                   images: {
