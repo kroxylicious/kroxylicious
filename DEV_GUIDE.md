@@ -556,6 +556,21 @@ There are a number of reasons a pull request can be removed from a merge queue:
 
 If you want to see how merge queues work, see [Merge Queues](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue).
 
+### Multi-arch manifests and tagging
+
+The proxy image is built once per architecture and pushed under a per-arch intermediate tag (for example
+`commit-<SHA>-amd64`). A separate `publish-proxy-manifest` job then merges those per-arch images into a single
+multi-arch manifest list, published under the final tag (`commit-<SHA>`, a version tag, or a `<version>-SNAPSHOT`
+tag). That job also verifies the published manifest references exactly the per-arch images that were just built -
+nothing missing, and nothing unexpected such as a stale digest from a previous run.
+
+The operator and admission webhook images don't go through this two-stage build - Buildx builds all of their target
+platforms in one multi-platform build and pushes the manifest list directly.
+
+Per-arch intermediate tags are build artifacts, not something to pull directly: only the manifest-list tags
+(`commit-<SHA>`, version tags, `<version>-SNAPSHOT`) are documented for consumption - see
+[RELEASING.md](RELEASING.md#container-image-tags).
+
 ### Using the GitHub CI workflows against a fork
 
 All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yaml).
