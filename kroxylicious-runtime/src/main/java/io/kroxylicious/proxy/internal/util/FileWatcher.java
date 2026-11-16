@@ -55,6 +55,12 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
  *  <ul>
  *  <li>The file contents are not tracked, so notifications will be received even if the file is updated with the same content</li>
  *  <li>Deleting a file will not trigger a change notification</li>
+ *  <li>Changes are detected using the JDK's {@link WatchService}, which relies on the operating system's file-change notifications
+ *  (inotify on Linux). Those notifications are only raised for changes made through the kernel that the JVM is running on.
+ *  When the JVM runs in a container inside a virtual machine (for example Docker Desktop or Rancher Desktop on macOS) and the watched
+ *  directory is a bind mount shared from the host, a write made on the host side does not raise an event inside the virtual machine,
+ *  so no notification is delivered. Listeners are only notified once the file is modified from inside the container or virtual machine
+ *  (for example by using {@code touch}).</li>
  *  </ul>
  *
  */

@@ -28,6 +28,19 @@ Examples below illustrate how these steps may be done.
 
 NOTE: TLS is recommended for production configurations.
 
+[NOTE]
+====
+Monitoring of the TLS configuration files relies on the operating system's file-change notifications.
+If the proxy runs in a container on a virtual machine-backed container runtime, such as Docker Desktop or Rancher Desktop on macOS, and the files are supplied through a bind mount from the host, changes made on the host are not detected.
+The proxy continues to present the previous certificate.
+
+To have the proxy pick up the new certificate, do one of the following:
+
+* Make the change from inside the container or virtual machine.
+* After changing the files on the host, run `touch` on the files from inside the container.
+* Restart the proxy.
+====
+
 .Example applying a PKCS #12 server certificate to a virtual cluster gateway
 [source,yaml]
 ----
