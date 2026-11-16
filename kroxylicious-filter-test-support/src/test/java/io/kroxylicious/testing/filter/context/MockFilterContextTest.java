@@ -10,6 +10,7 @@ import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.Test;
@@ -462,9 +463,11 @@ class MockFilterContextTest {
                 .build();
 
         // then
+        ResponseHeaderData expectedResponseHeader = new ResponseHeaderData();
+        expectedResponseHeader.setCorrelationId(HEADER.correlationId());
         MockFilterContextAssert.assertThat(result)
                 .isShortCircuitResponse()
-                .hasHeaderEqualTo(HEADER)
+                .hasHeaderEqualTo(expectedResponseHeader)
                 .hasMessageEqualTo(newData);
     }
 
@@ -862,6 +865,30 @@ class MockFilterContextTest {
         RequestHeaderData other = new RequestHeaderData().setClientId("other");
         assertThatThrownBy(() -> context.sendRequest(other, MESSAGE)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("header being passed to sendRequest did not equal expected header");
+    }
+
+    @Test
+    void sendRequestCustomHandler() {
+        // given
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        MockFilterContext context = MockFilterContext.builder(HEADER, MESSAGE)
+                .withSendRequestHandler((header, request) -> CompletableFuture.completedFuture(response))
+                .build();
+
+        // when
+        CompletionStage<ApiMessage> stage = context.sendRequest(HEADER, MESSAGE);
+
+        // then
+        assertThat(stage).succeedsWithin(Duration.ZERO).isEqualTo(response);
+        assertThat(context.sendRequestInvocations()).hasSize(1).containsExactly(new MockFilterContext.SendRequestInvocation(HEADER, MESSAGE));
+    }
+
+    @Test
+    void sendRequestCustomHandlerRejectNull() {
+        MockFilterContext.MockFilterContextBuilder builder = MockFilterContext.builder(HEADER, MESSAGE);
+        assertThatThrownBy(() -> builder.withSendRequestHandler(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("sendRequestHandler must not be null");
     }
 
     @Test

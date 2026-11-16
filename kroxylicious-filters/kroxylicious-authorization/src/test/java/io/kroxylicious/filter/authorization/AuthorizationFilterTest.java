@@ -55,6 +55,7 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.testing.filter.context.MockFilterContext;
 
 import static org.assertj.core.api.Assertions.anyOf;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -167,7 +168,11 @@ class AuthorizationFilterTest {
 
         Map<Uuid, String> topicNames = Optional.ofNullable(definition.given().topicNames()).orElse(Map.of());
         Subject subject = new Subject(new User(definition.when().subject()));
-        FilterContext context = new MockFilterContext(requestHeader, request, subject, topicNames, mockUpstream);
+        FilterContext context = MockFilterContext.builder(requestHeader, request)
+                .withAuthenticatedSubject(subject)
+                .withTopicNames(topicNames)
+                .withSendRequestHandler(mockUpstream::sendRequest)
+                .build();
         CompletionStage<RequestFilterResult> stage = authorizationFilter.onRequest(apiKeys, version, requestHeader, request, context);
         ScenarioDefinition.RequestError expectedRequestError = definition.then().expectedRequestError();
         if (expectedRequestError != null) {
@@ -247,7 +252,11 @@ class AuthorizationFilterTest {
                 ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
                 MockUpstream.Response response = mockUpstream.respond((RequestHeaderData) forwardedHeader, forwardedMessage);
                 if (definition.then().getHasResponse()) {
-                    MockFilterContext responseContext = new MockFilterContext(response.header(), response.message(), subject, topicNames, mockUpstream);
+                    FilterContext responseContext = MockFilterContext.builder(response.header(), response.message())
+                            .withAuthenticatedSubject(subject)
+                            .withTopicNames(topicNames)
+                            .withSendRequestHandler(mockUpstream::sendRequest)
+                            .build();
                     CompletionStage<ResponseFilterResult> filterResultCompletionStage = authorizationFilter.onResponse(apiKeys, version, response.header(),
                             response.message(),
                             responseContext);
@@ -282,13 +291,13 @@ class AuthorizationFilterTest {
                     throw new IllegalStateException("mock upstream still has responses queued, but filter short circuit responded");
                 }
                 if (definition.then().expectedErrorResponse() != null) {
-                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.ErrorRequestFilterResult.class,
+                    assertThat(actual).isInstanceOfSatisfying(MockFilterContext.MockErrorRequestFilterResult.class,
                             result -> assertThat(result.error()).isEqualTo(definition.then().expectedErrorResponse()));
                 }
                 else {
                     assertThat(actual)
                             .withFailMessage("request unexpectedly resulted in a short-circuit error response")
-                            .isNotInstanceOf(MockFilterContext.ErrorRequestFilterResult.class);
+                            .isNotInstanceOf(MockFilterContext.MockErrorRequestFilterResult.class);
                     if (definition.then().expectedResponseHeader() != null) {
                         ApiMessage forwardedHeader = Objects.requireNonNull(actual.header());
                         String actualHeader = toYaml(
