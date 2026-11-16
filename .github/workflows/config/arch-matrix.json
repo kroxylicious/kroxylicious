@@ -4,7 +4,6 @@
     "default": true,
     "runs-on": "ubuntu-latest",
     "dist-profile": "dist,!qa",
-    "qemu": false,
     "target-netty-classifier": "x86_64"
   },
   "arm64": {
@@ -12,7 +11,6 @@
     "default": false,
     "runs-on": "ubuntu-24.04-arm",
     "dist-profile": "dist,aarch64,!qa",
-    "qemu": false,
     "target-netty-classifier": "aarch_64"
   },
   "ppc64le": {
@@ -20,7 +18,6 @@
     "default": false,
     "runs-on": "ubuntu-24.04-ppc64le",
     "dist-profile": "dist,ppc64le,!qa",
-    "qemu": false,
     "target-netty-classifier": null
   },
   "s390x": {
@@ -28,7 +25,6 @@
     "default": false,
     "runs-on": "ubuntu-24.04-s390x",
     "dist-profile": "dist,s390x,!qa",
-    "qemu": false,
     "target-netty-classifier": null
   }
 }

@@ -577,24 +577,24 @@ native binaries exists; nothing in the workflows names architectures individuall
 
 #### Requesting architectures on a pull request
 
-An unlabelled pull request builds the architectures marked `default` in the registry, because building every
+An unlabelled pull request builds the architectures marked `default` in the architecture matrix, because building every
 architecture on every pull request is slow and most changes cannot break an architecture selectively.
 
 To choose the architectures yourself, label the pull request `platform/<arch>`, where `<arch>` is a key of the
-registry - for example `platform/s390x` or `platform/arm64`. The labels combine with each other, so
+architecture matrix - for example `platform/s390x` or `platform/arm64`. The labels combine with each other, so
 `platform/arm64` plus `platform/ppc64le` builds both, but they do not combine with the defaults: as soon as there is
 one `platform/<arch>` label the labels decide the whole set, and `default` no longer applies. A pull request labelled
 only `platform/s390x` therefore builds s390x alone, not s390x and amd64 - add `platform/amd64` as well if you want
 the default architecture too.
 
-A `platform/<arch>` label whose `<arch>` is not a key of the registry fails the build rather than being ignored: a
+A `platform/<arch>` label whose `<arch>` is not a key of the architecture matrix fails the build rather than being ignored: a
 green amd64 build is worse than no build at all when the author was aiming at s390x. The build fails if any label is
 unrecognised, including when other labels did match, so a pull request labelled `platform/amd64` and `platform/arm`
 fails instead of quietly building amd64. Label matching is exact, so `platform/AMD64` and `platform/arm` are both
 errors.
 
 Which architectures a build covers follows whether it publishes. Pushes to `main` and release staging build every
-enabled architecture in the registry, because those produce the images users consume. Merge queue runs build the
+enabled architecture in the architecture matrix, because those produce the images users consume. Merge queue runs build the
 defaults, like an unlabelled pull request: they are a check that the queued changes build together, not a publishing
 step, so they stay cheap.
 
