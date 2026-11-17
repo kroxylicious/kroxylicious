@@ -64,6 +64,8 @@ class ProxyProtocolEndToEndIT {
 
     // envoyproxy/envoy is a Docker Hub image; MirrorImageNameSubstitutor (wired via
     // testcontainers.properties) automatically redirects the pull to mirror.gcr.io.
+    // Tag-only (no digest): mirror.gcr.io assigns its own content digests, so a
+    // Docker Hub manifest-list digest is not found on the mirror and causes a pull failure.
     private static final DockerImageName ENVOY_IMAGE = DockerImageName.parse("envoyproxy/envoy:v1.40.2");
     private static final int ENVOY_LISTENER_PORT = 10000;
     private static final int ENVOY_ADMIN_PORT = 9901;
