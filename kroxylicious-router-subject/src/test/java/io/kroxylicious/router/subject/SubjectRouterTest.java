@@ -6,6 +6,7 @@
 
 package io.kroxylicious.router.subject;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -53,7 +54,16 @@ class SubjectRouterTest {
     }
 
     private static SubjectRouter.Config config(List<SubjectRouter.Rule> rules, @Nullable String defaultRoute) {
-        return new SubjectRouter.Config(new SubjectRouter.RuleMatch(rules, defaultRoute));
+        List<SubjectRouter.Rule> routingRules = defaultRoute == null
+                ? rules
+                : concat(rules, new SubjectRouter.Rule(null, null, null, defaultRoute));
+        return new SubjectRouter.Config(routingRules);
+    }
+
+    private static List<SubjectRouter.Rule> concat(List<SubjectRouter.Rule> rules, SubjectRouter.Rule last) {
+        List<SubjectRouter.Rule> result = new ArrayList<>(rules);
+        result.add(last);
+        return result;
     }
 
     @Test
@@ -249,6 +259,86 @@ class SubjectRouterTest {
         assertThatThrownBy(() -> router.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("team-x");
+    }
+
+    @Test
+    void initializeSetsDefaultRouteFromTrailingOtherwiseUseRoute() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a", "team-b"));
+        SubjectRouter.Config config = config(List.of(rule("alice", "team-a")), "team-b");
+
+        // When
+        SubjectRouter.Initialized initialized = router.initialize(context, config);
+
+        // Then
+        assertThat(initialized.defaultRoute()).isEqualTo("team-b");
+    }
+
+    @Test
+    void initializeThrowsWhenOtherwiseUseRouteIsNotLastEntry() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a", "team-b"));
+        List<SubjectRouter.Rule> routingRules = List.of(
+                new SubjectRouter.Rule(null, null, null, "team-b"),
+                rule("alice", "team-a"));
+        SubjectRouter.Config config = new SubjectRouter.Config(routingRules);
+
+        // When / Then
+        assertThatThrownBy(() -> router.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("otherwiseUseRoute must be the last entry");
+    }
+
+    @Test
+    void initializeThrowsWhenOtherwiseUseRouteCombinedWithHasPrincipals() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a"));
+        SubjectRouter.Rule wildcard = new SubjectRouter.Rule(List.of(userRequirement("alice")), null, null, "team-a");
+        SubjectRouter.Config config = new SubjectRouter.Config(List.of(wildcard));
+
+        // When / Then
+        assertThatThrownBy(() -> router.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("otherwiseUseRoute cannot be combined with hasPrincipals, hasClientId, or useRoute");
+    }
+
+    @Test
+    void initializeThrowsWhenOtherwiseUseRouteCombinedWithHasClientId() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a"));
+        SubjectRouter.Rule wildcard = new SubjectRouter.Rule(null, "demo-app", null, "team-a");
+        SubjectRouter.Config config = new SubjectRouter.Config(List.of(wildcard));
+
+        // When / Then
+        assertThatThrownBy(() -> router.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("otherwiseUseRoute cannot be combined with hasPrincipals, hasClientId, or useRoute");
+    }
+
+    @Test
+    void initializeThrowsWhenOtherwiseUseRouteCombinedWithUseRoute() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a"));
+        SubjectRouter.Rule wildcard = new SubjectRouter.Rule(null, null, "team-a", "team-a");
+        SubjectRouter.Config config = new SubjectRouter.Config(List.of(wildcard));
+
+        // When / Then
+        assertThatThrownBy(() -> router.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("otherwiseUseRoute cannot be combined with hasPrincipals, hasClientId, or useRoute");
+    }
+
+    @Test
+    void initializeThrowsWhenRuleHasNoUseRouteAndNoOtherwiseUseRoute() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of("team-a"));
+        SubjectRouter.Rule rule = new SubjectRouter.Rule(List.of(userRequirement("alice")), null, null, null);
+        SubjectRouter.Config config = new SubjectRouter.Config(List.of(rule));
+
+        // When / Then
+        assertThatThrownBy(() -> router.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("needs useRoute");
     }
 
     /**

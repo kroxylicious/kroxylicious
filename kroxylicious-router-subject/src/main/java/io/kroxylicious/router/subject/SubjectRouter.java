@@ -43,23 +43,17 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     /**
      * Configuration for {@link SubjectRouter}.
      *
-     * @param ruleMatch the ordered rule-based matching configuration
+     * @param routingRules ordered rules, evaluated in declaration order against the authenticated
+     *                     subject and the connection's pinned {@code client.id}; the router uses the
+     *                     route of the first matching rule. The last entry may instead be a bare
+     *                     {@code otherwiseUseRoute} wildcard; see {@link Rule}.
      */
-    public record Config(@JsonProperty(required = true) RuleMatch ruleMatch) {}
+    public record Config(@JsonProperty(required = true) List<Rule> routingRules) {}
 
     /**
-     * Evaluates {@code rules} in declaration order against the authenticated subject, using the route
-     * of the first matching rule.
-     *
-     * @param rules ordered rules; the first rule whose {@code hasPrincipals} is fully satisfied by the
-     *              subject wins
-     * @param defaultRoute route for an authenticated subject that no rule matches; if {@code null},
-     *                     such a subject is rejected fail-closed. Never applies to an anonymous subject.
-     */
-    public record RuleMatch(@JsonProperty(required = true) List<Rule> rules, @Nullable String defaultRoute) {}
-
-    /**
-     * A single routing rule. Needs at least one of {@code hasPrincipals} or {@code hasClientId}.
+     * A single routing rule. Either a predicate rule, needing at least one of {@code hasPrincipals} or
+     * {@code hasClientId} plus a required {@code useRoute}, or, only as {@code routingRules}' last
+     * entry, a bare {@code otherwiseUseRoute}.
      *
      * @param hasPrincipals list of {@code {withType, withName}} pairs; the rule matches only if the
      *                      subject carries, for every listed pair, a principal of that type with that
@@ -74,11 +68,22 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
      *                    authenticated subject. A client-supplied, unverified value: see the module
      *                    README for what matching on it does and does not guarantee.
      * @param useRoute the route name, declared in the router's {@code routes} block, to forward to when
-     *                 the rule matches
+     *                 the rule matches. Required unless {@code otherwiseUseRoute} is given.
+     * @param otherwiseUseRoute route for an authenticated subject that no preceding rule matches; a
+     *                          wildcard {@code hasPrincipals} match (any principals, including none),
+     *                          so it never matches an anonymous subject. Must not be combined with
+     *                          {@code hasPrincipals}, {@code hasClientId}, or {@code useRoute}, and may
+     *                          only appear as {@code routingRules}' last entry. If no rule configures
+     *                          it, an authenticated subject matching no rule is rejected fail-closed.
      */
     public record Rule(@Nullable List<PrincipalRequirement> hasPrincipals,
                        @Nullable String hasClientId,
-                       @JsonProperty(required = true) String useRoute) {}
+                       @Nullable String useRoute,
+                       @Nullable String otherwiseUseRoute) {
+        public Rule(@Nullable List<PrincipalRequirement> hasPrincipals, @Nullable String hasClientId, String useRoute) {
+            this(hasPrincipals, hasClientId, useRoute, null);
+        }
+    }
 
     /**
      * A single {@code hasPrincipals} entry: the subject must carry a principal of {@code withType} named
@@ -125,19 +130,34 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     @Override
     public Initialized initialize(RouterFactoryContext context, Config config) throws PluginConfigurationException {
         Config cfg = Plugins.requireConfig(this, config);
-        RuleMatch ruleMatch = cfg.ruleMatch();
+        List<Rule> routingRules = cfg.routingRules();
 
         Map<String, Class<? extends Principal>> resolvedTypes = new HashMap<>();
         Set<PredicateKey> seenPredicates = new HashSet<>();
         List<CompiledRule> compiledRules = new ArrayList<>();
-        for (Rule rule : ruleMatch.rules()) {
+        String defaultRoute = null;
+        for (int i = 0; i < routingRules.size(); i++) {
+            Rule rule = routingRules.get(i);
             List<PrincipalRequirement> hasPrincipals = rule.hasPrincipals() == null ? List.of() : rule.hasPrincipals();
+            if (rule.otherwiseUseRoute() != null) {
+                if (!hasPrincipals.isEmpty() || rule.hasClientId() != null || rule.useRoute() != null) {
+                    throw new PluginConfigurationException("routingRules otherwiseUseRoute cannot be combined with hasPrincipals, hasClientId, or useRoute");
+                }
+                if (i != routingRules.size() - 1) {
+                    throw new PluginConfigurationException("routingRules otherwiseUseRoute must be the last entry");
+                }
+                defaultRoute = rule.otherwiseUseRoute();
+                continue;
+            }
             if (hasPrincipals.isEmpty() && rule.hasClientId() == null) {
-                throw new PluginConfigurationException("ruleMatch.rules entry needs at least one of hasPrincipals or hasClientId");
+                throw new PluginConfigurationException("routingRules entry needs at least one of hasPrincipals or hasClientId");
+            }
+            if (rule.useRoute() == null) {
+                throw new PluginConfigurationException("routingRules entry needs useRoute");
             }
             if (!seenPredicates.add(new PredicateKey(Set.copyOf(hasPrincipals), rule.hasClientId()))) {
                 throw new PluginConfigurationException(
-                        "ruleMatch.rules contains more than one rule with hasPrincipals " + hasPrincipals + " and hasClientId " + rule.hasClientId());
+                        "routingRules contains more than one rule with hasPrincipals " + hasPrincipals + " and hasClientId " + rule.hasClientId());
             }
             List<CompiledPrincipalRequirement> requiredPrincipals = new ArrayList<>();
             for (PrincipalRequirement requirement : hasPrincipals) {
@@ -150,17 +170,17 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
         Set<String> routeNames = context.routeNames();
         Set<String> referenced = new HashSet<>();
         compiledRules.forEach(rule -> referenced.add(rule.route()));
-        if (ruleMatch.defaultRoute() != null) {
-            referenced.add(ruleMatch.defaultRoute());
+        if (defaultRoute != null) {
+            referenced.add(defaultRoute);
         }
         referenced.removeAll(routeNames);
         if (!referenced.isEmpty()) {
             throw new PluginConfigurationException(
-                    "ruleMatch references unknown routes " + referenced + "; declared routes are " + routeNames);
+                    "routingRules references unknown routes " + referenced + "; declared routes are " + routeNames);
         }
 
         context.allowSharedClusterTargets(); // multiple rules may target the same route
-        return new Initialized(List.copyOf(compiledRules), ruleMatch.defaultRoute());
+        return new Initialized(List.copyOf(compiledRules), defaultRoute);
     }
 
     @SuppressFBWarnings(value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE", justification = "init is marked @Nullable to match the @UnknownNullness contract of RouterFactory#createRouter,"
@@ -179,10 +199,10 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
             type = Class.forName(typeName);
         }
         catch (ClassNotFoundException e) {
-            throw new PluginConfigurationException("ruleMatch hasPrincipals withType '" + typeName + "' not found", e);
+            throw new PluginConfigurationException("routingRules hasPrincipals withType '" + typeName + "' not found", e);
         }
         if (!Principal.class.isAssignableFrom(type)) {
-            throw new PluginConfigurationException("ruleMatch hasPrincipals withType '" + typeName + "' does not implement " + Principal.class.getName());
+            throw new PluginConfigurationException("routingRules hasPrincipals withType '" + typeName + "' does not implement " + Principal.class.getName());
         }
         return (Class<? extends Principal>) type;
     }
