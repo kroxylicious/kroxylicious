@@ -155,7 +155,7 @@
         "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/ProxyProtocolEndToEndIT.java/"
       ],
       "matchStrings": [
-        "(?<depName>envoyproxy/envoy):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+        "(?<depName>envoyproxy/envoy):(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "docker"
     },
