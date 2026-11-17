@@ -16,7 +16,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * The fixture translates this into whatever form the deployment mechanism requires
  * (CRD {@code Tls} object, config file entry, etc.).
  *
- * @param certificateSecretName the name of the Kubernetes Secret (or file path in standalone mode) containing the TLS certificate and key
+ * @param certificateSecretName an identifier for the certificate material; how it's resolved (Secret lookup, file lookup, etc.) is defined by the active fixture
  * @param trustStoreName        the name of the trust store, or {@code null} if the default trust store is used
  */
 public record TlsSpec(@NonNull String certificateSecretName, @Nullable String trustStoreName) {

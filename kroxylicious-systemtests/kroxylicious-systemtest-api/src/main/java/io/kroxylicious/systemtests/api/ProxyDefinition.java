@@ -171,12 +171,8 @@ public final class ProxyDefinition {
          *
          * @param replicas replica count (must be positive)
          * @return this builder
-         * @throws IllegalArgumentException if replicas is not positive
          */
         public Builder withReplicas(int replicas) {
-            if (replicas < 1) {
-                throw new IllegalArgumentException("replicas must be positive, got " + replicas);
-            }
             this.replicas = replicas;
             return this;
         }
