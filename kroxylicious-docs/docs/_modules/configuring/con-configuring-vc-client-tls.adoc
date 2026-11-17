@@ -28,6 +28,10 @@ Examples below illustrate how these steps may be done.
 
 NOTE: TLS is recommended for production configurations.
 
+NOTE: Certificate reload relies on file system change notifications from the operating system.
+If Kroxylicious runs in a container on a virtual machine and the certificate files are supplied through a bind mount from the host, a change made on the host might not raise a notification inside the virtual machine, and the proxy continues to serve the previous certificate.
+Making the change from inside the container, or restarting the proxy, works around this.
+
 .Example applying a PKCS #12 server certificate to a virtual cluster gateway
 [source,yaml]
 ----

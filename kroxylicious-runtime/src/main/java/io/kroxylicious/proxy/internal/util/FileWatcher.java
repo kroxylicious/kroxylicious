@@ -55,6 +55,8 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
  *  <ul>
  *  <li>The file contents are not tracked, so notifications will be received even if the file is updated with the same content</li>
  *  <li>Deleting a file will not trigger a change notification</li>
+ *  <li>Relies on native file-change notifications from the host operating system. When the watched files are on a bind mount shared from a host
+ *  into a virtual machine, a change made on the host may raise no notification inside the virtual machine, so the change will not be picked up</li>
  *  </ul>
  *
  */

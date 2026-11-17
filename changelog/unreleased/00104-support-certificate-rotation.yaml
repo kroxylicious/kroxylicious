@@ -2,3 +2,8 @@ title: "feat(cert-rotation): automatic downstream TLS certificate and key reload
 type: added
 issues:
   - 104
+important_notes:
+  - |
+    Known limitation: certificate reload relies on file-change notifications from the operating system.
+    If Kroxylicious runs in a container on a virtual machine and the certificate files are supplied through a bind mount from the host, a change made on the host might not raise a notification inside the virtual machine, and the proxy continues to serve the previous certificate.
+    Making the change from inside the container, or restarting the proxy, works around this.
