@@ -14,12 +14,19 @@
 = Configuring PROXY protocol for LoadBalancer ingress
 
 [role="_abstract"]
-When a `loadBalancer` ingress is deployed behind a load balancer that uses the https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt[PROXY protocol], you must configure the ingress to accept PROXY protocol headers. This ensures that the original client connection metadata (source address, destination address, and ports) is preserved and passed to the proxy.
+{proxy-protocol}[PROXY protocol] is a network protocol that enables a load balancer to forward original client connection metadata — source address, destination address, and ports — to the backend service.
+If you want this metadata available to the proxy and to filters, configure the load balancer to send PROXY protocol headers and the ingress to accept them.
 
 PROXY protocol handling is configured at the `KafkaProxyIngress` level using the `spec.loadBalancer.proxyProtocol.mode` property.
 This setting applies to all virtual clusters that use this ingress.
 
-Both PROXY protocol v1 (text) and v2 (binary) are supported.
+Both PROXY protocol v1 (text) and v2 (binary, including TLV extensions) are supported.
+
+[IMPORTANT]
+====
+The load balancer and ingress configurations must be kept in sync.
+If the load balancer sends PROXY protocol headers but the ingress is not configured to accept them, or the ingress expects headers that the load balancer does not send, connections will fail.
+====
 
 == PROXY protocol modes
 
@@ -29,14 +36,14 @@ Two modes are supported:
 `REQUIRED`:: Every incoming connection to the ingress must begin with a valid PROXY protocol header.
 Kroxylicious decodes the header, records the original client connection metadata, and then processes the remainder of the connection as Kafka protocol traffic.
 Connections that do not begin with a PROXY protocol header are rejected and a warning is logged.
-Use this mode when all traffic to the ingress arrives through a PROXY protocol-capable load balancer.
+Use this mode when all traffic to the ingress arrives through a load balancer configured to send PROXY protocol headers.
 
 `FORBIDDEN`:: PROXY protocol headers are not permitted on the ingress.
-If a downstream intermediary sends a PROXY protocol header, the connection will be closed and a warning logged.
+If a downstream intermediary sends a PROXY protocol header, the connection is closed and a warning is logged.
 Use this mode when clients connect to the ingress directly, or through a load balancer that does not send PROXY protocol headers.
 
 If the `proxyProtocol` block is omitted from the ingress configuration, the effective mode is `FORBIDDEN`.
-You only need to add a `proxyProtocol` block to ingresses that sit behind a PROXY protocol-capable load balancer.
+You only need to add a `proxyProtocol` block to ingresses that sit behind a load balancer configured to send PROXY protocol headers.
 
 == Enabling PROXY protocol on a LoadBalancer ingress
 
@@ -64,9 +71,9 @@ where:
 * `proxyProtocol` configures PROXY protocol handling for the ingress.
 ** `mode` is the PROXY protocol mode (`REQUIRED` or `FORBIDDEN`).
 
-== Configuring the upstream load balancer
+== Configuring the load balancer
 
-Setting `proxyProtocol.mode: REQUIRED` on the `KafkaProxyIngress` configures the proxy to expect PROXY protocol headers, but it does not automatically configure the cloud provider's load balancer to send them.
+Setting `proxyProtocol.mode: REQUIRED` on the `KafkaProxyIngress` configures the proxy to accept PROXY protocol headers, but it does not automatically configure the cloud provider's load balancer to send them.
 You must separately configure the load balancer using the cloud provider's mechanisms.
 
 .Example: AWS Network Load Balancer with PROXY protocol
@@ -93,6 +100,8 @@ spec:
 ----
 
 The `service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"` annotation instructs AWS to enable PROXY protocol v2 on all target groups for the Network Load Balancer.
+
+For other cloud providers, refer to their documentation to learn how to enable PROXY protocol support on a load balancer service.
 
 [IMPORTANT]
 ====

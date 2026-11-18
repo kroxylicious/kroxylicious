@@ -145,6 +145,9 @@
 :josdk: https://javaoperatorsdk.io/
 :josdk-metrics: https://github.com/operator-framework/java-operator-sdk/blob/v5.6.2/docs/content/en/docs/documentation/operations/metrics.md
 
+// Other links
+:proxy-protocol: https://www.haproxy.org/download/3.3/doc/proxy-protocol.txt
+
 // Conditional inclusion flags
 // (note: we control optional inclusion with ifdefs/ifndefs directives, so the value of the attribute is irrelevant)
 :IncludeSingleYamlFileManifest:
