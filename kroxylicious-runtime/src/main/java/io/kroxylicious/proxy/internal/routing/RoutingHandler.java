@@ -399,10 +399,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * close the connection rather than let the exception escape to the pipeline's generic error
      * handler, which only logs and leaves the connection (and any pending OOB promise) hanging.
      * <p>
-     * Completion is dispatched onto the channel's event loop, because the router may complete its
-     * stage on any thread while {@link ResponseSequencer} and the {@link ClientConnectionStateMachine}
-     * are loop-confined. If the event loop has terminated and rejects the completion, the connection
-     * is already gone, so only the OOB promise (if any) is failed; nothing loop-confined is touched.
+     * The router may complete its stage on any thread, so completion is handled on the event loop,
+     * where {@link ResponseSequencer} and the {@link ClientConnectionStateMachine} are confined.
      */
     private void invokeRouter(ChannelHandlerContext ctx,
                               DecodedRequestFrame<?> frame,
@@ -421,8 +419,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
             completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
             return;
         }
-        // Hand-written rather than NettyFilterDispatchExecutor.completeOnFilterDispatchThread: there is no
-        // filter dispatch executor here, and it would allocate a future on every request.
         EventExecutor executor = ctx.executor();
         stage.whenComplete((result, error) -> {
             if (executor.inEventLoop()) {
@@ -439,9 +435,8 @@ public class RoutingHandler extends ChannelDuplexHandler {
         });
     }
 
-    // Netty also rejects when the task queue is full, but the runtime doesn't bound it
-    // (io.netty.eventLoop.maxPendingTasks is left at its default), so a rejection here means
-    // the loop has shut down and the connection is gone.
+    // The task queue is unbounded by default (io.netty.eventLoop.maxPendingTasks), so a rejection
+    // means the loop has shut down and the connection is gone.
     private void onCompletionRejected(DecodedRequestFrame<?> frame, RejectedExecutionException e) {
         LOGGER.atDebug()
                 .setCause(e)
@@ -450,7 +445,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 .addKeyValue(LOG_KEY_API_KEY, frame.apiKey())
                 .log("Event loop rejected router completion; connection already terminated");
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
-            // Fire-and-forget internal requests carry no promise, so there is nothing to fail.
             var routing = oobFrame.routing();
             if (routing != null) {
                 routing.pendingPromise().ifPresent(promise -> promise.completeExceptionally(e));
