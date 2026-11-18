@@ -214,6 +214,8 @@ jobs:
           egress-policy: audit
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: 'Select architectures'
         id: arches
         env:
@@ -280,7 +282,7 @@ jobs:
     permissions:
       contents: read
     needs: [ compute_pom_version, select_architectures ]
-    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
+    uses: $/.github/workflows/build-kroxylicious-container-images.yaml
     with:
       push-images: ${{ github.event_name == 'push' }}
       arches: ${{ needs.select_architectures.outputs.arches }}
