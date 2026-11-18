@@ -16,7 +16,7 @@
     "architecture-override": null
   },
   "ppc64le": {
-    "enabled": false,
+    "enabled": true,
     "default": false,
     "runs-on": "ubuntu-24.04-ppc64le",
     "dist-profile": "dist,ppc64le,!qa",
