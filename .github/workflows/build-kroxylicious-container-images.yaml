@@ -170,7 +170,8 @@ jobs:
               | { arch: .key,
                   runs_on: .value["runs-on"],
                   dist_profile: .value["dist-profile"],
-                  target_netty_classifier: .value["target-netty-classifier"] } ]
+                  target_netty_classifier: .value["target-netty-classifier"],
+                  architecture_override: .value["architecture-override"] } ]
           ' "${ARCH_MATRIX_FILE}")
 
           PLATFORMS=$(jq -rn --argjson arches "${ARCHES}" '[$arches[] | "linux/\(.)"] | join(",")')
@@ -311,6 +312,8 @@ jobs:
 
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
+        with:
+          architecture: ${{ matrix.architecture_override }}
 
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
