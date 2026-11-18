@@ -14,7 +14,7 @@
     "target-netty-classifier": "aarch_64"
   },
   "ppc64le": {
-    "enabled": true,
+    "enabled": false,
     "default": false,
     "runs-on": "ubuntu-24.04-ppc64le",
     "dist-profile": "dist,ppc64le,!qa",
