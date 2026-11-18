@@ -194,7 +194,6 @@ jobs:
           ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
           INPUT_OUTPUT_TARBALLS: ${{ inputs.output-tarballs }}
           INPUT_PUSH_IMAGES: ${{ inputs.push-images }}
-          INPUT_MULTI_ARCH: ${{ inputs.multi-arch }}
           VAR_REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
           VAR_REGISTRY_ORGANISATION: ${{ vars.REGISTRY_ORGANISATION }}
           VAR_PROXY_IMAGE_NAME: ${{ vars.PROXY_IMAGE_NAME }}
