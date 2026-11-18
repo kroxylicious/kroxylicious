@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -106,7 +106,7 @@ class RoutingHandlerTest {
     // Real event loop for tests that complete router futures off the loop; EmbeddedChannel's inEventLoop() is always true.
     private DefaultEventLoop eventLoop;
     private LocalChannel localChannel;
-    private final List<Integer> writtenCorrelationIds = new ArrayList<>();
+    private final List<Integer> writtenCorrelationIds = new CopyOnWriteArrayList<>();
     private final Queue<Thread> clientChannelCallThreads = new ConcurrentLinkedQueue<>();
 
     @AfterEach
@@ -194,6 +194,10 @@ class RoutingHandlerTest {
         var frame = new OpaqueRequestFrame(buf, apiKey.id, (short) 12, correlationId, false, 0, true);
         frame.setRouting(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
+    }
+
+    private static InternalRequestFrame<ProduceRequestData> internalProduceFrame(int correlationId) {
+        return new InternalRequestFrame<>((short) 9, correlationId, true, produceFrame(correlationId).header(), new ProduceRequestData());
     }
 
     private InternalRequestFrame<ProduceRequestData> oobProduceFrame(int correlationId, CompletableFuture<?> promise) {
@@ -674,12 +678,13 @@ class RoutingHandlerTest {
         terminateEventLoop();
 
         // When
-        CompletableFuture.runAsync(() -> routerFuture.complete(oobErrorResponse())).get(5, TimeUnit.SECONDS);
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
 
         // Then
         assertThat(promise).failsWithin(Duration.ofSeconds(5))
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(RejectedExecutionException.class);
+        assertNothingLoopConfinedTouched();
     }
 
     @Test
@@ -693,12 +698,88 @@ class RoutingHandlerTest {
         terminateEventLoop();
 
         // When
-        CompletableFuture.runAsync(() -> routerFuture.complete(oobErrorResponse())).get(5, TimeUnit.SECONDS);
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
 
         // Then
         assertThat(promise).failsWithin(Duration.ofSeconds(5))
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(RejectedExecutionException.class);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void topLevel_shouldIgnoreRejectedCompletionForFireAndForgetInternalRequest() throws Exception {
+        // Given
+        var frame = internalProduceFrame(CORRELATION_ID);
+        frame.setRouting(new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE));
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), frame);
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertCompletionCallbackDidNotThrow(routerFuture);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void topLevel_shouldIgnoreRejectedCompletionForInternalRequestWithoutRouting() throws Exception {
+        // Given
+        var frame = internalProduceFrame(CORRELATION_ID);
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), frame);
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertCompletionCallbackDidNotThrow(routerFuture);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void topLevel_shouldIgnoreRejectedCompletionForClientRequest() throws Exception {
+        // Given
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), produceFrame(CORRELATION_ID));
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, produceResponse());
+
+        // Then
+        assertCompletionCallbackDidNotThrow(routerFuture);
+        assertNothingLoopConfinedTouched();
+    }
+
+    /**
+     * Records the stages derived from it, so a test can observe an exception thrown inside the
+     * handler's {@code whenComplete} callback, which would otherwise be silently swallowed.
+     */
+    private static final class DependentRecordingFuture<T> extends CompletableFuture<T> {
+        private final Queue<CompletableFuture<?>> dependents = new ConcurrentLinkedQueue<>();
+
+        @Override
+        public <U> CompletableFuture<U> newIncompleteFuture() {
+            var dependent = new CompletableFuture<U>();
+            dependents.add(dependent);
+            return dependent;
+        }
+    }
+
+    private static void assertCompletionCallbackDidNotThrow(DependentRecordingFuture<?> routerFuture) {
+        assertThat(routerFuture.dependents)
+                .as("the handler never attached a completion callback")
+                .isNotEmpty();
+        assertThat(routerFuture.dependents)
+                .as("the handler's completion callback threw")
+                .allSatisfy(dependent -> assertThat(dependent).succeedsWithin(Duration.ofSeconds(5)));
+    }
+
+    private void assertNothingLoopConfinedTouched() {
+        verify(ccsm, never()).onRoutedRequestComplete();
+        verify(ccsm, never()).requestClose(any());
+        assertThat(writtenCorrelationIds).isEmpty();
     }
 
     private void terminateEventLoop() throws Exception {
@@ -733,10 +814,9 @@ class RoutingHandlerTest {
                 .allMatch(eventLoop::inEventLoop);
     }
 
-    private CompletableFuture<RouterResponse> routeOnEventLoop(RoutingHandler handler, Object frame) throws Exception {
-        var routerFuture = new CompletableFuture<RouterResponse>();
-        when(router.onRequest(any(), anyShort(), any(), any(), any()))
-                .thenReturn(routerFuture.minimalCompletionStage());
+    private DependentRecordingFuture<RouterResponse> routeOnEventLoop(RoutingHandler handler, Object frame) throws Exception {
+        var routerFuture = new DependentRecordingFuture<RouterResponse>();
+        when(router.onRequest(any(), anyShort(), any(), any(), any())).thenReturn(routerFuture);
         registerOnEventLoop(handler);
         readOnEventLoop(frame);
         return routerFuture;
@@ -790,7 +870,12 @@ class RoutingHandlerTest {
 
     private void completeOffEventLoop(Runnable completer) throws Exception {
         CompletableFuture.runAsync(completer).get(5, TimeUnit.SECONDS);
+        // Wait for the completion queued onto the loop to run.
         eventLoop.submit(() -> null).get(5, TimeUnit.SECONDS);
+    }
+
+    private static void completeOnAnotherThread(CompletableFuture<RouterResponse> routerFuture, RouterResponse response) throws Exception {
+        CompletableFuture.runAsync(() -> routerFuture.complete(response)).get(5, TimeUnit.SECONDS);
     }
 
     @Test
