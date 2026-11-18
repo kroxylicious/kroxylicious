@@ -94,6 +94,8 @@ public class MockFilterContext implements FilterContext {
     private final ClientTlsContext clientTlsContext;
     private final Subject authenticatedSubject;
     private final List<MockSendRequestResponse> sendRequestResponses;
+    @Nullable
+    private final SendRequestHandler sendRequestHandler;
     private final List<SendRequestInvocation> sendRequestInvocations = new CopyOnWriteArrayList<>();
     private final List<ClientSaslGestureInvocation> clientSaslGestureInvocations = new CopyOnWriteArrayList<>();
     private final Map<Uuid, TopicNameMappingException> topicNameFailures;
@@ -112,8 +114,10 @@ public class MockFilterContext implements FilterContext {
                               @Nullable ClientSaslContext clientSaslContext,
                               @Nullable ClientTlsContext clientTlsContext,
                               Subject authenticatedSubject,
-                              List<MockSendRequestResponse> sendRequestResponses) {
+                              List<MockSendRequestResponse> sendRequestResponses,
+                              @Nullable SendRequestHandler sendRequestHandler) {
         this.sendRequestResponses = sendRequestResponses;
+        this.sendRequestHandler = sendRequestHandler;
         Objects.requireNonNull(header, "header must not be null");
         Objects.requireNonNull(message, "message must not be null");
         Objects.requireNonNull(topicNames, "topicNames must not be null");
@@ -170,6 +174,8 @@ public class MockFilterContext implements FilterContext {
         private ClientTlsContext clientTlsContext = null;
         private Subject authenticatedSubject = DEFAULT_AUTHENTICATED_SUBJECT;
         private final List<MockSendRequestResponse> sendRequestResponses = Lists.newArrayList();
+        @Nullable
+        private SendRequestHandler sendRequestHandler = null;
 
         /**
          * Constructs a builder for a MockFilterContext handling the given request or response.
@@ -203,7 +209,8 @@ public class MockFilterContext implements FilterContext {
                     clientSaslContext,
                     clientTlsContext,
                     authenticatedSubject,
-                    sendRequestResponses);
+                    sendRequestResponses,
+                    sendRequestHandler);
         }
 
         /**
@@ -409,6 +416,17 @@ public class MockFilterContext implements FilterContext {
         }
 
         /**
+         * Configures a custom handler to process invocations of {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)}.
+         *
+         * @param sendRequestHandler the request handler
+         * @return this builder
+         */
+        public MockFilterContextBuilder withSendRequestHandler(SendRequestHandler sendRequestHandler) {
+            this.sendRequestHandler = Objects.requireNonNull(sendRequestHandler, "sendRequestHandler must not be null");
+            return this;
+        }
+
+        /**
          * Configures a topic id to fail with the given exception when passed to {@link FilterContext#topicNames(Collection)}.
          *
          * @param topicId the topic id
@@ -517,6 +535,11 @@ public class MockFilterContext implements FilterContext {
     public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
         synchronized (sendRequestResponses) {
             sendRequestInvocations.add(new SendRequestInvocation(header, request));
+            if (sendRequestHandler != null) {
+                @SuppressWarnings("unchecked")
+                CompletionStage<M> stage = (CompletionStage<M>) sendRequestHandler.handle(header, request);
+                return stage;
+            }
             if (!sendRequestResponses.isEmpty()) {
                 MockSendRequestResponse first = sendRequestResponses.remove(0);
                 @SuppressWarnings("unchecked")
@@ -588,7 +611,11 @@ public class MockFilterContext implements FilterContext {
 
         @Override
         public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ApiMessage message) throws IllegalArgumentException {
-            return new MockCloseOrTerminalRequestStage(true, header, message, false, false);
+            ResponseHeaderData responseHeader = new ResponseHeaderData();
+            if (header instanceof RequestHeaderData requestHeader) {
+                responseHeader.setCorrelationId(requestHeader.correlationId());
+            }
+            return new MockCloseOrTerminalRequestStage(true, responseHeader, message, false, false);
         }
 
         @Override
@@ -810,6 +837,21 @@ public class MockFilterContext implements FilterContext {
             bodyValidator.accept(requestBody);
             return response;
         }
+    }
+
+    /**
+     * Functional handler for {@link FilterContext#sendRequest(RequestHeaderData, ApiMessage)}.
+     */
+    @FunctionalInterface
+    public interface SendRequestHandler {
+        /**
+         * Handles a request forwarded towards upstream.
+         *
+         * @param header the request header
+         * @param request the request message
+         * @return completion stage of the response
+         */
+        CompletionStage<? extends ApiMessage> handle(RequestHeaderData header, ApiMessage request);
     }
 
     /**
