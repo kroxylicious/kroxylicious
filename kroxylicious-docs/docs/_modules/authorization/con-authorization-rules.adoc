@@ -155,9 +155,22 @@ The following resource predicates are supported:
 
 | `MATCHING`
 | Regular expression match
-| `name matching "a+"`
+| `name matching /a+/`
 
 |===
+
+In a `matching` regular expression, the ACL parser recognises two special escape sequences
+before passing the pattern to the regex engine:
+
+* `\/` - a literal slash (needed to avoid ending the `/…/` delimiter early)
+* `\\` - a single backslash character passed to the regex engine
+
+Any other backslash is passed through unchanged, so `/orders\.v1/` matches only `orders.v1`
+(literal dot) and `/\d+-topic/` matches names such as `12-topic`, made of one or more digits followed by `-topic`.
+
+Because there are two layers of escaping — the ACL syntax and the regex engine — matching a
+*literal backslash* in a topic name requires four backslashes in the ACL file:
+`/foo\\\\bar/` produces the regex pattern `foo\\bar`, which matches the string `foo\bar`.
 
 == Operations
 

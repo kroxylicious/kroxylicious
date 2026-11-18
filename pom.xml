@@ -25,7 +25,7 @@
         <maven.exec.version>3.1.0</maven.exec.version>
         <maven.compiler.version>3.16.0</maven.compiler.version>
         <maven.failsafe.version>3.6.0</maven.failsafe.version>
-        <maven.surefire.version>3.6.0</maven.surefire.version>
+        <maven.surefire.version>3.6.1</maven.surefire.version>
         <maven-dependency-plugin.version>3.11.0</maven-dependency-plugin.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
@@ -51,7 +51,7 @@
         <jackson.version>2.22.4</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.4</junit.version>
-        <zstd-jni.version>1.5.7-25</zstd-jni.version>
+        <zstd-jni.version>1.5.7-26</zstd-jni.version>
         <kafka.version>4.3.2</kafka.version>
         <kafka.message-spec.version>4.3.2</kafka.message-spec.version>
         <lz4-java.version>1.12.1</lz4-java.version>
@@ -87,7 +87,7 @@
         <testcontainers.version>2.0.5</testcontainers.version>
         <azure.security.keyvault.keys.version>4.11.3</azure.security.keyvault.keys.version>
         <azure.identity.version>1.16.2</azure.identity.version>
-        <lowkey.version>7.3.145</lowkey.version>
+        <lowkey.version>7.4.0</lowkey.version>
         <bouncycastle.version>1.86</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.2</wiremock.version>
@@ -1024,7 +1024,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>build-helper-maven-plugin</artifactId>
-                    <version>3.6.2</version>
+                    <version>3.8.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>
@@ -1804,6 +1804,7 @@
             <modules>
                 <module>kroxylicious-integration-tests</module>
                 <module>kroxylicious-test-images</module>
+                <module>kroxylicious-systemtests/kroxylicious-systemtest-api</module>
                 <module>kroxylicious-systemtests</module>
                 <module>kroxylicious-docs-tests</module>
                 <module>kroxylicious-microbenchmarks</module>

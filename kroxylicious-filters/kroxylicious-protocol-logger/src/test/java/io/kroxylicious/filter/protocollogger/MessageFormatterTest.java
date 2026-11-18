@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filter.protocollogger;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,8 @@ class MessageFormatterTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final MessageFormatter formatter = new MessageFormatter();
+    private static final SocketAddress DEFAULT_CLIENT_ADDR = new InetSocketAddress("127.0.0.1", 12345);
+    private static final SocketAddress DEFAULT_PEER_ADDR = new InetSocketAddress("127.0.0.1", 12345);
 
     @ParameterizedTest
     @EnumSource(value = ApiKeys.class, names = {
@@ -61,7 +65,7 @@ class MessageFormatterTest {
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
 
         // When
-        ObjectNode entry = formatter.formatRequest(apiKey, (short) 0, header, requestMessageFor(apiKey));
+        ObjectNode entry = formatter.formatRequest(apiKey, (short) 0, header, requestMessageFor(apiKey), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         assertThat(entry.get("payload").isNull()).isTrue();
@@ -82,7 +86,7 @@ class MessageFormatterTest {
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
 
         // When
-        ObjectNode entry = formatter.formatResponse(apiKey, (short) 0, header, responseMessageFor(apiKey));
+        ObjectNode entry = formatter.formatResponse(apiKey, (short) 0, header, responseMessageFor(apiKey), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         assertThat(entry.get("payload").isNull()).isTrue();
@@ -132,7 +136,7 @@ class MessageFormatterTest {
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
 
         // When
-        ObjectNode entry = formatter.formatRequest(apiKey, (short) 0, header, message);
+        ObjectNode entry = formatter.formatRequest(apiKey, (short) 0, header, message, DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         assertThat(entry.get("payload").isNull()).isTrue();
@@ -183,7 +187,7 @@ class MessageFormatterTest {
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
 
         // When
-        ObjectNode entry = formatter.formatResponse(apiKey, (short) 0, header, message);
+        ObjectNode entry = formatter.formatResponse(apiKey, (short) 0, header, message, DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         assertThat(entry.get("payload").isNull()).isTrue();
@@ -199,7 +203,7 @@ class MessageFormatterTest {
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("producer-1");
 
         // When
-        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData());
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         assertThat(entry.has("payloadWithheld")).isFalse();
@@ -213,7 +217,7 @@ class MessageFormatterTest {
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
 
         // When
-        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 12, header, new MetadataResponseData());
+        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 12, header, new MetadataResponseData(), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         assertThat(entry.has("payloadWithheld")).isFalse();
@@ -225,9 +229,11 @@ class MessageFormatterTest {
     void requestHeaderHasExpectedFields() {
         // Given
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(7).setClientId("my-client");
+        SocketAddress clientAddr = new InetSocketAddress("192.168.1.100", 54321);
+        SocketAddress peerAddr = new InetSocketAddress("10.0.0.5", 9092);
 
         // When
-        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData());
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), clientAddr, peerAddr);
 
         // Then
         assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
@@ -236,6 +242,8 @@ class MessageFormatterTest {
                 .containsEntry("apiVersion", 13)
                 .containsEntry("correlationId", 7)
                 .containsEntry("clientId", "my-client")
+                .containsEntry("clientAddress", "192.168.1.100:54321")
+                .containsEntry("peerAddress", "10.0.0.5:9092")
                 .doesNotContainKey("sessionId");
     }
 
@@ -243,9 +251,11 @@ class MessageFormatterTest {
     void responseHeaderHasExpectedFields() {
         // Given
         ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(7);
+        SocketAddress clientAddr = new InetSocketAddress("192.168.1.100", 54321);
+        SocketAddress peerAddr = new InetSocketAddress("10.0.0.5", 9092);
 
         // When
-        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData());
+        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData(), clientAddr, peerAddr);
 
         // Then
         assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
@@ -253,6 +263,8 @@ class MessageFormatterTest {
                 .containsEntry("apiKey", "METADATA")
                 .containsEntry("apiVersion", 13)
                 .containsEntry("correlationId", 7)
+                .containsEntry("clientAddress", "192.168.1.100:54321")
+                .containsEntry("peerAddress", "10.0.0.5:9092")
                 .doesNotContainKey("clientId")
                 .doesNotContainKey("sessionId");
     }
@@ -264,14 +276,14 @@ class MessageFormatterTest {
         ResponseHeaderData resHeader = new ResponseHeaderData().setCorrelationId(1);
 
         // When
-        ObjectNode reqEntry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, reqHeader, new MetadataRequestData());
-        ObjectNode resEntry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, resHeader, new MetadataResponseData());
+        ObjectNode reqEntry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, reqHeader, new MetadataRequestData(), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
+        ObjectNode resEntry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, resHeader, new MetadataResponseData(), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         assertThat(MAPPER.convertValue(reqEntry.get("header"), Map.class))
-                .containsOnlyKeys("type", "apiKey", "apiVersion", "correlationId", "clientId");
+                .containsOnlyKeys("type", "apiKey", "apiVersion", "correlationId", "clientId", "clientAddress", "peerAddress");
         assertThat(MAPPER.convertValue(resEntry.get("header"), Map.class))
-                .containsOnlyKeys("type", "apiKey", "apiVersion", "correlationId");
+                .containsOnlyKeys("type", "apiKey", "apiVersion", "correlationId", "clientAddress", "peerAddress");
     }
 
     @Test
@@ -280,13 +292,125 @@ class MessageFormatterTest {
         RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
 
         // When
-        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData());
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
         String json = MessageFormatter.prettyPrint(entry);
 
         // Then
         assertThat(json).startsWith("{");
         assertThat(entry.has("header")).isTrue();
         assertThat(entry.has("payload")).isTrue();
+    }
+
+    @Test
+    void formatRequestIncludesIPv4Addresses() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+        InetSocketAddress clientAddr = new InetSocketAddress("192.168.1.100", 54321);
+        InetSocketAddress peerAddr = new InetSocketAddress("10.0.0.5", 9092);
+
+        // When
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), clientAddr, peerAddr);
+
+        // Then
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("clientAddress", "192.168.1.100:54321")
+                .containsEntry("peerAddress", "10.0.0.5:9092");
+    }
+
+    @Test
+    void formatRequestIncludesIPv6Addresses() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+        InetSocketAddress clientAddr = new InetSocketAddress("2001:db8::1", 54321);
+        InetSocketAddress peerAddr = new InetSocketAddress("fe80::1", 9092);
+
+        // When
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), clientAddr, peerAddr);
+
+        // Then - Java returns canonical (uncompressed) IPv6 format
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("clientAddress", "[2001:db8:0:0:0:0:0:1]:54321")
+                .containsEntry("peerAddress", "[fe80:0:0:0:0:0:0:1]:9092");
+    }
+
+    @Test
+    void formatResponseIncludesIPv4Addresses() {
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+        InetSocketAddress clientAddr = new InetSocketAddress("192.168.1.100", 54321);
+        InetSocketAddress peerAddr = new InetSocketAddress("10.0.0.5", 9092);
+
+        // When
+        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData(), clientAddr, peerAddr);
+
+        // Then
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("clientAddress", "192.168.1.100:54321")
+                .containsEntry("peerAddress", "10.0.0.5:9092");
+    }
+
+    @Test
+    void formatResponseIncludesIPv6Addresses() {
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+        InetSocketAddress clientAddr = new InetSocketAddress("2001:db8::1", 54321);
+        InetSocketAddress peerAddr = new InetSocketAddress("fe80::1", 9092);
+
+        // When
+        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData(), clientAddr, peerAddr);
+
+        // Then - Java returns canonical (uncompressed) IPv6 format
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("clientAddress", "[2001:db8:0:0:0:0:0:1]:54321")
+                .containsEntry("peerAddress", "[fe80:0:0:0:0:0:0:1]:9092");
+    }
+
+    @Test
+    void formatSocketAddressHandlesNonInetSocketAddress() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+        SocketAddress customAddr = new SocketAddress() {
+            @Override
+            public String toString() {
+                return "custom-address";
+            }
+        };
+
+        // When
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), customAddr, customAddr);
+
+        // Then
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("clientAddress", "custom-address")
+                .containsEntry("peerAddress", "custom-address");
+    }
+
+    @Test
+    void formatRequestHandlesNullAddresses() {
+        // Given
+        RequestHeaderData header = new RequestHeaderData().setCorrelationId(1).setClientId("c");
+
+        // When
+        ObjectNode entry = formatter.formatRequest(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), null, null);
+
+        // Then
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("clientAddress", null)
+                .containsEntry("peerAddress", null);
+    }
+
+    @Test
+    void formatResponseHandlesNullAddresses() {
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(1);
+
+        // When
+        ObjectNode entry = formatter.formatResponse(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData(), null, null);
+
+        // Then
+        assertThat(MAPPER.convertValue(entry.get("header"), Map.class))
+                .containsEntry("clientAddress", null)
+                .containsEntry("peerAddress", null);
     }
 
     private static ApiMessage requestMessageFor(ApiKeys apiKey) {

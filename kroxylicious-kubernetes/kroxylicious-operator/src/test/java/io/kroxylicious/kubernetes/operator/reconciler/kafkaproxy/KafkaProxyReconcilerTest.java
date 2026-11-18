@@ -37,22 +37,30 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkf
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.loadbalancer.ProxyProtocol;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.InvalidResourceException;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
+import io.kroxylicious.kubernetes.operator.TestPortConstants;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
+import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.SharedSniContainerPort;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.testing.operator.assertj.AssertFactory;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -427,7 +435,6 @@ class KafkaProxyReconcilerTest {
                 .isReadyTrue();
     }
 
-    @NonNull
     private static KafkaProxyReconciler newKafkaProxyReconciler(Clock reconciliationTime) {
         return new KafkaProxyReconciler(reconciliationTime, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
     }
@@ -629,6 +636,63 @@ class KafkaProxyReconcilerTest {
 
     private static KafkaProxyBuilder proxyBuilder(String name) {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
+    }
+
+    static Stream<Arguments> proxyProtocolConfigProvider() {
+        return Stream.of(
+                Arguments.of(ProxyProtocol.Mode.REQUIRED,
+                        ProxyProtocolMode.REQUIRED,
+                        new SharedSniContainerPort(TestPortConstants.PROXY_PROTOCOL_SNI_PORT, "shared-sni-proxy-protocol-port")),
+                Arguments.of(ProxyProtocol.Mode.FORBIDDEN,
+                        ProxyProtocolMode.FORBIDDEN,
+                        new SharedSniContainerPort(TestPortConstants.PLAIN_SNI_PORT, "shared-sni-port")),
+                Arguments.of(null, null,
+                        new SharedSniContainerPort(TestPortConstants.PLAIN_SNI_PORT, "shared-sni-port")));
+    }
+
+    @ParameterizedTest
+    @MethodSource("proxyProtocolConfigProvider")
+    void buildVirtualClusterGatewayConvertsProxyProtocolModeCorrectly(
+                                                                      @Nullable ProxyProtocol.Mode kubeMode,
+                                                                      @Nullable ProxyProtocolMode runtimeMode,
+                                                                      SharedSniContainerPort sharedSniPort) {
+        // Given
+        var lbBuilder = new LoadBalancerBuilder()
+                .withBootstrapAddress("bootstrap.kafka")
+                .withAdvertisedBrokerAddressPattern("$(nodeId)-broker.kafka");
+        if (kubeMode != null) {
+            lbBuilder.withNewProxyProtocol().withMode(kubeMode).endProxyProtocol();
+        }
+        var loadBalancer = lbBuilder.build();
+
+        var ingress = new KafkaProxyIngressBuilder()
+                .withNewMetadata().withName("test-ingress").withNamespace("test-ns").endMetadata()
+                .withNewSpec().withLoadBalancer(loadBalancer).endSpec()
+                .build();
+
+        var tls = new TlsBuilder()
+                .withNewCertificateRef().withName("cert").endCertificateRef()
+                .build();
+
+        var cluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata().withName("test-cluster").withNamespace("test-ns").endMetadata()
+                .build();
+
+        var networkingModel = new LoadBalancerClusterIngressNetworkingModel(
+                cluster, ingress, loadBalancer, tls, sharedSniPort);
+
+        // When
+        var result = KafkaProxyReconciler.buildVirtualClusterGateway(networkingModel);
+
+        // Then
+        var gateway = result.fragment();
+        if (runtimeMode != null) {
+            assertThat(gateway.proxyProtocol()).isNotNull();
+            assertThat(gateway.proxyProtocol().mode()).isEqualTo(runtimeMode);
+        }
+        else {
+            assertThat(gateway.proxyProtocol()).isNull();
+        }
     }
 
 }

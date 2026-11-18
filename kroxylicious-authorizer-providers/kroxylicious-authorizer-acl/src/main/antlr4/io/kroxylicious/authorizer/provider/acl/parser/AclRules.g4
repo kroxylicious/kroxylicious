@@ -108,9 +108,11 @@ NAME: 'name';
 WITH: 'with';
 STRING: '"' (STRING_ESC | .)*? '"';
 fragment STRING_ESC: '\\"' | '\\\\';
-REGEX: '/' (REGEX_ESC | .)*? '/';
-fragment REGEX_ESC: '\\/' | '\\\\';
+// Comments come before REGEX: a block comment is also a valid regex literal of the same length,
+// and the lexer picks the first rule that matches
 LINE_COMMENT: '//' .*? '\r'? '\n' -> skip;
 COMMENT: '/*' .*? '*/' -> skip;
+REGEX: '/' (REGEX_ESC | .)*? '/';
+fragment REGEX_ESC: '\\/' | '\\\\';
 WS: [ \t\r\n]+ -> skip;
 IDENT: [A-Za-z][A-Za-z0-9_]*;

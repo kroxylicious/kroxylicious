@@ -26,6 +26,31 @@ See the [Developer Guide](DEV_GUIDE.md).
 
 See the [Release Guide](RELEASING.md)
 
+## Container Images
+
+Kroxylicious publishes container images for the proxy, operator and admission webhook to `quay.io/kroxylicious`.
+
+We recommend using a fixed tag for production deployments, such as a release version tag, e.g. `0.25.0`. We treat
+these as immutable once published.
+
+For non-production deployments we also support two floating tags:
+
+- `<version>-SNAPSHOT` (e.g. `0.25.0-SNAPSHOT`) tracks ongoing development - it's repointed at the newest successful
+  build of the branch producing that version. Generally `main`, but release branches also publish snapshots, e.g.
+  `main` might publish `0.26.0-SNAPSHOT` while `release/v0.25` publishes `0.25.1-SNAPSHOT`.
+- `latest` follows the Docker convention, but only moves on release - it always points at the most recent release
+  version, never at an intermediate development build.
+
+Every successful build, development or release, is also tagged with the commit it was built from (`commit-<SHA>`),
+giving traceability back to source. This tag is not rewritten in practice, but that's a convention rather than
+something the registry enforces, so it is not a stronger guarantee than a version tag - it's there for traceability,
+not as an alternative to pinning a release, and a `commit-<SHA>` tag from `main` is not a tested release.
+
+Pull request builds aren't pushed anywhere.
+
+See [RELEASING.md](RELEASING.md#container-image-tags) for how these tags are produced, and
+[DEV_GUIDE.md](DEV_GUIDE.md#multi-arch-manifests-and-tagging) for the multi-arch build behind them.
+
 ## Performance Testing
 
 See the [Performance Guide](PERFORMANCE.md) for information on running basic performance tests for this proxy.

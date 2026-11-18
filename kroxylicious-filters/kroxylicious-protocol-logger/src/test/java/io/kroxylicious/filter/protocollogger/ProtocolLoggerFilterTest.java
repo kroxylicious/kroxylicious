@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filter.protocollogger;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.EnumSet;
@@ -55,6 +57,8 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
 import io.kroxylicious.testing.filter.context.MockFilterContext;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
@@ -62,6 +66,8 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 class ProtocolLoggerFilterTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final SocketAddress DEFAULT_CLIENT_ADDR = new InetSocketAddress("127.0.0.1", 12345);
+    private static final SocketAddress DEFAULT_PEER_ADDR = new InetSocketAddress("127.0.0.1", 12345);
 
     private final ProtocolLoggerFilter filter = new ProtocolLoggerFilter(
             EnumSet.allOf(ApiKeys.class), new MessageFormatter(), Level.DEBUG,
@@ -105,14 +111,14 @@ class ProtocolLoggerFilterTest {
 
     @ParameterizedTest
     @MethodSource("credentialBearingRequestsWithSecrets")
-    void credentialBearingRequestHasHeaderAndWithheldPayload(ApiKeys apiKey, ApiMessage message, String secret) throws JsonProcessingException {
+    void credentialBearingRequestHasHeaderAndWithheldPayload(ApiKeys apiKey, ApiMessage message, @Nullable String secret) throws JsonProcessingException {
         // Given
         RequestHeaderData header = new RequestHeaderData()
                 .setCorrelationId(3)
                 .setClientId("producer-1");
 
         // When
-        String output = filter.buildRequestLogMessage(apiKey, (short) 2, header, message);
+        String output = filter.buildRequestLogMessage(apiKey, (short) 2, header, message, DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         JsonNode entry = MAPPER.readTree(output);
@@ -166,13 +172,13 @@ class ProtocolLoggerFilterTest {
 
     @ParameterizedTest
     @MethodSource("credentialBearingResponsesWithSecrets")
-    void credentialBearingResponseHasHeaderAndWithheldPayload(ApiKeys apiKey, ApiMessage message, String secret) throws JsonProcessingException {
+    void credentialBearingResponseHasHeaderAndWithheldPayload(ApiKeys apiKey, ApiMessage message, @Nullable String secret) throws JsonProcessingException {
         // Given
         ResponseHeaderData header = new ResponseHeaderData()
                 .setCorrelationId(3);
 
         // When
-        String output = filter.buildResponseLogMessage(apiKey, (short) 2, header, message);
+        String output = filter.buildResponseLogMessage(apiKey, (short) 2, header, message, DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         JsonNode entry = MAPPER.readTree(output);
@@ -198,7 +204,7 @@ class ProtocolLoggerFilterTest {
                 .setClientId("test-client");
 
         // When
-        String output = filter.buildRequestLogMessage(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData());
+        String output = filter.buildRequestLogMessage(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         JsonNode entry = MAPPER.readTree(output);
@@ -218,7 +224,7 @@ class ProtocolLoggerFilterTest {
                 .setCorrelationId(42);
 
         // When
-        String output = filter.buildResponseLogMessage(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData());
+        String output = filter.buildResponseLogMessage(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData(), DEFAULT_CLIENT_ADDR, DEFAULT_PEER_ADDR);
 
         // Then
         JsonNode entry = MAPPER.readTree(output);
@@ -229,6 +235,98 @@ class ProtocolLoggerFilterTest {
                 .containsEntry("correlationId", 42)
                 .doesNotContainKey("clientId");
         assertThat(entry.get("payload").isNull()).isFalse();
+    }
+
+    static Stream<Arguments> addressFormattingTestCases() {
+        return Stream.of(
+                argumentSet("IPv4 addresses",
+                        "192.168.1.100", 54321,
+                        "10.0.0.5", 9092,
+                        "192.168.1.100:54321",
+                        "10.0.0.5:9092"),
+                argumentSet("IPv6 addresses - compressed input",
+                        "2001:db8::1", 54321,
+                        "fe80::1", 9092,
+                        "[2001:db8:0:0:0:0:0:1]:54321",
+                        "[fe80:0:0:0:0:0:0:1]:9092"),
+                argumentSet("IPv6 addresses - canonical input",
+                        "2001:0db8:0000:0000:0000:0000:0000:0001", 54321,
+                        "fe80:0000:0000:0000:0000:0000:0000:0001", 9092,
+                        "[2001:db8:0:0:0:0:0:1]:54321",
+                        "[fe80:0:0:0:0:0:0:1]:9092"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("addressFormattingTestCases")
+    void requestLogMessageIncludesClientAndPeerAddresses(String clientHost, int clientPort,
+                                                         String peerHost, int peerPort,
+                                                         String expectedClientAddr, String expectedPeerAddr)
+            throws JsonProcessingException {
+        // Given
+        RequestHeaderData header = new RequestHeaderData()
+                .setCorrelationId(42)
+                .setClientId("test-client");
+        InetSocketAddress clientAddr = new InetSocketAddress(clientHost, clientPort);
+        InetSocketAddress peerAddr = new InetSocketAddress(peerHost, peerPort);
+
+        // When
+        String output = filter.buildRequestLogMessage(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(),
+                clientAddr, peerAddr);
+
+        // Then
+        JsonNode entry = MAPPER.readTree(output);
+        assertThat(entry.get("header").get("clientAddress").asText())
+                .isEqualTo(expectedClientAddr);
+        assertThat(entry.get("header").get("peerAddress").asText())
+                .isEqualTo(expectedPeerAddr);
+    }
+
+    @ParameterizedTest
+    @MethodSource("addressFormattingTestCases")
+    void responseLogMessageIncludesClientAndPeerAddresses(String clientHost, int clientPort,
+                                                          String peerHost, int peerPort,
+                                                          String expectedClientAddr, String expectedPeerAddr)
+            throws JsonProcessingException {
+        // Given
+        ResponseHeaderData header = new ResponseHeaderData().setCorrelationId(42);
+        InetSocketAddress clientAddr = new InetSocketAddress(clientHost, clientPort);
+        InetSocketAddress peerAddr = new InetSocketAddress(peerHost, peerPort);
+
+        // When
+        String output = filter.buildResponseLogMessage(ApiKeys.METADATA, (short) 13, header, new MetadataResponseData(),
+                clientAddr, peerAddr);
+
+        // Then
+        JsonNode entry = MAPPER.readTree(output);
+        assertThat(entry.get("header").get("clientAddress").asText())
+                .isEqualTo(expectedClientAddr);
+        assertThat(entry.get("header").get("peerAddress").asText())
+                .isEqualTo(expectedPeerAddr);
+    }
+
+    @Test
+    void addressFormattingHandlesNonInetSocketAddress() throws JsonProcessingException {
+        // Given
+        RequestHeaderData header = new RequestHeaderData()
+                .setCorrelationId(42)
+                .setClientId("test-client");
+        SocketAddress customAddr = new SocketAddress() {
+            @Override
+            public String toString() {
+                return "custom-address";
+            }
+        };
+
+        // When
+        String output = filter.buildRequestLogMessage(ApiKeys.METADATA, (short) 13, header, new MetadataRequestData(),
+                customAddr, customAddr);
+
+        // Then
+        JsonNode entry = MAPPER.readTree(output);
+        assertThat(entry.get("header").get("clientAddress").asText())
+                .isEqualTo("custom-address");
+        assertThat(entry.get("header").get("peerAddress").asText())
+                .isEqualTo("custom-address");
     }
 
     @Test
@@ -376,7 +474,7 @@ class ProtocolLoggerFilterTest {
         // Then
         var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
         LoggingEventAssert.assertThat(events).hasSize(1);
-        JsonNode entry = MAPPER.readTree(events.get(0).getMessage());
+        JsonNode entry = MAPPER.readTree(events.getFirst().getMessage());
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("METADATA");
     }
 
@@ -396,7 +494,7 @@ class ProtocolLoggerFilterTest {
         // Then
         var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
         LoggingEventAssert.assertThat(events).hasSize(1);
-        JsonNode entry = MAPPER.readTree(events.get(0).getMessage());
+        JsonNode entry = MAPPER.readTree(events.getFirst().getMessage());
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("METADATA");
     }
 
@@ -418,7 +516,7 @@ class ProtocolLoggerFilterTest {
         // Then
         var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
         LoggingEventAssert.assertThat(events).hasSize(1);
-        String message = events.get(0).getMessage();
+        String message = events.getFirst().getMessage();
         assertThat(message).doesNotContain(plantedSecret);
         JsonNode entry = MAPPER.readTree(message);
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("SASL_AUTHENTICATE");
@@ -444,7 +542,7 @@ class ProtocolLoggerFilterTest {
         // Then
         var events = capturedLogs.logged(ProtocolLoggerFilter.class, Level.DEBUG);
         LoggingEventAssert.assertThat(events).hasSize(1);
-        String message = events.get(0).getMessage();
+        String message = events.getFirst().getMessage();
         assertThat(message).doesNotContain(plantedSecret);
         JsonNode entry = MAPPER.readTree(message);
         assertThat(entry.path("header").path("apiKey").asText()).isEqualTo("CREATE_DELEGATION_TOKEN");
@@ -457,12 +555,14 @@ class ProtocolLoggerFilterTest {
     private static MessageFormatter throwingFormatter() {
         return new MessageFormatter() {
             @Override
-            ObjectNode formatRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage message) {
+            ObjectNode formatRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage message,
+                                     SocketAddress clientAddress, SocketAddress peerAddress) {
                 throw new RuntimeException("converter boom");
             }
 
             @Override
-            ObjectNode formatResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage message) {
+            ObjectNode formatResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage message,
+                                      SocketAddress clientAddress, SocketAddress peerAddress) {
                 throw new RuntimeException("converter boom");
             }
         };
@@ -535,9 +635,9 @@ class ProtocolLoggerFilterTest {
         // Then
         var warnings = capturedLogs.logged(LogWarningThrottle.class, Level.WARN);
         LoggingEventAssert.assertThat(warnings).hasSize(1);
-        assertThat(warnings.get(0).getKeyValuePairs())
+        assertThat(warnings.getFirst().getKeyValuePairs())
                 .anyMatch(kv -> "apiKey".equals(kv.key) && ApiKeys.METADATA.equals(kv.value));
-        assertThat(warnings.get(0).getKeyValuePairs())
+        assertThat(warnings.getFirst().getKeyValuePairs())
                 .anyMatch(kv -> "targetLogger".equals(kv.key) && ProtocolLoggerFilter.class.getName().equals(kv.value));
     }
 
