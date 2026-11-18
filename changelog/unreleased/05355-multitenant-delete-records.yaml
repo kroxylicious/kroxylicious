@@ -1,0 +1,4 @@
+title: "feat(multitenant): support tenant-scoped DeleteRecords requests"
+type: added
+merge_requests:
+  - 5355
