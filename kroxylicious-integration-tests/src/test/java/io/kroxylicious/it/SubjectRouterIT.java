@@ -40,6 +40,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
+import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
@@ -102,7 +103,7 @@ import static org.awaitility.Awaitility.await;
 class SubjectRouterIT {
 
     private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
-    private static final String PROXY_ADDRESS = "localhost:9192";
+    private static final String PROXY_ADDRESS = "localhost:0";
     private static final String TOPIC = "subject-router-it-topic";
 
     @Name("clusterA")
@@ -253,6 +254,19 @@ class SubjectRouterIT {
         return props;
     }
 
+    private SslContext clientSslContext(KeytoolCertificateGenerator clientCertGenerator) throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (var in = Files.newInputStream(Path.of(clientCertGenerator.getKeyStoreLocation()))) {
+            keyStore.load(in, clientCertGenerator.getPassword().toCharArray());
+        }
+        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        keyManagerFactory.init(keyStore, clientCertGenerator.getPassword().toCharArray());
+        return SslContextBuilder.forClient()
+                .keyManager(keyManagerFactory)
+                .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                .build();
+    }
+
     @Test
     void mtlsRoutesConnectionsByPrincipal() throws Exception {
         // Given
@@ -292,24 +306,16 @@ class SubjectRouterIT {
 
         // When / Then
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED)
-                .createDefaultKroxyliciousTester();
-                var client = new KafkaClient("localhost", 9192, eveSslContext)) {
-            client.getSync(new Request(ApiKeys.METADATA, (short) 9, "eve-client", new MetadataRequestData()));
-            await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(client.isOpen()).isFalse());
+                .createDefaultKroxyliciousTester()) {
+            String[] hostPort = tester.getBootstrapAddress().split(":", -1); // NOPMD
+            try (var client = new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]), eveSslContext)) {
+                client.getSync(new Request(ApiKeys.METADATA, (short) 9, "eve-client", new MetadataRequestData()));
+                await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(client.isOpen()).isFalse());
+            }
+            assertThat(Metrics.globalRegistry.get("kroxylicious_subject_router_rejected_total")
+                    .tags("virtual_cluster", "demo", "router", "subject-router", "reason", "unmapped")
+                    .counter().count()).isEqualTo(1);
         }
-    }
-
-    private SslContext clientSslContext(KeytoolCertificateGenerator clientCertGenerator) throws Exception {
-        KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        try (var in = Files.newInputStream(Path.of(clientCertGenerator.getKeyStoreLocation()))) {
-            keyStore.load(in, clientCertGenerator.getPassword().toCharArray());
-        }
-        KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        keyManagerFactory.init(keyStore, clientCertGenerator.getPassword().toCharArray());
-        return SslContextBuilder.forClient()
-                .keyManager(keyManagerFactory)
-                .trustManager(InsecureTrustManagerFactory.INSTANCE)
-                .build();
     }
 
     @Test
