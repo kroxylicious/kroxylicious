@@ -45,6 +45,6 @@
         <module>../kroxylicious-filters</module>
         <module>../kroxylicious-authorizer-api</module>
         <module>../kroxylicious-authorizer-providers</module>
-        <module>../kroxylicious-router-subject</module>
+        <module>../kroxylicious-routers</module>
     </modules>
 </project>

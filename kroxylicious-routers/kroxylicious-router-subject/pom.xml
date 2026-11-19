@@ -12,9 +12,8 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.kroxylicious</groupId>
-        <artifactId>kroxylicious-parent</artifactId>
+        <artifactId>kroxylicious-router-parent</artifactId>
         <version>0.26.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>kroxylicious-router-subject</artifactId>
