@@ -54,7 +54,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 @SuppressWarnings({ "java:S5738", "removal" })
-class SubjectRoutingHandlerTest {
+class SubjectRoutingRouterTest {
 
     private static final RequestHeaderData HEADER = new RequestHeaderData();
     private static final MetadataRequestData REQUEST = new MetadataRequestData();
@@ -127,12 +127,12 @@ class SubjectRoutingHandlerTest {
         return new ApiVersionsResponseData().setErrorCode(errorCode).setApiKeys(collection);
     }
 
-    private SubjectRoutingHandler newHandler() {
-        return newHandler(RULES, null);
+    private SubjectRoutingRouter newRouter() {
+        return newRouter(RULES, null);
     }
 
-    private SubjectRoutingHandler newHandler(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute) {
-        return new SubjectRoutingHandler(rules, defaultRoute, Set.of("team-a", "team-b"), "vc1", "subj-router");
+    private SubjectRoutingRouter newRouter(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute) {
+        return new SubjectRoutingRouter(rules, defaultRoute, Set.of("team-a", "team-b"), "vc1", "subj-router");
     }
 
     private static SubjectRouter.CompiledPrincipalRequirement requirement(Class<? extends io.kroxylicious.proxy.authentication.Principal> type, String name) {
@@ -142,10 +142,10 @@ class SubjectRoutingHandlerTest {
     @Test
     void staticRoutesIsEmpty() {
         // Given
-        SubjectRoutingHandler handler = newHandler();
+        SubjectRoutingRouter router = newRouter();
 
         // When
-        var staticRoutes = handler.staticRoutes();
+        var staticRoutes = router.staticRoutes();
 
         // Then
         assertThat(staticRoutes).isEmpty();
@@ -164,7 +164,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -185,7 +185,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -202,7 +202,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(errorResponse));
 
         // When
-        RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -219,7 +219,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(errorResponse));
 
         // When
-        RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -239,7 +239,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler(RULES, "team-b").onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter(RULES, "team-b").onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -278,7 +278,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith(any(ApiVersionsResponseData.class))).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler().onRequest(ApiKeys.API_VERSIONS, (short) 3, headerCopy, requestCopy, ctx)
+        RouterResponse result = newRouter().onRequest(ApiKeys.API_VERSIONS, (short) 3, headerCopy, requestCopy, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -316,7 +316,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(HEADER, REQUEST, Errors.UNKNOWN_SERVER_ERROR)).thenReturn(closeableStage(errorResponse));
 
         // When
-        RouterResponse result = newHandler().onRequest(ApiKeys.API_VERSIONS, (short) 3, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter().onRequest(ApiKeys.API_VERSIONS, (short) 3, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -334,11 +334,11 @@ class SubjectRoutingHandlerTest {
         when(ctx.sendRequest(node, HEADER, REQUEST)).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
         RouterResponse routerResponse = mock(RouterResponse.class);
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
-        SubjectRoutingHandler handler = newHandler();
-        handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+        SubjectRoutingRouter router = newRouter();
+        router.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
 
         // When
-        RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = router.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -360,11 +360,11 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(forwardedResponse));
         RouterResponse errorResponse = mock(RouterResponse.class);
         when(ctx.respondWithError(HEADER, REQUEST, Errors.UNKNOWN_SERVER_ERROR)).thenReturn(closeableStage(errorResponse));
-        SubjectRoutingHandler handler = newHandler();
-        handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+        SubjectRoutingRouter router = newRouter();
+        router.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
 
         // When
-        RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = router.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -378,7 +378,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
-        newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+        newRouter().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_subject_router_rejected_total")
@@ -394,7 +394,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
-        newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+        newRouter().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_subject_router_rejected_total")
@@ -418,7 +418,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -436,7 +436,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
-        newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+        newRouter(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
 
         // Then
         verify(ctx, never()).anyNode(any());
@@ -457,7 +457,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -475,7 +475,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
-        newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
+        newRouter(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
 
         // Then
         verify(ctx, never()).anyNode(any());
@@ -495,7 +495,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx)
+        RouterResponse result = newRouter(rules, null).onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -517,7 +517,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
 
         // When
-        RouterResponse result = newHandler(rules, null).onRequest(ApiKeys.API_VERSIONS, (short) 3, header, REQUEST, ctx)
+        RouterResponse result = newRouter(rules, null).onRequest(ApiKeys.API_VERSIONS, (short) 3, header, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -537,7 +537,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(header, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
-        newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx).toCompletableFuture().join();
+        newRouter(rules, null).onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx).toCompletableFuture().join();
 
         // Then
         verify(ctx, never()).anyNode(any());
@@ -552,7 +552,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.respondWithError(header, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(errorResponse));
 
         // When
-        RouterResponse result = newHandler(RULES, "team-a").onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx)
+        RouterResponse result = newRouter(RULES, "team-a").onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then
@@ -572,12 +572,12 @@ class SubjectRoutingHandlerTest {
         when(ctx.sendRequest(eq(node), any(RequestHeaderData.class), eq(REQUEST))).thenReturn(CompletableFuture.completedFuture(upstreamResponse));
         RouterResponse routerResponse = mock(RouterResponse.class);
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(routerResponse));
-        SubjectRoutingHandler handler = newHandler(rules, null);
-        handler.onRequest(ApiKeys.METADATA, (short) 0, firstHeader, REQUEST, ctx).toCompletableFuture().join();
+        SubjectRoutingRouter router = newRouter(rules, null);
+        router.onRequest(ApiKeys.METADATA, (short) 0, firstHeader, REQUEST, ctx).toCompletableFuture().join();
 
         // When: a later request on the same connection carries a different client.id
         RequestHeaderData laterHeader = new RequestHeaderData().setClientId("other-app");
-        RouterResponse result = handler.onRequest(ApiKeys.METADATA, (short) 0, laterHeader, REQUEST, ctx)
+        RouterResponse result = router.onRequest(ApiKeys.METADATA, (short) 0, laterHeader, REQUEST, ctx)
                 .toCompletableFuture().join();
 
         // Then: still routed via the pinned "demo-app" client.id, not rejected or re-evaluated against "other-app"

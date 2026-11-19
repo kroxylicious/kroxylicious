@@ -40,9 +40,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Routes each request on a connection to the route selected for the connection's authenticated
  * subject. Per-connection state; not shared across connections.
  */
-class SubjectRoutingHandler implements Router {
+class SubjectRoutingRouter implements Router {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SubjectRoutingHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubjectRoutingRouter.class);
 
     /**
      * Bounded set of rejection reasons. Used as the {@code reason} metric tag value, so it must
@@ -91,8 +91,8 @@ class SubjectRoutingHandler implements Router {
     private @Nullable String pinnedClientId;
     private boolean clientIdPinned;
 
-    SubjectRoutingHandler(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute,
-                          Set<String> routeNames, String virtualClusterName, String routerName) {
+    SubjectRoutingRouter(List<SubjectRouter.CompiledRule> rules, @Nullable String defaultRoute,
+                         Set<String> routeNames, String virtualClusterName, String routerName) {
         this.rules = rules;
         this.defaultRoute = defaultRoute;
         this.routeNames = routeNames;

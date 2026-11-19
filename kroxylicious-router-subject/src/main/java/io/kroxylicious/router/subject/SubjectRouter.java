@@ -188,7 +188,7 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
     @Override
     public Router createRouter(RouterFactoryContext context, @Nullable Initialized init) {
         Objects.requireNonNull(init);
-        return new SubjectRoutingHandler(init.rules(), init.defaultRoute(), context.routeNames(),
+        return new SubjectRoutingRouter(init.rules(), init.defaultRoute(), context.routeNames(),
                 context.virtualClusterName(), context.routerName());
     }
 

@@ -92,7 +92,7 @@ import static org.awaitility.Awaitility.await;
  * {@code API_VERSIONS} pre-SASL, and applying per-route filters.
  *
  * <p>The SASL fan-out test uses two real (identically-versioned) Kafka clusters rather than mock
- * brokers advertising divergent version ranges: {@code SubjectRoutingHandlerTest} already exercises
+ * brokers advertising divergent version ranges: {@code SubjectRoutingRouterTest} already exercises
  * the intersection maths (narrowed ranges, dropped keys, error handling) exhaustively at the unit
  * level. This IT's job is to prove the fan-out/route wiring works through the real SASL termination
  * and router pipeline, which a same-version intersection still demonstrates.</p>
