@@ -17,13 +17,16 @@ import io.javaoperatorsdk.operator.api.config.ControllerConfigurationOverrider;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
+import static io.kroxylicious.kubernetes.operator.OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME;
 import static io.kroxylicious.kubernetes.operator.OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME;
 import static io.kroxylicious.kubernetes.operator.OperatorMain.KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+@ClearEnvironmentVariable(key = KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
 class ControllerConfigurerTest {
 
     @Test
@@ -38,6 +41,47 @@ class ControllerConfigurerTest {
         // Then
         assertThat(configurer.getWatchedNamespaces()).isNull();
         assertThat(configurer.getMaxReconciliationInterval()).isEmpty();
+        assertThat(configurer.getKpnpAbsent()).isEqualTo(KpnpAbsent.NO_NP);
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = KROXYLICIOUS_KPNP_ABSENT_VAR_NAME, value = "allow-all")
+    void shouldParseAllowAllKpnpAbsent() {
+        // When
+        ControllerConfigurer configurer = new ControllerConfigurer();
+
+        // Then
+        assertThat(configurer.getKpnpAbsent()).isEqualTo(KpnpAbsent.ALLOW_ALL);
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = KROXYLICIOUS_KPNP_ABSENT_VAR_NAME, value = "deny-all")
+    void shouldParseDenyAllKpnpAbsent() {
+        // When
+        ControllerConfigurer configurer = new ControllerConfigurer();
+
+        // Then
+        assertThat(configurer.getKpnpAbsent()).isEqualTo(KpnpAbsent.DENY_ALL);
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = KROXYLICIOUS_KPNP_ABSENT_VAR_NAME, value = "no-np")
+    void shouldParseNoNpKpnpAbsent() {
+        // When
+        ControllerConfigurer configurer = new ControllerConfigurer();
+
+        // Then
+        assertThat(configurer.getKpnpAbsent()).isEqualTo(KpnpAbsent.NO_NP);
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = KROXYLICIOUS_KPNP_ABSENT_VAR_NAME, value = "not-a-valid-policy")
+    void shouldFailFastOnInvalidKpnpAbsent() {
+        // When / Then
+        assertThatThrownBy(ControllerConfigurer::new)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
+                .hasMessageContaining("not-a-valid-policy");
     }
 
     @Test

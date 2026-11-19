@@ -1,0 +1,65 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProxyNetworkPolicy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: peers-and-ports
+  namespace: proxy-ns
+spec:
+  defaultIngress: deny-all
+  defaultEgress: deny-all
+  kafkaProxy:
+    proxyRef:
+      name: my-proxy
+    allowEgressToClusterDns: true
+    allowIngressForMetrics:
+      - from:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: prometheus
+  kafkaProxyIngresses:
+    - ingressRef:
+        name: my-ingress
+      allowIngressFrom:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: my-kafka-app-ns
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: my-other-kafka-app-ns
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: my-kafka-app
+        - ipBlock:
+            cidr: 203.0.113.0/24
+            except:
+              - 203.0.113.128/25
+  kafkaServices:
+    - serviceRef:
+        name: my-external-kafka-cluster
+      allowEgress:
+        - ports:
+            - protocol: TCP
+              port: 9092
+          to:
+            - ipBlock:
+                cidr: 203.0.113.10/32
+            - ipBlock:
+                cidr: 203.0.113.11/32
+  kafkaProtocolFilters:
+    - filterRef:
+        name: encryption
+      allowIngress: []
+      allowEgress:
+        - ports:
+            - protocol: TCP
+              port: 8200
+          to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: vault

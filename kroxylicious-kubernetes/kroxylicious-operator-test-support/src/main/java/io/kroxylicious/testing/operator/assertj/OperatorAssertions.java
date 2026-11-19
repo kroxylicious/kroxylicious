@@ -12,8 +12,10 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.KafkaProxyIngresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
 import io.kroxylicious.proxy.config.Configuration;
 
@@ -54,6 +56,16 @@ public class OperatorAssertions {
     }
 
     /**
+     * Creates an assertion on the given {@code KafkaProxyNetworkPolicy} status.
+     *
+     * @param actual the status to assert on
+     * @return a new assertion
+     */
+    public static KafkaProxyNetworkPolicyStatusAssert assertThat(KafkaProxyNetworkPolicyStatus actual) {
+        return KafkaProxyNetworkPolicyStatusAssert.assertThat(actual);
+    }
+
+    /**
      * Creates an assertion on the given cluster entry of a {@code KafkaProxy} status.
      *
      * @param actual the cluster to assert on
@@ -61,6 +73,17 @@ public class OperatorAssertions {
      */
     public static ClusterAssert assertThat(Clusters actual) {
         return ClusterAssert.assertThat(actual);
+    }
+
+    /**
+     * Creates an assertion on the given {@code status.kafkaProxyIngresses[]} entry of a
+     * {@code KafkaProxyNetworkPolicy} status.
+     *
+     * @param actual the status entry to assert on
+     * @return a new assertion
+     */
+    public static KafkaProxyNetworkPolicyIngressAssert assertThat(KafkaProxyIngresses actual) {
+        return KafkaProxyNetworkPolicyIngressAssert.assertThat(actual);
     }
 
     /**

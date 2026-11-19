@@ -60,6 +60,10 @@
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-networking</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
             <artifactId>generator-annotations</artifactId>
         </dependency>
 
@@ -157,6 +161,35 @@
                             io.fabric8.kubernetes.api.model.ResourceRequirements
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.proxycontainer.Resources>
 
+                        <!-- KafkaProxyNetworkPolicy uses the built-in NetworkPolicy types -->
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxy.AllowIngressForMetrics>
+                            io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyIngressRule
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxy.AllowIngressForMetrics>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxyingresses.AllowIngressFrom>
+                            io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeer
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxyingresses.AllowIngressFrom>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaservices.AllowEgress>
+                            io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyEgressRule
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaservices.AllowEgress>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaprotocolfilters.AllowEgress>
+                            io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyEgressRule
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaprotocolfilters.AllowEgress>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaprotocolfilters.AllowIngress>
+                            io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyIngressRule
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaprotocolfilters.AllowIngress>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxy.ProxyRef>
+                            io.kroxylicious.kubernetes.api.common.ProxyRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxy.ProxyRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxyingresses.IngressRef>
+                            io.kroxylicious.kubernetes.api.common.IngressRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaproxyingresses.IngressRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaservices.ServiceRef>
+                            io.kroxylicious.kubernetes.api.common.KafkaServiceRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaservices.ServiceRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaprotocolfilters.FilterRef>
+                            io.kroxylicious.kubernetes.api.common.FilterRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicyspec.kafkaprotocolfilters.FilterRef>
+
                         <!-- Common types used across our own CRDs -->
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
                             io.kroxylicious.kubernetes.api.common.ProxyRef
@@ -221,6 +254,27 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaproxyingresses.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaproxyingresses.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaservices.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaservices.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaprotocolfilters.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaprotocolfilters.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaproxyingresses.IngressRef>
+                            io.kroxylicious.kubernetes.api.common.IngressRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaproxyingresses.IngressRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaservices.ServiceRef>
+                            io.kroxylicious.kubernetes.api.common.KafkaServiceRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaservices.ServiceRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaprotocolfilters.FilterRef>
+                            io.kroxylicious.kubernetes.api.common.FilterRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.kafkaprotocolfilters.FilterRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressstatus.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressstatus.Conditions>

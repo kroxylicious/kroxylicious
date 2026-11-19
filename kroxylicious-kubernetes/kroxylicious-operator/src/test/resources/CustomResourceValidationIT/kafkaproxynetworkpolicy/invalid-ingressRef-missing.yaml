@@ -1,0 +1,27 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProxyNetworkPolicy
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: ingress-ref-missing
+    namespace: proxy-ns
+  spec:
+    defaultIngress: allow-all
+    defaultEgress: deny-all
+    kafkaProxy:
+      proxyRef:
+        name: my-proxy
+      allowEgressToClusterDns: true
+      allowIngressForMetrics: []
+    kafkaProxyIngresses:
+      - allowIngressFrom: []
+    kafkaServices: []
+    kafkaProtocolFilters: []
+expectFailureMessageToContain: |-
+  spec.kafkaProxyIngresses[0].ingressRef: Required value

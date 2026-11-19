@@ -113,6 +113,10 @@
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-networking</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-apps</artifactId>
         </dependency>
         <dependency>
@@ -311,6 +315,22 @@
                     <!-- Override parent's Error Prone compiler args (breaks fabric8 builders) -->
                     <compilerArgs combine.self="override"/>
                     <annotationProcessorPaths combine.self="override"/>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <ignoredUnusedDeclaredDependencies combine.children="append">
+                        <!-- Used by the generated KafkaProxyNetworkPolicy types (and by the
+                             NetworkPolicy generation code added in a later change). -->
+                        <ignoredUnusedDeclaredDependency>io.fabric8:kubernetes-model-networking</ignoredUnusedDeclaredDependency>
+                    </ignoredUnusedDeclaredDependencies>
+                    <ignoredNonTestScopedDependencies combine.children="append">
+                        <!-- The only references are from the generated API module, and from code added in a
+                             later change, so the analyzer cannot see a main-scope use here yet. -->
+                        <ignoredNonTestScopedDependency>io.fabric8:kubernetes-model-networking</ignoredNonTestScopedDependency>
+                    </ignoredNonTestScopedDependencies>
                 </configuration>
             </plugin>
             <plugin>

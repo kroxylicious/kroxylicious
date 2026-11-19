@@ -41,6 +41,9 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     public static final String REASON_REFERENCED_RESOURCE_NOT_RECONCILED = "ReferencedResourceNotReconciled";
     public static final String REASON_REQUESTED_RESOURCE_KIND_NOT_SUPPORTED = "RequestedResourceKindNotSupported";
     public static final String REASON_INVALID = "Invalid";
+    public static final String REASON_CONFLICTING = "Conflicting";
+    public static final String REASON_INCOMPLETE = "Incomplete";
+    public static final String REASON_UPDATE_FAILED = "UpdateFailed";
 
     @Override
     public ConditionBuilder edit() {
@@ -193,6 +196,7 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
         Ready("Ready"),
         ResolvedRefs("ResolvedRefs"),
         Accepted("Accepted"),
+        Programmed("Programmed"),
         DeprecationWarning("DeprecationWarning");
 
         private final String value;

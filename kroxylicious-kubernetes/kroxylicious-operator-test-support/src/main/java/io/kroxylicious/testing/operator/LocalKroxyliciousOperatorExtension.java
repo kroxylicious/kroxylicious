@@ -36,6 +36,7 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -178,6 +179,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         deleteAll(KafkaProxyIngress.class);
         deleteAll(KafkaService.class);
         deleteAll(KafkaProtocolFilter.class);
+        deleteAll(KafkaProxyNetworkPolicy.class);
         deleteAll(Secret.class);
         deleteAll(ConfigMap.class);
         additionalCleanupTypes.forEach(this::deleteAll);
@@ -253,7 +255,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         reconcilers.forEach(builder::withReconciler);
         // Always install all standard Kroxylicious CRDs — applyCrd is idempotent (createOrReplace)
         Stream.of(KafkaProxy.class, VirtualKafkaCluster.class, KafkaService.class,
-                KafkaProxyIngress.class, KafkaProtocolFilter.class)
+                KafkaProxyIngress.class, KafkaProtocolFilter.class, KafkaProxyNetworkPolicy.class)
                 .forEach(builder::withAdditionalCustomResourceDefinition);
         additionalCRDs.forEach(crd -> builder.withAdditionalCustomResourceDefinition((Class) crd));
         return builder.build();

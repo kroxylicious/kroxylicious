@@ -6,6 +6,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -42,9 +43,10 @@ class ControllerConfigurer {
     private final Duration maxReconciliationInterval;
     @Nullable
     private final Set<String> watchedNamespaces;
+    private final KpnpAbsent kpnpAbsent;
 
     ControllerConfigurer() {
-        this(getWatchedNamespacesFromEnvironment(), getMaxReconciliationIntervalFromEnvironment());
+        this(getWatchedNamespacesFromEnvironment(), getMaxReconciliationIntervalFromEnvironment(), getKpnpAbsentFromEnvironment());
     }
 
     /**
@@ -54,8 +56,20 @@ class ControllerConfigurer {
      */
     @VisibleForTesting
     ControllerConfigurer(@Nullable Set<String> watchedNamespaces, @Nullable Duration maxReconciliationInterval) {
+        this(watchedNamespaces, maxReconciliationInterval, KpnpAbsent.NO_NP);
+    }
+
+    /**
+     * @param watchedNamespaces namespaces to watch, or {@code null} to watch all namespaces
+     * @param maxReconciliationInterval maximum reconciliation interval to configure on every controller,
+     *                                  or {@code null} to leave the JOSDK default in place
+     * @param kpnpAbsent the policy to apply when a proxy has no {@code KafkaProxyNetworkPolicy}
+     */
+    @VisibleForTesting
+    ControllerConfigurer(@Nullable Set<String> watchedNamespaces, @Nullable Duration maxReconciliationInterval, KpnpAbsent kpnpAbsent) {
         this.watchedNamespaces = watchedNamespaces;
         this.maxReconciliationInterval = maxReconciliationInterval;
+        this.kpnpAbsent = Objects.requireNonNull(kpnpAbsent);
         logConfiguration();
     }
 
@@ -69,6 +83,11 @@ class ControllerConfigurer {
                 .ifPresentOrElse(
                         ns -> LOGGER.atInfo().addKeyValue("namespaces", ns).log("Watching namespaces"),
                         () -> LOGGER.atInfo().log("Watching all namespaces"));
+
+        LOGGER.atInfo()
+                .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
+                .addKeyValue("value", kpnpAbsent.value())
+                .log("Configuring handling of proxies with no KafkaProxyNetworkPolicy");
     }
 
     @NonNull
@@ -93,6 +112,14 @@ class ControllerConfigurer {
     @NonNull
     Optional<Duration> getMaxReconciliationInterval() {
         return Optional.ofNullable(maxReconciliationInterval);
+    }
+
+    /**
+     * @return the policy to apply when a proxy has no {@code KafkaProxyNetworkPolicy}
+     */
+    @NonNull
+    KpnpAbsent getKpnpAbsent() {
+        return kpnpAbsent;
     }
 
     @Nullable
@@ -136,5 +163,25 @@ class ControllerConfigurer {
                 .map(String::trim)
                 .filter(Predicate.not(String::isEmpty))
                 .collect(Collectors.toSet());
+    }
+
+    @NonNull
+    private static KpnpAbsent getKpnpAbsentFromEnvironment() {
+        String envValue = System.getenv(OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME);
+        if (envValue == null) {
+            // TODO(pr-10): default to ALLOW_ALL once NetworkPolicy generation is enabled by default
+            return KpnpAbsent.NO_NP;
+        }
+        try {
+            return KpnpAbsent.fromValue(envValue);
+        }
+        catch (IllegalArgumentException e) {
+            LOGGER.atError()
+                    .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
+                    .addKeyValue("value", envValue)
+                    .setCause(e)
+                    .log("Invalid value for environment variable, refusing to start");
+            throw e;
+        }
     }
 }

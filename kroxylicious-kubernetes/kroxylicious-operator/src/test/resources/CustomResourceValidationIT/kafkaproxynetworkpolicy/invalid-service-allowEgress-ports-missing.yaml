@@ -1,0 +1,30 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProxyNetworkPolicy
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: service-egress-ports-missing
+    namespace: proxy-ns
+  spec:
+    defaultIngress: allow-all
+    defaultEgress: deny-all
+    kafkaProxy:
+      proxyRef:
+        name: my-proxy
+      allowEgressToClusterDns: true
+      allowIngressForMetrics: []
+    kafkaProxyIngresses: []
+    kafkaServices:
+      - serviceRef:
+          name: my-service
+        allowEgress:
+          - to: []
+    kafkaProtocolFilters: []
+expectFailureMessageToContain: |-
+  spec.kafkaServices[0].allowEgress[0].ports: Required value

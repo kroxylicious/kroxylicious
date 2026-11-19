@@ -30,6 +30,7 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
@@ -120,7 +121,8 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
         verify(setup.actor(), atLeastOnce()).resources(captor.capture());
         assertThat(captor.getAllValues()).containsExactlyInAnyOrder(
                 VirtualKafkaCluster.class, KafkaProxy.class, KafkaProxyIngress.class,
-                KafkaService.class, KafkaProtocolFilter.class, Secret.class, ConfigMap.class);
+                KafkaService.class, KafkaProtocolFilter.class, KafkaProxyNetworkPolicy.class,
+                Secret.class, ConfigMap.class);
     }
 
     @Test
@@ -137,7 +139,8 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
 
         List<Class<? extends HasMetadata>> standardTypes = List.of(
                 VirtualKafkaCluster.class, KafkaProxy.class, KafkaProxyIngress.class,
-                KafkaService.class, KafkaProtocolFilter.class, Secret.class, ConfigMap.class);
+                KafkaService.class, KafkaProtocolFilter.class, KafkaProxyNetworkPolicy.class,
+                Secret.class, ConfigMap.class);
 
         Map<Class<? extends HasMetadata>, HasMetadata> itemsByType = new LinkedHashMap<>();
         for (Class<? extends HasMetadata> type : standardTypes) {

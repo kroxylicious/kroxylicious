@@ -74,9 +74,9 @@ abstract class AbstractInstallKT {
             // Install CRDs
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
 
-            // Verify correct number of CRDs installed (5 for operator: names ending in .kroxylicious.io but not .sidecar.kroxylicious.io)
+            // Verify correct number of CRDs installed (6 for operator: names ending in .kroxylicious.io but not .sidecar.kroxylicious.io)
             assertThat(ShellUtils.execValidate(
-                    lines -> lines.filter(name -> name.endsWith(".kroxylicious.io") && !name.endsWith(".sidecar.kroxylicious.io")).count() == 5,
+                    lines -> lines.filter(name -> name.endsWith(".kroxylicious.io") && !name.endsWith(".sidecar.kroxylicious.io")).count() == 6,
                     ALWAYS_VALID,
                     "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}")).isTrue();
 

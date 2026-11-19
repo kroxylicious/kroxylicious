@@ -1,0 +1,1040 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Note the v1 in the filename refers to the version of the CustomResourceDefinition
+# not any of the versions of API being defined.
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  # name must match the spec fields below, and be in the form: <plural>.<group>
+  name: kafkaproxynetworkpolicies.kroxylicious.io
+spec:
+  # group name to use for REST API: /apis/<group>/<version>
+  group: kroxylicious.io
+  scope: Namespaced
+  names:
+    plural: kafkaproxynetworkpolicies
+    singular: kafkaproxynetworkpolicy
+    kind: KafkaProxyNetworkPolicy
+    shortNames:
+      - kpnp
+    categories:
+      - kroxylicious
+  # list of versions supported by this CustomResourceDefinition
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: { }
+      additionalPrinterColumns:
+        - name: Proxy
+          description: The name of the proxy that this network policy applies to.
+          jsonPath: ".spec.kafkaProxy.proxyRef.name"
+          type: string
+          priority: 0
+        - name: ResolvedRefs
+          description: Whether the other resources referenced by this network policy can be found.
+          jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
+          type: string
+          priority: 0
+        - name: Accepted
+          description: Whether this network policy has been accepted by the operator.
+          jsonPath: ".status.conditions[?(@.type==\"Accepted\")].status"
+          type: string
+          priority: 0
+        - name: Programmed
+          description: Whether the NetworkPolicies implied by this network policy have been written to the API server.
+          jsonPath: ".status.conditions[?(@.type==\"Programmed\")].status"
+          type: string
+          priority: 0
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - defaultIngress
+                - defaultEgress
+                - kafkaProxy
+                - kafkaProxyIngresses
+                - kafkaServices
+                - kafkaProtocolFilters
+              properties:
+                defaultIngress:
+                  type: string
+                  description: |
+                    How ingress is handled for every KafkaProxyIngress attached to the proxy
+                    which has no corresponding entry in spec.kafkaProxyIngresses.
+                  enum: [ "allow-all", "deny-all" ]
+                defaultEgress:
+                  type: string
+                  description: |
+                    How egress is handled for every KafkaService or KafkaProtocolFilter attached
+                    to the proxy which has no corresponding entry in spec.kafkaServices or
+                    spec.kafkaProtocolFilters.
+                  enum: [ "allow-all", "deny-all" ]
+                kafkaProxy:
+                  type: object
+                  description: Network policy settings for the KafkaProxy itself.
+                  required:
+                    - proxyRef
+                    - allowEgressToClusterDns
+                    - allowIngressForMetrics
+                  properties:
+                    proxyRef:
+                      # Mapped to Java type io.kroxylicious.kubernetes.api.common.ProxyRef
+                      type: object
+                      description: "Specifies the KafkaProxy this network policy applies to."
+                      required: [ "name" ]
+                      x-kubernetes-validations:
+                        - rule: "self == oldSelf"
+                          message: "spec.kafkaProxy.proxyRef is immutable"
+                      properties:
+                        name:
+                          description: Name is the name of the referent.
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                    allowEgressToClusterDns:
+                      type: boolean
+                      description: |
+                        Whether the proxy is allowed to make egress connections to the cluster DNS
+                        servers. When true a rule permitting UDP and TCP port 53 to the cluster's
+                        DNS pods is generated. This does not account for every possible DNS
+                        topology; see the documentation for known limitations.
+                    allowIngressForMetrics:
+                      type: array
+                      description: |
+                        Ingress rules allowing a metrics collector to scrape the proxy's metrics
+                        endpoint. The operator knows the port, so rules must not specify one.
+                      items:
+                        # Mapped to Java type io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyIngressRule
+                        type: object
+                        properties:
+                          from:
+                            type: array
+                            description: The sources allowed to connect to the metrics endpoint.
+                            items:
+                              type: object
+                              description: |
+                                A peer for a NetworkPolicy rule. Exactly one of ipBlock,
+                                namespaceSelector or podSelector is normally supplied; an empty
+                                peer matches everything.
+                              properties:
+                                ipBlock:
+                                  description: |
+                                    IPBlock describes a particular CIDR (e.g. "192.168.1.0/24" or
+                                    "2001:db8::/64") that is allowed to the proxy pods. The except
+                                    entry describes CIDRs that should not be included within this rule.
+                                  type: object
+                                  required:
+                                    - cidr
+                                  properties:
+                                    cidr:
+                                      description: A CIDR, for example "192.168.1.0/24" or "2001:db8::/64".
+                                      type: string
+                                    except:
+                                      description: CIDRs that should not be included within this IPBlock.
+                                      type: array
+                                      items:
+                                        type: string
+                                namespaceSelector:
+                                  description: |
+                                    A label query over a set of namespaces. An empty selector
+                                    matches all namespaces; an absent selector matches no
+                                    namespaces (subject to the presence of podSelector).
+                                  type: object
+                                  properties:
+                                    matchLabels:
+                                      description: A map of {key,value} pairs. The requirements are ANDed.
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                                    matchExpressions:
+                                      description: A list of label selector requirements. The requirements are ANDed.
+                                      type: array
+                                      items:
+                                        type: object
+                                        required:
+                                          - key
+                                          - operator
+                                        properties:
+                                          key:
+                                            description: The label key that the selector applies to.
+                                            type: string
+                                          operator:
+                                            description: |
+                                              The key's relationship to a set of values. Valid
+                                              operators are In, NotIn, Exists and DoesNotExist.
+                                            type: string
+                                          values:
+                                            description: |
+                                              An array of string values. If the operator is In or
+                                              NotIn the values array must be non-empty. If the
+                                              operator is Exists or DoesNotExist the values array
+                                              must be empty.
+                                            type: array
+                                            items:
+                                              type: string
+                                podSelector:
+                                  description: |
+                                    A label query over a set of pods. An empty selector matches
+                                    all pods in the selected namespaces.
+                                  type: object
+                                  properties:
+                                    matchLabels:
+                                      description: A map of {key,value} pairs. The requirements are ANDed.
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                                    matchExpressions:
+                                      description: A list of label selector requirements. The requirements are ANDed.
+                                      type: array
+                                      items:
+                                        type: object
+                                        required:
+                                          - key
+                                          - operator
+                                        properties:
+                                          key:
+                                            description: The label key that the selector applies to.
+                                            type: string
+                                          operator:
+                                            description: |
+                                              The key's relationship to a set of values. Valid
+                                              operators are In, NotIn, Exists and DoesNotExist.
+                                            type: string
+                                          values:
+                                            description: |
+                                              An array of string values. If the operator is In or
+                                              NotIn the values array must be non-empty. If the
+                                              operator is Exists or DoesNotExist the values array
+                                              must be empty.
+                                            type: array
+                                            items:
+                                              type: string
+                kafkaProxyIngresses:
+                  type: array
+                  description: References to the KafkaProxyIngresses in this namespace that the KafkaProxy uses.
+                  items:
+                    type: object
+                    description: |
+                      A reference to a KafkaProxyIngress and the peers allowed to connect via it.
+                      The operator determines the ports used in the generated NetworkPolicy.
+                    required:
+                      - ingressRef
+                      - allowIngressFrom
+                    properties:
+                      ingressRef:
+                        # Mapped to Java type io.kroxylicious.kubernetes.api.common.IngressRef
+                        type: object
+                        description: A reference to a KafkaProxyIngress.
+                        required: [ "name" ]
+                        properties:
+                          name:
+                            type: string
+                            description: The metadata.name of the KafkaProxyIngress.
+                      allowIngressFrom:
+                        type: array
+                        description: |
+                          The peers allowed to connect via this KafkaProxyIngress. An empty list
+                          denies ingress via this ingress. The operator always determines the ports.
+                        items:
+                          type: object
+                          description: |
+                            A peer for a NetworkPolicy rule. Exactly one of ipBlock,
+                            namespaceSelector or podSelector is normally supplied; an empty peer
+                            matches everything.
+                          properties:
+                            ipBlock:
+                              description: |
+                                IPBlock describes a particular CIDR (e.g. "192.168.1.0/24" or
+                                "2001:db8::/64") that is allowed to the proxy pods. The except
+                                entry describes CIDRs that should not be included within this rule.
+                              type: object
+                              required:
+                                - cidr
+                              properties:
+                                cidr:
+                                  description: A CIDR, for example "192.168.1.0/24" or "2001:db8::/64".
+                                  type: string
+                                except:
+                                  description: CIDRs that should not be included within this IPBlock.
+                                  type: array
+                                  items:
+                                    type: string
+                            namespaceSelector:
+                              description: |
+                                A label query over a set of namespaces. An empty selector matches
+                                all namespaces; an absent selector matches no namespaces (subject
+                                to the presence of podSelector).
+                              type: object
+                              properties:
+                                matchLabels:
+                                  description: A map of {key,value} pairs. The requirements are ANDed.
+                                  type: object
+                                  additionalProperties:
+                                    type: string
+                                matchExpressions:
+                                  description: A list of label selector requirements. The requirements are ANDed.
+                                  type: array
+                                  items:
+                                    type: object
+                                    required:
+                                      - key
+                                      - operator
+                                    properties:
+                                      key:
+                                        description: The label key that the selector applies to.
+                                        type: string
+                                      operator:
+                                        description: |
+                                          The key's relationship to a set of values. Valid
+                                          operators are In, NotIn, Exists and DoesNotExist.
+                                        type: string
+                                      values:
+                                        description: |
+                                          An array of string values. If the operator is In or NotIn
+                                          the values array must be non-empty. If the operator is
+                                          Exists or DoesNotExist the values array must be empty.
+                                        type: array
+                                        items:
+                                          type: string
+                            podSelector:
+                              description: |
+                                A label query over a set of pods. An empty selector matches all
+                                pods in the selected namespaces.
+                              type: object
+                              properties:
+                                matchLabels:
+                                  description: A map of {key,value} pairs. The requirements are ANDed.
+                                  type: object
+                                  additionalProperties:
+                                    type: string
+                                matchExpressions:
+                                  description: A list of label selector requirements. The requirements are ANDed.
+                                  type: array
+                                  items:
+                                    type: object
+                                    required:
+                                      - key
+                                      - operator
+                                    properties:
+                                      key:
+                                        description: The label key that the selector applies to.
+                                        type: string
+                                      operator:
+                                        description: |
+                                          The key's relationship to a set of values. Valid
+                                          operators are In, NotIn, Exists and DoesNotExist.
+                                        type: string
+                                      values:
+                                        description: |
+                                          An array of string values. If the operator is In or NotIn
+                                          the values array must be non-empty. If the operator is
+                                          Exists or DoesNotExist the values array must be empty.
+                                        type: array
+                                        items:
+                                          type: string
+                kafkaServices:
+                  type: array
+                  description: References to the KafkaServices in this namespace that the KafkaProxy uses.
+                  items:
+                    type: object
+                    description: A reference to a KafkaService and its allowed egress.
+                    required:
+                      - serviceRef
+                    properties:
+                      serviceRef:
+                        # Mapped to Java type io.kroxylicious.kubernetes.api.common.KafkaServiceRef
+                        type: object
+                        description: A reference to a KafkaService.
+                        required: [ "name" ]
+                        properties:
+                          name:
+                            type: string
+                            description: The metadata.name of the KafkaService.
+                      allowEgress:
+                        type: array
+                        description: |
+                          The egress rules for this KafkaService. Required for bootstrapServers-based
+                          services and rejected for strimziKafkaRef-based services, for which the
+                          operator derives the rule itself.
+                        items:
+                          # Mapped to Java type io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyEgressRule
+                          type: object
+                          required:
+                            - to
+                            - ports
+                          properties:
+                            ports:
+                              type: array
+                              description: The destination ports for this rule.
+                              items:
+                                type: object
+                                description: A port to allow traffic on.
+                                properties:
+                                  protocol:
+                                    description: The protocol (TCP, UDP or SCTP) which traffic must match.
+                                    type: string
+                                  port:
+                                    description: |
+                                      The port on the given protocol. This can either be a numerical
+                                      or named port on a pod. If this field is not provided, it
+                                      matches all port names and numbers.
+                                    x-kubernetes-int-or-string: true
+                                  endPort:
+                                    description: |
+                                      The inclusive upper bound of a range of ports starting at
+                                      port. May only be set when port is a number.
+                                    type: integer
+                                    format: int32
+                            to:
+                              type: array
+                              description: The destinations for this rule. An empty list means anywhere.
+                              items:
+                                type: object
+                                description: |
+                                  A peer for a NetworkPolicy rule. Exactly one of ipBlock,
+                                  namespaceSelector or podSelector is normally supplied; an empty
+                                  peer matches everything.
+                                properties:
+                                  ipBlock:
+                                    description: |
+                                      IPBlock describes a particular CIDR (e.g. "192.168.1.0/24"
+                                      or "2001:db8::/64") that is allowed to the proxy pods. The
+                                      except entry describes CIDRs that should not be included
+                                      within this rule.
+                                    type: object
+                                    required:
+                                      - cidr
+                                    properties:
+                                      cidr:
+                                        description: A CIDR, for example "192.168.1.0/24" or "2001:db8::/64".
+                                        type: string
+                                      except:
+                                        description: CIDRs that should not be included within this IPBlock.
+                                        type: array
+                                        items:
+                                          type: string
+                                  namespaceSelector:
+                                    description: |
+                                      A label query over a set of namespaces. An empty selector
+                                      matches all namespaces; an absent selector matches no
+                                      namespaces (subject to the presence of podSelector).
+                                    type: object
+                                    properties:
+                                      matchLabels:
+                                        description: A map of {key,value} pairs. The requirements are ANDed.
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                                      matchExpressions:
+                                        description: A list of label selector requirements. The requirements are ANDed.
+                                        type: array
+                                        items:
+                                          type: object
+                                          required:
+                                            - key
+                                            - operator
+                                          properties:
+                                            key:
+                                              description: The label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |
+                                                The key's relationship to a set of values. Valid
+                                                operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |
+                                                An array of string values. If the operator is In or
+                                                NotIn the values array must be non-empty. If the
+                                                operator is Exists or DoesNotExist the values array
+                                                must be empty.
+                                              type: array
+                                              items:
+                                                type: string
+                                  podSelector:
+                                    description: |
+                                      A label query over a set of pods. An empty selector matches
+                                      all pods in the selected namespaces.
+                                    type: object
+                                    properties:
+                                      matchLabels:
+                                        description: A map of {key,value} pairs. The requirements are ANDed.
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                                      matchExpressions:
+                                        description: A list of label selector requirements. The requirements are ANDed.
+                                        type: array
+                                        items:
+                                          type: object
+                                          required:
+                                            - key
+                                            - operator
+                                          properties:
+                                            key:
+                                              description: The label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |
+                                                The key's relationship to a set of values. Valid
+                                                operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |
+                                                An array of string values. If the operator is In or
+                                                NotIn the values array must be non-empty. If the
+                                                operator is Exists or DoesNotExist the values array
+                                                must be empty.
+                                              type: array
+                                              items:
+                                                type: string
+                kafkaProtocolFilters:
+                  type: array
+                  description: References to the KafkaProtocolFilters in this namespace that the KafkaProxy uses.
+                  items:
+                    type: object
+                    description: A reference to a KafkaProtocolFilter and its allowed ingress and egress.
+                    required:
+                      - filterRef
+                      - allowIngress
+                      - allowEgress
+                    properties:
+                      filterRef:
+                        # Mapped to Java type io.kroxylicious.kubernetes.api.common.FilterRef
+                        type: object
+                        description: A reference to a KafkaProtocolFilter.
+                        required: [ "name" ]
+                        properties:
+                          name:
+                            type: string
+                            description: The metadata.name of the KafkaProtocolFilter.
+                      allowIngress:
+                        type: array
+                        description: |
+                          The ingress rules for this KafkaProtocolFilter. An empty list denies
+                          ingress for this filter.
+                        items:
+                          # Mapped to Java type io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyIngressRule
+                          type: object
+                          properties:
+                            ports:
+                              type: array
+                              description: The ports for this rule.
+                              items:
+                                type: object
+                                description: A port to allow traffic on.
+                                properties:
+                                  protocol:
+                                    description: The protocol (TCP, UDP or SCTP) which traffic must match.
+                                    type: string
+                                  port:
+                                    description: |
+                                      The port on the given protocol. This can either be a numerical
+                                      or named port on a pod. If this field is not provided, it
+                                      matches all port names and numbers.
+                                    x-kubernetes-int-or-string: true
+                                  endPort:
+                                    description: |
+                                      The inclusive upper bound of a range of ports starting at
+                                      port. May only be set when port is a number.
+                                    type: integer
+                                    format: int32
+                            from:
+                              type: array
+                              description: The sources for this rule. An empty list means anywhere.
+                              items:
+                                type: object
+                                description: |
+                                  A peer for a NetworkPolicy rule. Exactly one of ipBlock,
+                                  namespaceSelector or podSelector is normally supplied; an empty
+                                  peer matches everything.
+                                properties:
+                                  ipBlock:
+                                    description: |
+                                      IPBlock describes a particular CIDR (e.g. "192.168.1.0/24"
+                                      or "2001:db8::/64") that is allowed to the proxy pods. The
+                                      except entry describes CIDRs that should not be included
+                                      within this rule.
+                                    type: object
+                                    required:
+                                      - cidr
+                                    properties:
+                                      cidr:
+                                        description: A CIDR, for example "192.168.1.0/24" or "2001:db8::/64".
+                                        type: string
+                                      except:
+                                        description: CIDRs that should not be included within this IPBlock.
+                                        type: array
+                                        items:
+                                          type: string
+                                  namespaceSelector:
+                                    description: |
+                                      A label query over a set of namespaces. An empty selector
+                                      matches all namespaces; an absent selector matches no
+                                      namespaces (subject to the presence of podSelector).
+                                    type: object
+                                    properties:
+                                      matchLabels:
+                                        description: A map of {key,value} pairs. The requirements are ANDed.
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                                      matchExpressions:
+                                        description: A list of label selector requirements. The requirements are ANDed.
+                                        type: array
+                                        items:
+                                          type: object
+                                          required:
+                                            - key
+                                            - operator
+                                          properties:
+                                            key:
+                                              description: The label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |
+                                                The key's relationship to a set of values. Valid
+                                                operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |
+                                                An array of string values. If the operator is In or
+                                                NotIn the values array must be non-empty. If the
+                                                operator is Exists or DoesNotExist the values array
+                                                must be empty.
+                                              type: array
+                                              items:
+                                                type: string
+                                  podSelector:
+                                    description: |
+                                      A label query over a set of pods. An empty selector matches
+                                      all pods in the selected namespaces.
+                                    type: object
+                                    properties:
+                                      matchLabels:
+                                        description: A map of {key,value} pairs. The requirements are ANDed.
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                                      matchExpressions:
+                                        description: A list of label selector requirements. The requirements are ANDed.
+                                        type: array
+                                        items:
+                                          type: object
+                                          required:
+                                            - key
+                                            - operator
+                                          properties:
+                                            key:
+                                              description: The label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |
+                                                The key's relationship to a set of values. Valid
+                                                operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |
+                                                An array of string values. If the operator is In or
+                                                NotIn the values array must be non-empty. If the
+                                                operator is Exists or DoesNotExist the values array
+                                                must be empty.
+                                              type: array
+                                              items:
+                                                type: string
+                      allowEgress:
+                        type: array
+                        description: |
+                          The egress rules for this KafkaProtocolFilter. An empty list denies
+                          egress for this filter.
+                        items:
+                          # Mapped to Java type io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyEgressRule
+                          type: object
+                          properties:
+                            ports:
+                              type: array
+                              description: The destination ports for this rule.
+                              items:
+                                type: object
+                                description: A port to allow traffic on.
+                                properties:
+                                  protocol:
+                                    description: The protocol (TCP, UDP or SCTP) which traffic must match.
+                                    type: string
+                                  port:
+                                    description: |
+                                      The port on the given protocol. This can either be a numerical
+                                      or named port on a pod. If this field is not provided, it
+                                      matches all port names and numbers.
+                                    x-kubernetes-int-or-string: true
+                                  endPort:
+                                    description: |
+                                      The inclusive upper bound of a range of ports starting at
+                                      port. May only be set when port is a number.
+                                    type: integer
+                                    format: int32
+                            to:
+                              type: array
+                              description: The destinations for this rule. An empty list means anywhere.
+                              items:
+                                type: object
+                                description: |
+                                  A peer for a NetworkPolicy rule. Exactly one of ipBlock,
+                                  namespaceSelector or podSelector is normally supplied; an empty
+                                  peer matches everything.
+                                properties:
+                                  ipBlock:
+                                    description: |
+                                      IPBlock describes a particular CIDR (e.g. "192.168.1.0/24"
+                                      or "2001:db8::/64") that is allowed to the proxy pods. The
+                                      except entry describes CIDRs that should not be included
+                                      within this rule.
+                                    type: object
+                                    required:
+                                      - cidr
+                                    properties:
+                                      cidr:
+                                        description: A CIDR, for example "192.168.1.0/24" or "2001:db8::/64".
+                                        type: string
+                                      except:
+                                        description: CIDRs that should not be included within this IPBlock.
+                                        type: array
+                                        items:
+                                          type: string
+                                  namespaceSelector:
+                                    description: |
+                                      A label query over a set of namespaces. An empty selector
+                                      matches all namespaces; an absent selector matches no
+                                      namespaces (subject to the presence of podSelector).
+                                    type: object
+                                    properties:
+                                      matchLabels:
+                                        description: A map of {key,value} pairs. The requirements are ANDed.
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                                      matchExpressions:
+                                        description: A list of label selector requirements. The requirements are ANDed.
+                                        type: array
+                                        items:
+                                          type: object
+                                          required:
+                                            - key
+                                            - operator
+                                          properties:
+                                            key:
+                                              description: The label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |
+                                                The key's relationship to a set of values. Valid
+                                                operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |
+                                                An array of string values. If the operator is In or
+                                                NotIn the values array must be non-empty. If the
+                                                operator is Exists or DoesNotExist the values array
+                                                must be empty.
+                                              type: array
+                                              items:
+                                                type: string
+                                  podSelector:
+                                    description: |
+                                      A label query over a set of pods. An empty selector matches
+                                      all pods in the selected namespaces.
+                                    type: object
+                                    properties:
+                                      matchLabels:
+                                        description: A map of {key,value} pairs. The requirements are ANDed.
+                                        type: object
+                                        additionalProperties:
+                                          type: string
+                                      matchExpressions:
+                                        description: A list of label selector requirements. The requirements are ANDed.
+                                        type: array
+                                        items:
+                                          type: object
+                                          required:
+                                            - key
+                                            - operator
+                                          properties:
+                                            key:
+                                              description: The label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |
+                                                The key's relationship to a set of values. Valid
+                                                operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |
+                                                An array of string values. If the operator is In or
+                                                NotIn the values array must be non-empty. If the
+                                                operator is Exists or DoesNotExist the values array
+                                                must be empty.
+                                              type: array
+                                              items:
+                                                type: string
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  description: |
+                    The metadata.generation that was observed during the last reconciliation by the operator.
+                  type: integer
+                effectivelyUnrestrictedIngress:
+                  description: |
+                    True if any generated ingress NetworkPolicy for the proxy allows all sources.
+                  type: boolean
+                effectivelyUnrestrictedEgress:
+                  description: |
+                    True if any generated egress NetworkPolicy for the proxy allows all destinations.
+                  type: boolean
+                conditions:
+                  # Mapped to Java type io.kroxylicious.kubernetes.api.common.Condition
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      lastTransitionTime:
+                        description: |
+                          lastTransitionTime is the last time the condition transitioned from one status to another.
+                          This should be when the underlying condition changed.
+                          If that is not known, then using the time when the API field changed is acceptable.
+                        type: string
+                        format: date-time
+                      message:
+                        description: |
+                          message is a human readable message indicating details about the transition.
+                          This may be an empty string.
+                        type: string
+                        default: ""
+                        nullable: false
+                      observedGeneration:
+                        description: |
+                          observedGeneration represents the .metadata.generation that the condition was set based upon.
+                          For instance, if .metadata.generation is currently 12, but the
+                          .status.conditions[x].observedGeneration is 9, the condition is out of date with
+                          respect to the current state of the instance.
+                        type: integer
+                        nullable: false
+                      reason:
+                        description: |
+                          reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                          Producers of specific condition types may define expected values and meanings for this field,
+                          and whether the values are considered a guaranteed API.
+                          The value should be a CamelCase string.
+                          This field may not be empty.
+                        type: string
+                        nullable: false
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        type: string
+                        enum: [ "True", "False", "Unknown" ]
+                      type:
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - observedGeneration
+                      - reason
+                      - message
+                      - type
+                kafkaProxyIngresses:
+                  type: array
+                  description: Per-entry status for spec.kafkaProxyIngresses, in spec order.
+                  items:
+                    type: object
+                    properties:
+                      ingressRef:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                      conditions:
+                        # Mapped to Java type io.kroxylicious.kubernetes.api.common.Condition
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            lastTransitionTime:
+                              description: |
+                                lastTransitionTime is the last time the condition transitioned from one status to another.
+                                This should be when the underlying condition changed.
+                                If that is not known, then using the time when the API field changed is acceptable.
+                              type: string
+                              format: date-time
+                            message:
+                              description: |
+                                message is a human readable message indicating details about the transition.
+                                This may be an empty string.
+                              type: string
+                              default: ""
+                              nullable: false
+                            observedGeneration:
+                              description: |
+                                observedGeneration represents the .metadata.generation that the condition was set based upon.
+                                For instance, if .metadata.generation is currently 12, but the
+                                .status.conditions[x].observedGeneration is 9, the condition is out of date with
+                                respect to the current state of the instance.
+                              type: integer
+                              nullable: false
+                            reason:
+                              description: |
+                                reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                                Producers of specific condition types may define expected values and meanings for this field,
+                                and whether the values are considered a guaranteed API.
+                                The value should be a CamelCase string.
+                                This field may not be empty.
+                              type: string
+                              nullable: false
+                            status:
+                              description: status of the condition, one of True, False, Unknown.
+                              type: string
+                              enum: [ "True", "False", "Unknown" ]
+                            type:
+                              description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                              type: string
+                          required:
+                            - lastTransitionTime
+                            - observedGeneration
+                            - reason
+                            - message
+                            - type
+                kafkaServices:
+                  type: array
+                  description: Per-entry status for spec.kafkaServices, in spec order.
+                  items:
+                    type: object
+                    properties:
+                      serviceRef:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                      conditions:
+                        # Mapped to Java type io.kroxylicious.kubernetes.api.common.Condition
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            lastTransitionTime:
+                              description: |
+                                lastTransitionTime is the last time the condition transitioned from one status to another.
+                                This should be when the underlying condition changed.
+                                If that is not known, then using the time when the API field changed is acceptable.
+                              type: string
+                              format: date-time
+                            message:
+                              description: |
+                                message is a human readable message indicating details about the transition.
+                                This may be an empty string.
+                              type: string
+                              default: ""
+                              nullable: false
+                            observedGeneration:
+                              description: |
+                                observedGeneration represents the .metadata.generation that the condition was set based upon.
+                                For instance, if .metadata.generation is currently 12, but the
+                                .status.conditions[x].observedGeneration is 9, the condition is out of date with
+                                respect to the current state of the instance.
+                              type: integer
+                              nullable: false
+                            reason:
+                              description: |
+                                reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                                Producers of specific condition types may define expected values and meanings for this field,
+                                and whether the values are considered a guaranteed API.
+                                The value should be a CamelCase string.
+                                This field may not be empty.
+                              type: string
+                              nullable: false
+                            status:
+                              description: status of the condition, one of True, False, Unknown.
+                              type: string
+                              enum: [ "True", "False", "Unknown" ]
+                            type:
+                              description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                              type: string
+                          required:
+                            - lastTransitionTime
+                            - observedGeneration
+                            - reason
+                            - message
+                            - type
+                kafkaProtocolFilters:
+                  type: array
+                  description: Per-entry status for spec.kafkaProtocolFilters, in spec order.
+                  items:
+                    type: object
+                    properties:
+                      filterRef:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                      conditions:
+                        # Mapped to Java type io.kroxylicious.kubernetes.api.common.Condition
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            lastTransitionTime:
+                              description: |
+                                lastTransitionTime is the last time the condition transitioned from one status to another.
+                                This should be when the underlying condition changed.
+                                If that is not known, then using the time when the API field changed is acceptable.
+                              type: string
+                              format: date-time
+                            message:
+                              description: |
+                                message is a human readable message indicating details about the transition.
+                                This may be an empty string.
+                              type: string
+                              default: ""
+                              nullable: false
+                            observedGeneration:
+                              description: |
+                                observedGeneration represents the .metadata.generation that the condition was set based upon.
+                                For instance, if .metadata.generation is currently 12, but the
+                                .status.conditions[x].observedGeneration is 9, the condition is out of date with
+                                respect to the current state of the instance.
+                              type: integer
+                              nullable: false
+                            reason:
+                              description: |
+                                reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                                Producers of specific condition types may define expected values and meanings for this field,
+                                and whether the values are considered a guaranteed API.
+                                The value should be a CamelCase string.
+                                This field may not be empty.
+                              type: string
+                              nullable: false
+                            status:
+                              description: status of the condition, one of True, False, Unknown.
+                              type: string
+                              enum: [ "True", "False", "Unknown" ]
+                            type:
+                              description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                              type: string
+                          required:
+                            - lastTransitionTime
+                            - observedGeneration
+                            - reason
+                            - message
+                            - type
+          required:
+            - spec
