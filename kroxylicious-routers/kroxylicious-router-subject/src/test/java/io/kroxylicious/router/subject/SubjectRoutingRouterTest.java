@@ -25,6 +25,7 @@ import org.mockito.quality.Strictness;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.MetadataRequestData;
 import io.kroxylicious.kafka.common.message.MetadataResponseData;
@@ -256,7 +257,7 @@ class SubjectRoutingRouterTest {
         when(ctx.anyNode("team-a")).thenReturn(nodeA);
         when(ctx.anyNode("team-b")).thenReturn(nodeB);
         RequestHeaderData headerCopy = new RequestHeaderData();
-        MetadataRequestData requestCopy = new MetadataRequestData();
+        ApiVersionsRequestData requestCopy = new ApiVersionsRequestData();
         ApiVersionsResponseData.SupportedFeatureKeyCollection featuresA = new ApiVersionsResponseData.SupportedFeatureKeyCollection(1);
         featuresA.add(supportedFeature("kip.123", (short) 0, (short) 5));
         ApiVersionsResponseData.SupportedFeatureKeyCollection featuresB = new ApiVersionsResponseData.SupportedFeatureKeyCollection(2);
@@ -303,6 +304,7 @@ class SubjectRoutingRouterTest {
     @Test
     void anonymousApiVersionsRejectedWhenAnyRouteErrors() {
         // Given
+        ApiVersionsRequestData apiVersionsRequest = new ApiVersionsRequestData();
         when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
         VirtualNode nodeA = mock(VirtualNode.class);
         VirtualNode nodeB = mock(VirtualNode.class);
@@ -313,10 +315,10 @@ class SubjectRoutingRouterTest {
         when(ctx.sendRequest(eq(nodeB), any(RequestHeaderData.class), any(ApiMessage.class)))
                 .thenReturn(CompletableFuture.completedFuture(apiVersionsResponse(Errors.UNKNOWN_SERVER_ERROR.code())));
         RouterResponse errorResponse = mock(RouterResponse.class);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.UNKNOWN_SERVER_ERROR)).thenReturn(closeableStage(errorResponse));
+        when(ctx.respondWithError(HEADER, apiVersionsRequest, Errors.UNKNOWN_SERVER_ERROR)).thenReturn(closeableStage(errorResponse));
 
         // When
-        RouterResponse result = newRouter().onRequest(ApiKeys.API_VERSIONS, (short) 3, HEADER, REQUEST, ctx)
+        RouterResponse result = newRouter().onRequest(ApiKeys.API_VERSIONS, (short) 3, HEADER, apiVersionsRequest, ctx)
                 .toCompletableFuture().join();
 
         // Then

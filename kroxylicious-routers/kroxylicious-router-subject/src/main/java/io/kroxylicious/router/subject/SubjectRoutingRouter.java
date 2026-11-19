@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
 
+import io.kroxylicious.kafka.common.message.ApiVersionsRequestData;
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData.ApiVersion;
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData.SupportedFeatureKey;
@@ -121,8 +122,8 @@ class SubjectRoutingRouter implements Router {
             return forward(ctx, apiKey, apiVersion, header, request, ruleRoute.get());
         }
         if (subject.isAnonymous()) {
-            if (apiKey == ApiKeys.API_VERSIONS) {
-                return fanOutApiVersions(apiKey, apiVersion, header, request, ctx);
+            if (request instanceof ApiVersionsRequestData apiVersionsRequest) {
+                return fanOutApiVersions(apiKey, apiVersion, header, apiVersionsRequest, ctx);
             }
             return reject(ctx, apiKey, apiVersion, header, request, RejectReason.ANONYMOUS, "anonymous request, no hasClientId rule matched");
         }
@@ -183,10 +184,11 @@ class SubjectRoutingRouter implements Router {
      * client can negotiate a version range that every downstream cluster supports. Does not pin
      * the connection to any route.
      */
-    private CompletionStage<RouterResponse> fanOutApiVersions(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, RouterContext ctx) {
+    private CompletionStage<RouterResponse> fanOutApiVersions(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
+                                                              RouterContext ctx) {
         List<String> routes = List.copyOf(routeNames);
         List<CompletableFuture<ApiVersionsResponseData>> perRoute = routes.stream()
-                .map(route -> ctx.sendRequest(ctx.anyNode(route), header.duplicate(), (ApiMessage) request.duplicate())
+                .map(route -> ctx.sendRequest(ctx.anyNode(route), header.duplicate(), request.duplicate())
                         .thenApply(m -> (ApiVersionsResponseData) m)
                         .toCompletableFuture())
                 .toList();
