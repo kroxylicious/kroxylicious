@@ -18,6 +18,8 @@ import com.google.re2j.Pattern;
  *
  * <p>The regular expressions are compiled once, on construction, so {@link #matches(String)} does not
  * compile them again.</p>
+ *
+ * <p>Not yet part of the Kroxylicious public API: see {@link AclAuthorizer#resourceSelectors}.</p>
  */
 public final class ResourceNameSelectors {
 

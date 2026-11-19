@@ -16,6 +16,8 @@ import java.util.Objects;
  * <p>This lets callers that list resources filter them consistently with {@code authorize}, for
  * example by translating the selectors into a database query, so that paging and counts are exact.</p>
  *
+ * <p>Not yet part of the Kroxylicious public API: see {@link AclAuthorizer#resourceSelectors}.</p>
+ *
  * @param allowed the names selected by the allow rules that apply.
  * @param denied the names selected by the deny rules that apply.
  */

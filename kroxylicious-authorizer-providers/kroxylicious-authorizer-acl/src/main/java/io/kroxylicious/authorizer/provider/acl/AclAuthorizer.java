@@ -504,6 +504,11 @@ public class AclAuthorizer implements Authorizer {
      * as the name selectors of the allow and deny rules that apply. For every resource name,
      * {@link ResourceSelectors#allows(String)} agrees with {@link #authorize}.
      *
+     * <p>Kroxylicious itself does not call this method. It is kept for applications that embed the ACL
+     * authorizer and need to filter the resources they list, such as Apicurio Registry. It is not yet
+     * part of the Kroxylicious public API, so it is not subject to the usual deprecation cycle:
+     * it may change in any release, although we will make a best effort not to break it.</p>
+     *
      * @param subject the subject.
      * @param operation the operation.
      * @return the selectors.
