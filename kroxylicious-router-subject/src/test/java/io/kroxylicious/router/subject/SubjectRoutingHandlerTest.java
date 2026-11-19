@@ -117,6 +117,10 @@ class SubjectRoutingHandlerTest {
         return new ApiVersionsResponseData.ApiVersion().setApiKey(apiKey).setMinVersion(minVersion).setMaxVersion(maxVersion);
     }
 
+    private static ApiVersionsResponseData.SupportedFeatureKey supportedFeature(String name, short minVersion, short maxVersion) {
+        return new ApiVersionsResponseData.SupportedFeatureKey().setName(name).setMinVersion(minVersion).setMaxVersion(maxVersion);
+    }
+
     private static ApiVersionsResponseData apiVersionsResponse(short errorCode, ApiVersionsResponseData.ApiVersion... versions) {
         ApiVersionsResponseData.ApiVersionCollection collection = new ApiVersionsResponseData.ApiVersionCollection(versions.length);
         collection.addAll(List.of(versions));
@@ -253,12 +257,23 @@ class SubjectRoutingHandlerTest {
         when(ctx.anyNode("team-b")).thenReturn(nodeB);
         RequestHeaderData headerCopy = new RequestHeaderData();
         MetadataRequestData requestCopy = new MetadataRequestData();
+        ApiVersionsResponseData.SupportedFeatureKeyCollection featuresA = new ApiVersionsResponseData.SupportedFeatureKeyCollection(1);
+        featuresA.add(supportedFeature("kip.123", (short) 0, (short) 5));
+        ApiVersionsResponseData.SupportedFeatureKeyCollection featuresB = new ApiVersionsResponseData.SupportedFeatureKeyCollection(2);
+        featuresB.add(supportedFeature("kip.123", (short) 2, (short) 8));
+        featuresB.add(supportedFeature("kip.999", (short) 0, (short) 1));
         when(ctx.sendRequest(eq(nodeA), any(RequestHeaderData.class), any(ApiMessage.class)))
                 .thenReturn(CompletableFuture.completedFuture(
-                        apiVersionsResponse((short) 0, apiVersion(ApiKeys.METADATA.id, (short) 0, (short) 9), apiVersion(ApiKeys.PRODUCE.id, (short) 0, (short) 8))));
+                        apiVersionsResponse((short) 0, apiVersion(ApiKeys.METADATA.id, (short) 0, (short) 9), apiVersion(ApiKeys.PRODUCE.id, (short) 0, (short) 8))
+                                .setThrottleTimeMs(10)
+                                .setSupportedFeatures(featuresA)
+                                .setFinalizedFeaturesEpoch(3L)));
         when(ctx.sendRequest(eq(nodeB), any(RequestHeaderData.class), any(ApiMessage.class)))
                 .thenReturn(CompletableFuture.completedFuture(
-                        apiVersionsResponse((short) 0, apiVersion(ApiKeys.METADATA.id, (short) 2, (short) 12), apiVersion(ApiKeys.FETCH.id, (short) 0, (short) 11))));
+                        apiVersionsResponse((short) 0, apiVersion(ApiKeys.METADATA.id, (short) 2, (short) 12), apiVersion(ApiKeys.FETCH.id, (short) 0, (short) 11))
+                                .setThrottleTimeMs(25)
+                                .setSupportedFeatures(featuresB)
+                                .setFinalizedFeaturesEpoch(7L)));
         RouterResponse routerResponse = mock(RouterResponse.class);
         when(ctx.respondWith(any(ApiVersionsResponseData.class))).thenReturn(closeableStage(routerResponse));
 
@@ -276,6 +291,13 @@ class SubjectRoutingHandlerTest {
         ApiVersionsResponseData.ApiVersion metadata = intersection.apiKeys().find(apiVersion(ApiKeys.METADATA.id, (short) 0, (short) 0));
         assertThat(metadata.minVersion()).isEqualTo((short) 2);
         assertThat(metadata.maxVersion()).isEqualTo((short) 9);
+        assertThat(intersection.throttleTimeMs()).isEqualTo(25);
+        assertThat(intersection.supportedFeatures()).hasSize(1);
+        ApiVersionsResponseData.SupportedFeatureKey feature = intersection.supportedFeatures().find("kip.123");
+        assertThat(feature.minVersion()).isEqualTo((short) 2);
+        assertThat(feature.maxVersion()).isEqualTo((short) 5);
+        assertThat(intersection.finalizedFeaturesEpoch()).isEqualTo(-1L);
+        assertThat(intersection.finalizedFeatures()).isEmpty();
     }
 
     @Test

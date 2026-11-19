@@ -23,6 +23,7 @@ import io.micrometer.core.instrument.Meter;
 
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.ApiVersionsResponseData.ApiVersion;
+import io.kroxylicious.kafka.common.message.ApiVersionsResponseData.SupportedFeatureKey;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
@@ -201,11 +202,35 @@ class SubjectRoutingHandler implements Router {
     }
 
     /**
-     * Combines per-route {@code API_VERSIONS} responses into the intersection: an API key survives
-     * only if every route supports it, narrowed to the overlapping version range. Feature blocks
-     * are not intersected; the first route's feature block is copied as-is.
+     * Combines per-route {@code API_VERSIONS} responses into the intersection: an API key or
+     * supported feature survives only if every route supports it, narrowed to the overlapping
+     * version range. Finalized features are not intersected: each route is a distinct cluster
+     * with its own feature-epoch history, so there is no coherent cluster-wide epoch for a merged
+     * view. The epoch is reported as unknown ({@code -1}) rather than borrowed from one route, per
+     * the field's "valid only if FinalizedFeaturesEpoch >= 0" contract.
      */
     private static ApiVersionsResponseData intersect(List<ApiVersionsResponseData> responses) {
+        Map<Short, ApiVersion> apiKeys = intersectApiVersions(responses);
+        ApiVersionsResponseData.ApiVersionCollection apiKeyCollection = new ApiVersionsResponseData.ApiVersionCollection(apiKeys.size());
+        apiKeyCollection.addAll(apiKeys.values());
+
+        Map<String, SupportedFeatureKey> features = intersectSupportedFeatures(responses);
+        ApiVersionsResponseData.SupportedFeatureKeyCollection featureCollection = new ApiVersionsResponseData.SupportedFeatureKeyCollection(features.size());
+        featureCollection.addAll(features.values());
+
+        int maxThrottleTimeMs = responses.stream().mapToInt(ApiVersionsResponseData::throttleTimeMs).max().orElse(0);
+
+        return new ApiVersionsResponseData()
+                .setErrorCode(Errors.NONE.code())
+                .setThrottleTimeMs(maxThrottleTimeMs)
+                .setApiKeys(apiKeyCollection)
+                .setSupportedFeatures(featureCollection)
+                .setFinalizedFeaturesEpoch(-1L)
+                .setFinalizedFeatures(new ApiVersionsResponseData.FinalizedFeatureKeyCollection(0))
+                .setZkMigrationReady(responses.get(0).zkMigrationReady());
+    }
+
+    private static Map<Short, ApiVersion> intersectApiVersions(List<ApiVersionsResponseData> responses) {
         Map<Short, ApiVersion> merged = new LinkedHashMap<>();
         for (ApiVersion v : responses.get(0).apiKeys()) {
             merged.put(v.apiKey(), v.duplicate());
@@ -223,19 +248,28 @@ class SubjectRoutingHandler implements Router {
             });
         }
         merged.values().removeIf(v -> v.minVersion() > v.maxVersion());
+        return merged;
+    }
 
-        ApiVersionsResponseData.ApiVersionCollection collection = new ApiVersionsResponseData.ApiVersionCollection(merged.size());
-        collection.addAll(merged.values());
-
-        ApiVersionsResponseData first = responses.get(0);
-        return new ApiVersionsResponseData()
-                .setErrorCode(Errors.NONE.code())
-                .setThrottleTimeMs(0)
-                .setApiKeys(collection)
-                .setSupportedFeatures(first.supportedFeatures())
-                .setFinalizedFeaturesEpoch(first.finalizedFeaturesEpoch())
-                .setFinalizedFeatures(first.finalizedFeatures())
-                .setZkMigrationReady(first.zkMigrationReady());
+    private static Map<String, SupportedFeatureKey> intersectSupportedFeatures(List<ApiVersionsResponseData> responses) {
+        Map<String, SupportedFeatureKey> merged = new LinkedHashMap<>();
+        for (SupportedFeatureKey f : responses.get(0).supportedFeatures()) {
+            merged.put(f.name(), f.duplicate());
+        }
+        for (int i = 1; i < responses.size(); i++) {
+            Map<String, SupportedFeatureKey> thisRoute = new HashMap<>();
+            for (SupportedFeatureKey f : responses.get(i).supportedFeatures()) {
+                thisRoute.put(f.name(), f);
+            }
+            merged.keySet().retainAll(thisRoute.keySet());
+            merged.values().forEach(entry -> {
+                SupportedFeatureKey other = thisRoute.get(entry.name());
+                entry.setMinVersion((short) Math.max(entry.minVersion(), other.minVersion()));
+                entry.setMaxVersion((short) Math.min(entry.maxVersion(), other.maxVersion()));
+            });
+        }
+        merged.values().removeIf(f -> f.minVersion() > f.maxVersion());
+        return merged;
     }
 
     private CompletionStage<RouterResponse> reject(RouterContext ctx, ApiKeys apiKey, short apiVersion, RequestHeaderData header,

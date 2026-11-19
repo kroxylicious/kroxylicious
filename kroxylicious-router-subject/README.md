@@ -81,8 +81,11 @@ This fan-out only happens when `API_VERSIONS` arrives on a connection with no re
 For an unresolved connection's `API_VERSIONS` request, the router sends the request to every declared route concurrently and combines the responses:
 
 - An API key survives only if every route's response includes it, with the version range narrowed to the overlap (`minVersion = max(...)`, `maxVersion = min(...)`). An API key present in only some routes' responses is dropped.
+- `supportedFeatures` is intersected the same way: a feature survives only if every route supports it, narrowed to the overlapping version range.
+- `finalizedFeatures`/`finalizedFeaturesEpoch` are not intersected. Each route is a distinct cluster with its own feature-epoch history, so there is no coherent cluster-wide epoch for a merged view; the response reports epoch `-1` (unknown) and an empty `finalizedFeatures`, per the field's "valid only if `finalizedFeaturesEpoch >= 0`" contract.
+- `throttleTimeMs` is the maximum across all routes' responses.
+- `zkMigrationReady` is copied from the first route's response as-is, not intersected.
 - If any route's response carries a non-zero top-level `errorCode`, the whole request is rejected fail-closed rather than returning a partial intersection.
-- Feature blocks (`supportedFeatures`, `finalizedFeatures`, `finalizedFeaturesEpoch`, `zkMigrationReady`) are not intersected — the first route's response is copied as-is. This is a simplification; routes with materially different feature sets are not supported by this fan-out.
 - The connection is not pinned to any route during fan-out — pinning happens on the first forward to a resolved route.
 
 ## Metric
