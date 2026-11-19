@@ -80,6 +80,13 @@ public class SubjectRouter implements RouterFactory<SubjectRouter.Config, Subjec
                        @Nullable String hasClientId,
                        @Nullable String useRoute,
                        @Nullable String otherwiseUseRoute) {
+        /**
+         * Convenience constructor for a rule with no {@code otherwiseUseRoute}.
+         *
+         * @param hasPrincipals see {@link #Rule(List, String, String, String)}
+         * @param hasClientId see {@link #Rule(List, String, String, String)}
+         * @param useRoute see {@link #Rule(List, String, String, String)}
+         */
         public Rule(@Nullable List<PrincipalRequirement> hasPrincipals, @Nullable String hasClientId, String useRoute) {
             this(hasPrincipals, hasClientId, useRoute, null);
         }
