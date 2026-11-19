@@ -10,7 +10,7 @@
 = Configuring PROXY protocol on a gateway
 
 [role="_abstract"]
-{proxy-protocol}[PROXY protocol] is a network protocol that enables a load balancer to forward original client connection metadata — source address, destination address, and ports — to the backend service.
+{proxy-protocol}[PROXY protocol] is a network protocol that enables a load balancer to forward original client connection metadata (source address, destination address, and ports) to the backend service.
 If you want this metadata available to the proxy and to filters, configure the load balancer to send PROXY protocol headers and the gateway to accept them.
 
 Both PROXY protocol v1 (text) and v2 (binary, including TLV extensions) are supported.
@@ -171,8 +171,8 @@ Configure the load balancer to send PROXY protocol headers on health check conne
 ====
 When `mode` is set to `required`, a client that connects directly to the gateway without going through the load balancer has its connection rejected, and Kroxylicious logs a warning:
 
-`Connection rejected: PROXY protocol header required but client sent non-PROXY data.
-Ensure the upstream load balancer is configured to send PROXY protocol headers.`
+`Connection rejected: PROXY protocol header required but non-PROXY data received.
+Ensure the downstream load balancer is configured to send PROXY protocol headers.`
 
 If you see this warning, check that all traffic for the gateway is routed through a load balancer that is configured to send PROXY protocol headers.
 ====
