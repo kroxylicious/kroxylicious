@@ -195,7 +195,7 @@ class SubjectRoutingHandlerTest {
         // Given
         when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
         RouterResponse errorResponse = mock(RouterResponse.class);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(errorResponse));
 
         // When
         RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
@@ -203,7 +203,7 @@ class SubjectRoutingHandlerTest {
 
         // Then
         assertThat(result).isSameAs(errorResponse);
-        verify(ctx).respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED);
+        verify(ctx).respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION);
     }
 
     @Test
@@ -212,7 +212,7 @@ class SubjectRoutingHandlerTest {
         Subject subject = new Subject(Set.of(new User("CN=eve")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
         RouterResponse errorResponse = mock(RouterResponse.class);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(errorResponse));
 
         // When
         RouterResponse result = newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx)
@@ -291,7 +291,7 @@ class SubjectRoutingHandlerTest {
         when(ctx.sendRequest(eq(nodeB), any(RequestHeaderData.class), any(ApiMessage.class)))
                 .thenReturn(CompletableFuture.completedFuture(apiVersionsResponse(Errors.UNKNOWN_SERVER_ERROR.code())));
         RouterResponse errorResponse = mock(RouterResponse.class);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.UNKNOWN_SERVER_ERROR)).thenReturn(closeableStage(errorResponse));
 
         // When
         RouterResponse result = newHandler().onRequest(ApiKeys.API_VERSIONS, (short) 3, HEADER, REQUEST, ctx)
@@ -337,7 +337,7 @@ class SubjectRoutingHandlerTest {
         RouterResponse forwardedResponse = mock(RouterResponse.class);
         when(ctx.respondWith((ApiMessage) upstreamResponse)).thenReturn(closeableStage(forwardedResponse));
         RouterResponse errorResponse = mock(RouterResponse.class);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.UNKNOWN_SERVER_ERROR)).thenReturn(closeableStage(errorResponse));
         SubjectRoutingHandler handler = newHandler();
         handler.onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
 
@@ -353,7 +353,7 @@ class SubjectRoutingHandlerTest {
     void rejectionIncrementsRejectedCounterWithBoundedReasonTag() {
         // Given
         when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
         newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
@@ -369,7 +369,7 @@ class SubjectRoutingHandlerTest {
         // Given
         Subject subject = new Subject(Set.of(new User("CN=eve")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
         newHandler().onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
@@ -411,7 +411,7 @@ class SubjectRoutingHandlerTest {
                 new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=alice"), requirement(OtherPrincipal.class, "x")), null, "team-a"));
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
         newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
@@ -450,7 +450,7 @@ class SubjectRoutingHandlerTest {
                 new SubjectRouter.CompiledRule(List.of(requirement(Role.class, "developer"), requirement(Role.class, "team-a")), null, "team-a"));
         Subject subject = new Subject(Set.of(new User("CN=alice"), new Role("developer")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(ctx.respondWithError(HEADER, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+        when(ctx.respondWithError(HEADER, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
         newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, HEADER, REQUEST, ctx).toCompletableFuture().join();
@@ -512,7 +512,7 @@ class SubjectRoutingHandlerTest {
                 new SubjectRouter.CompiledRule(List.of(requirement(User.class, "CN=alice")), "alice-app", "team-a"));
         Subject subject = new Subject(Set.of(new User("CN=alice")));
         when(ctx.authenticatedSubject()).thenReturn(subject);
-        when(ctx.respondWithError(header, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(mock(RouterResponse.class)));
+        when(ctx.respondWithError(header, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
 
         // When
         newHandler(rules, null).onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx).toCompletableFuture().join();
@@ -527,7 +527,7 @@ class SubjectRoutingHandlerTest {
         RequestHeaderData header = new RequestHeaderData().setClientId("unrecognised-app");
         when(ctx.authenticatedSubject()).thenReturn(Subject.anonymous());
         RouterResponse errorResponse = mock(RouterResponse.class);
-        when(ctx.respondWithError(header, REQUEST, Errors.SASL_AUTHENTICATION_FAILED)).thenReturn(closeableStage(errorResponse));
+        when(ctx.respondWithError(header, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(errorResponse));
 
         // When
         RouterResponse result = newHandler(RULES, "team-a").onRequest(ApiKeys.METADATA, (short) 0, header, REQUEST, ctx)

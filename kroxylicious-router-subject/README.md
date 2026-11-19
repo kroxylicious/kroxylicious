@@ -16,7 +16,7 @@ The router matches the connection's authenticated `Subject` and pinned `client.i
 
 If the connection is to a broker-specific gateway endpoint (`RouterContext#virtualNode()` non-empty), the router sends there rather than to an arbitrary node of the chosen route, so a client that dialed a specific broker keeps talking to it.
 
-Fail-closed rejections use `Errors.SASL_AUTHENTICATION_FAILED`; the runtime maps it to a per-API error response and the connection is closed.
+Fail-closed rejections map to an error code by reason: `anonymous`/`unmapped` → `Errors.POLICY_VIOLATION`, `route-changed`/`fan-out-error` → `Errors.UNKNOWN_SERVER_ERROR`. The runtime maps the code to a per-API error response and the connection is closed.
 
 ## Configuration
 
@@ -108,4 +108,4 @@ Routing (routers, routes, and multi-cluster dispatch generally, not just this ro
 ## Known deviations from proposal #140
 
 1. **Response builder method name.** The proposal's text uses `andCloseConnection()`; the implemented Router API uses `withCloseConnection()`.
-2. **Fail-closed rejection mechanism.** The proposal describes throwing a `SaslAuthenticationException`; the Router API exposes rejection via `RouterContext#respondWithError(..., Errors)`, not exception-based rejection, so this router calls `respondWithError(..., Errors.SASL_AUTHENTICATION_FAILED)` instead.
+2. **Fail-closed rejection mechanism.** The proposal describes throwing a `SaslAuthenticationException`; the Router API exposes rejection via `RouterContext#respondWithError(..., Errors)`, not exception-based rejection, so this router calls `respondWithError(..., reason)` with a reason-specific `Errors` code instead.

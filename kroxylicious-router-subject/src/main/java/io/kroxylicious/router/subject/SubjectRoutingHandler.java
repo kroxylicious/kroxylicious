@@ -48,19 +48,25 @@ class SubjectRoutingHandler implements Router {
      * never be derived from unbounded or sensitive input (e.g. principal names).
      */
     enum RejectReason {
-        ANONYMOUS("anonymous"),
-        UNMAPPED("unmapped"),
-        ROUTE_CHANGED("route-changed"),
-        FAN_OUT_ERROR("fan-out-error");
+        ANONYMOUS("anonymous", Errors.POLICY_VIOLATION),
+        UNMAPPED("unmapped", Errors.POLICY_VIOLATION),
+        ROUTE_CHANGED("route-changed", Errors.UNKNOWN_SERVER_ERROR),
+        FAN_OUT_ERROR("fan-out-error", Errors.UNKNOWN_SERVER_ERROR);
 
         private final String tagValue;
+        private final Errors errorCode;
 
-        RejectReason(String tagValue) {
+        RejectReason(String tagValue, Errors errorCode) {
             this.tagValue = tagValue;
+            this.errorCode = errorCode;
         }
 
         String tagValue() {
             return tagValue;
+        }
+
+        Errors errorCode() {
+            return errorCode;
         }
     }
 
@@ -111,30 +117,31 @@ class SubjectRoutingHandler implements Router {
         Subject subject = ctx.authenticatedSubject();
         Optional<String> ruleRoute = resolveRoute(subject, pinnedClientId);
         if (ruleRoute.isPresent()) {
-            return forward(ctx, header, request, ruleRoute.get());
+            return forward(ctx, apiKey, apiVersion, header, request, ruleRoute.get());
         }
         if (subject.isAnonymous()) {
             if (apiKey == ApiKeys.API_VERSIONS) {
-                return fanOutApiVersions(header, request, ctx);
+                return fanOutApiVersions(apiKey, apiVersion, header, request, ctx);
             }
-            return reject(ctx, header, request, RejectReason.ANONYMOUS, "anonymous request, no hasClientId rule matched");
+            return reject(ctx, apiKey, apiVersion, header, request, RejectReason.ANONYMOUS, "anonymous request, no hasClientId rule matched");
         }
         if (defaultRoute != null) {
-            return forward(ctx, header, request, defaultRoute);
+            return forward(ctx, apiKey, apiVersion, header, request, defaultRoute);
         }
-        return reject(ctx, header, request, RejectReason.UNMAPPED, "no rule matched subject");
+        return reject(ctx, apiKey, apiVersion, header, request, RejectReason.UNMAPPED, "no rule matched subject");
     }
 
     /**
      * Pins the connection to {@code route} on the first forward; closes the connection fail-closed if
      * a later forward resolves to a different route.
      */
-    private CompletionStage<RouterResponse> forward(RouterContext ctx, RequestHeaderData header, ApiMessage request, String route) {
+    private CompletionStage<RouterResponse> forward(RouterContext ctx, ApiKeys apiKey, short apiVersion,
+                                                    RequestHeaderData header, ApiMessage request, String route) {
         if (pinnedRoute == null) {
             pinnedRoute = route;
         }
         else if (!pinnedRoute.equals(route)) {
-            return reject(ctx, header, request, RejectReason.ROUTE_CHANGED, "subject route changed mid-connection from "
+            return reject(ctx, apiKey, apiVersion, header, request, RejectReason.ROUTE_CHANGED, "subject route changed mid-connection from "
                     + pinnedRoute + " to " + route);
         }
         // Prefer the node the client is already connected to (a broker-specific gateway
@@ -175,7 +182,7 @@ class SubjectRoutingHandler implements Router {
      * client can negotiate a version range that every downstream cluster supports. Does not pin
      * the connection to any route.
      */
-    private CompletionStage<RouterResponse> fanOutApiVersions(RequestHeaderData header, ApiMessage request, RouterContext ctx) {
+    private CompletionStage<RouterResponse> fanOutApiVersions(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, RouterContext ctx) {
         List<String> routes = List.copyOf(routeNames);
         List<CompletableFuture<ApiVersionsResponseData>> perRoute = routes.stream()
                 .map(route -> ctx.sendRequest(ctx.anyNode(route), header.duplicate(), (ApiMessage) request.duplicate())
@@ -187,7 +194,7 @@ class SubjectRoutingHandler implements Router {
                     List<ApiVersionsResponseData> responses = perRoute.stream().map(CompletableFuture::join).toList();
                     boolean anyError = responses.stream().anyMatch(r -> r.errorCode() != Errors.NONE.code());
                     if (anyError) {
-                        return reject(ctx, header, request, RejectReason.FAN_OUT_ERROR, "route returned an error for API_VERSIONS fan-out");
+                        return reject(ctx, apiKey, apiVersion, header, request, RejectReason.FAN_OUT_ERROR, "route returned an error for API_VERSIONS fan-out");
                     }
                     return ctx.respondWith(intersect(responses)).completed();
                 });
@@ -231,16 +238,18 @@ class SubjectRoutingHandler implements Router {
                 .setZkMigrationReady(first.zkMigrationReady());
     }
 
-    private CompletionStage<RouterResponse> reject(RouterContext ctx, RequestHeaderData header,
+    private CompletionStage<RouterResponse> reject(RouterContext ctx, ApiKeys apiKey, short apiVersion, RequestHeaderData header,
                                                    ApiMessage request, RejectReason reason, String detail) {
         rejectedCounter.withTags(SubjectRouterMetrics.REASON_LABEL, reason.tagValue()).increment();
         LOGGER.atDebug()
                 .addKeyValue("sessionId", ctx.sessionId())
                 .addKeyValue("virtualCluster", virtualClusterName)
                 .addKeyValue("router", routerName)
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
                 .addKeyValue("reason", detail)
                 .log("rejecting request");
-        return ctx.respondWithError(header, request, Errors.SASL_AUTHENTICATION_FAILED)
+        return ctx.respondWithError(header, request, reason.errorCode())
                 .withCloseConnection().completed();
     }
 }
