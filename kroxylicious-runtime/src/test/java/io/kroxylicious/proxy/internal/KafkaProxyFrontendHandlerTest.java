@@ -678,6 +678,21 @@ class KafkaProxyFrontendHandlerTest {
         });
     }
 
+    @Test
+    void writeInvokesOnBeforeClientResponseOnClientConnectionStateMachine() {
+        // Given
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var handler = handler(new DelegatingDecodePredicate(), ccsm);
+        inboundChannel.pipeline().addLast(handler);
+        var msg = new Object();
+
+        // When
+        inboundChannel.writeOutbound(msg);
+
+        // Then
+        verify(ccsm).onBeforeClientResponse(msg);
+    }
+
     private static DecodedRequestFrame<ProduceRequestData> produceFrame(int correlationId, short acks) {
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
