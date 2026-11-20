@@ -18,6 +18,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
@@ -752,6 +753,41 @@ class RoutingHandlerTest {
         assertNothingLoopConfinedTouched();
     }
 
+    @Test
+    void topLevel_shouldCloseConnectionWhenLiveEventLoopRejectsRouterCompletion() throws Exception {
+        // Given
+        var rejectingLoop = new RejectNextExecuteEventLoop();
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), produceFrame(CORRELATION_ID), rejectingLoop);
+
+        // When
+        rejectingLoop.rejectNextExecute();
+        completeOnAnotherThread(routerFuture, produceResponse());
+
+        // Then
+        assertNothingLoopConfinedTouched();
+        assertThat(localChannel.closeFuture()).succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void topLevel_shouldFailOobPromiseAndCloseConnectionWhenLiveEventLoopRejectsRouterCompletion() throws Exception {
+        // Given
+        var rejectingLoop = new RejectNextExecuteEventLoop();
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE),
+                oobProduceFrame(CORRELATION_ID, promise, DEFAULT_ROUTE), rejectingLoop);
+
+        // When
+        rejectingLoop.rejectNextExecute();
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RejectedExecutionException.class);
+        assertNothingLoopConfinedTouched();
+        assertThat(localChannel.closeFuture()).succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
     /**
      * Records the stages derived from it, so a test can observe an exception thrown inside the
      * handler's {@code whenComplete} callback, which would otherwise be silently swallowed.
@@ -815,9 +851,13 @@ class RoutingHandlerTest {
     }
 
     private DependentRecordingFuture<RouterResponse> routeOnEventLoop(RoutingHandler handler, Object frame) throws Exception {
+        return routeOnEventLoop(handler, frame, new DefaultEventLoop());
+    }
+
+    private DependentRecordingFuture<RouterResponse> routeOnEventLoop(RoutingHandler handler, Object frame, DefaultEventLoop loop) throws Exception {
         var routerFuture = new DependentRecordingFuture<RouterResponse>();
         when(router.onRequest(any(), anyShort(), any(), any(), any())).thenReturn(routerFuture);
-        registerOnEventLoop(handler);
+        registerOnEventLoop(handler, loop);
         readOnEventLoop(frame);
         return routerFuture;
     }
@@ -831,7 +871,11 @@ class RoutingHandlerTest {
     }
 
     private void registerOnEventLoop(RoutingHandler handler) throws Exception {
-        eventLoop = new DefaultEventLoop();
+        registerOnEventLoop(handler, new DefaultEventLoop());
+    }
+
+    private void registerOnEventLoop(RoutingHandler handler, DefaultEventLoop loop) throws Exception {
+        eventLoop = loop;
         localChannel = new LocalChannel() {
             @Override
             public ChannelFuture write(Object msg) {
@@ -1660,5 +1704,25 @@ class RoutingHandlerTest {
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
         assertThat(out.header().correlationId()).isEqualTo(CORRELATION_ID);
+    }
+
+    /**
+     * An event loop that rejects the next task, simulating a full task queue on a loop that is
+     * still running.
+     */
+    private static final class RejectNextExecuteEventLoop extends DefaultEventLoop {
+        private final AtomicBoolean rejectNext = new AtomicBoolean();
+
+        void rejectNextExecute() {
+            rejectNext.set(true);
+        }
+
+        @Override
+        public void execute(Runnable task) {
+            if (rejectNext.compareAndSet(true, false)) {
+                throw new RejectedExecutionException("task queue is full");
+            }
+            super.execute(task);
+        }
     }
 }

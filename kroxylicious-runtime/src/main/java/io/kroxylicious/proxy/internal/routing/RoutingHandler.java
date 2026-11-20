@@ -419,18 +419,37 @@ public class RoutingHandler extends ChannelDuplexHandler {
             completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
             return;
         }
-        whenCompleteOnEventLoop(ctx.executor(), stage, completion, e -> onCompletionRejected(frame, e));
+        whenCompleteOnEventLoop(ctx.executor(), stage, completion, e -> onCompletionRejected(ctx, frame, e));
     }
 
-    // The task queue is unbounded by default (io.netty.eventLoop.maxPendingTasks), so a rejection
-    // means the loop has shut down and the connection is gone.
-    private void onCompletionRejected(DecodedRequestFrame<?> frame, RejectedExecutionException e) {
-        LOGGER.atDebug()
-                .setCause(e)
-                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
-                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                .addKeyValue(LOG_KEY_API_KEY, frame.apiKey())
-                .log("Event loop rejected router completion; connection already terminated");
+    /**
+     * Handles a completion the event loop would not accept. A rejection while the loop is shutting
+     * down means the connection is already gone, so there is nothing to do beyond failing any
+     * pending out-of-band promise.
+     * <p>
+     * A rejection from a live loop means its task queue is full (the queue is unbounded unless
+     * {@code io.netty.eventLoop.maxPendingTasks} is configured). The completion cannot safely run
+     * off the loop and must not be dropped, so the connection is closed rather than leaving a
+     * client waiting for a response that will never arrive.
+     */
+    private void onCompletionRejected(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame, RejectedExecutionException e) {
+        if (ctx.executor().isShuttingDown()) {
+            LOGGER.atDebug()
+                    .setCause(e)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, frame.apiKey())
+                    .log("Event loop shut down before router completion; connection already terminated");
+        }
+        else {
+            LOGGER.atWarn()
+                    .setCause(e)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, frame.apiKey())
+                    .log("Event loop rejected router completion; closing connection rather than dropping the completion");
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after event loop rejected router completion"));
+        }
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
             var routing = oobFrame.routing();
             if (routing != null) {
