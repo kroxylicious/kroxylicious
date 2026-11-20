@@ -131,7 +131,7 @@ public class NettyKeyProvider {
             String alias = aliases.nextElement();
             if (keyStore.isKeyEntry(alias)) {
                 hasKeyEntry = true;
-                if (keyPassword == null) {
+                if (keyPassword == null && "PKCS12".equalsIgnoreCase(keyStore.getType())) {
                     throw new UnrecoverableKeyException("Key entry '" + alias + "' cannot be recovered without a password");
                 }
                 var key = keyStore.getKey(alias, keyPassword);
