@@ -29,7 +29,7 @@ public class TestVault implements Closeable {
     public static final int PLAIN_PORT = 8200;
     private static final String VAULT_TOKEN = "token";
 
-    private static final String IMAGE = "hashicorp/vault:2.0.4@sha256:5be49781ecf78bfe775c5309c6a4d9f4e9e040b6c885c99eb2b12fb69855e1a2";
+    private static final String IMAGE = "hashicorp/vault:2.2.2@sha256:dfa48c2fa2b0099ccb47681ec5c4804bf5aec9d6879ecfee07ad4b92a5427ad6";
     private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse(IMAGE)
             .asCompatibleSubstituteFor(DockerImageName.parse(IMAGE.substring(0, IMAGE.indexOf("@"))));
 
