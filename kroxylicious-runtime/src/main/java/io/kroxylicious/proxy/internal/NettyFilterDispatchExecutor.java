@@ -21,6 +21,7 @@ import java.util.concurrent.TimeoutException;
 import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
+import io.kroxylicious.proxy.internal.util.NettyFutures;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -59,14 +60,9 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
     public <T> CompletionStage<T> completeOnFilterDispatchThread(CompletionStage<T> completionStage) {
         Objects.requireNonNull(completionStage, "completionStage was null");
         CompletableFuture<T> future = new InternalCompletableFuture<>(eventLoop);
-        completionStage.whenComplete((value, throwable) -> {
-            if (isInFilterDispatchThread()) {
-                forward(value, throwable, future);
-            }
-            else {
-                execute(() -> forward(value, throwable, future));
-            }
-        });
+        NettyFutures.whenCompleteOnEventLoop(eventLoop, completionStage,
+                (value, throwable) -> forward(value, throwable, future),
+                future::completeExceptionally);
         return future.minimalCompletionStage();
     }
 
