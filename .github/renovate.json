@@ -1,6 +1,7 @@
 {
   "branchConcurrentLimit": 50,
   "prConcurrentLimit": 50,
+  "pruneStaleBranches": true,
   "baseBranchPatterns": [
     "main"
   ],
