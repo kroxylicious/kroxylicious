@@ -277,9 +277,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh pr merge --delete-branch --merge ${{ inputs.release-pr-issue-number }}
-          # --merge (not --rebase) so the commit SHA the published images are tagged with
-          # is reachable on main.
+          # Use --merge to create a true merge commit (not squash).
+          # This is necessary because:
+          # 1. Release tag must point to exact commit artifacts were built from
+          # 2. Squash would create a new commit, breaking the tag reference
+          # The kroxylicious-robot account is a member of the release-automation
+          # team, which has a "For Pull Requests Only" ruleset bypass that allows
+          # merge commits despite the repository's squash-only restriction.
+          gh pr merge --merge ${{ inputs.release-pr-issue-number }}
+          # Note: --delete-branch flag removed because it's incompatible with merge queue
+          
+          # Tag the release commit
           git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT_SHA}"
           git push origin "v${RELEASE_VERSION}"
 
@@ -293,12 +301,19 @@ jobs:
             --notes-file .releaseNotes/release-notes_01 \
             release-assets/*
 
-      - name: 'Delete release branch'
+      - name: 'Delete release and PR branches'
         if: ${{ inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
+          # Delete the temporary release branch (e.g., release-work-0.27.0-12345-rel)
+          # This branch contains only the release commit and was used for building artifacts
           git push origin --delete "${WORK_BRANCH}-rel" || echo "Branch ${WORK_BRANCH}-rel not found (already deleted?)"
+          
+          # Delete the PR branch (e.g., release-work-0.27.0-12345)
+          # This branch contains both the release commit and the development version commit
+          # The --delete-branch flag was removed from gh pr merge because it's incompatible with merge queue
+          git push origin --delete "${PR_BRANCH}" || echo "Branch ${PR_BRANCH} not found (already deleted?)"
 
       - name: 'Tag release container images'
         if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
