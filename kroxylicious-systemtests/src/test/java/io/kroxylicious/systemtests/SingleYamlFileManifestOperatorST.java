@@ -10,7 +10,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 
-import org.apache.kafka.common.record.internal.CompressionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -20,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import io.skodjob.kubetest4j.installation.InstallationMethod;
 
+import io.kroxylicious.kafka.common.record.internal.CompressionType;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.resources.operator.AllInOneYamlManifestProvider;

@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.record.internal.CompressionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -28,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 
+import io.kroxylicious.kafka.common.record.internal.CompressionType;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;

@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.apache.kafka.common.record.internal.CompressionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -20,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 
+import io.kroxylicious.kafka.common.record.internal.CompressionType;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
