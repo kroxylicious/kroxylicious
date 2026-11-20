@@ -7,7 +7,7 @@
 #####
 # Stage 1: Establish clean ubi9-micro rootfs with its own RPM database
 #####
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS base
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.9-1794478307@sha256:dbd325b96bcd432dd42816d31412bdf1dc0fb973b79ed310344bc23c76c068db AS base
 
 #####
 # Stage 2: Install runtime dependencies into the ubi9-micro rootfs using dnf --installroot
@@ -61,7 +61,7 @@ RUN chmod +x ${TINI_DEST}
 #####
 # Stage 3: Build the final container image on ubi9-micro base
 #####
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.9-1794478307@sha256:dbd325b96bcd432dd42816d31412bdf1dc0fb973b79ed310344bc23c76c068db
 
 ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER_UID=185
