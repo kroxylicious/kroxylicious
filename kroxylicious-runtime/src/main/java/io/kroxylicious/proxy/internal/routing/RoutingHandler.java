@@ -463,6 +463,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
                     .log("Event loop rejected router completion; closing connection rather than dropping the completion");
             ctx.channel().close().addListener(logFailure(LOGGER, "close after event loop rejected router completion"));
         }
+        // Completing the promise here runs its dependents on the thread that completed the
+        // router's stage, not the event loop. That is deliberate: the connection is already gone
+        // or is being closed, so loop-confined state is being torn down, and leaving the promise
+        // incomplete would strand its owner forever.
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
             var routing = oobFrame.routing();
             if (routing != null) {
