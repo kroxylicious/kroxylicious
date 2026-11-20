@@ -46,6 +46,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.executeOnEventLoop;
 import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
 import static io.kroxylicious.proxy.internal.util.NettyFutures.whenCompleteOnEventLoop;
 
@@ -412,14 +413,26 @@ public class RoutingHandler extends ChannelDuplexHandler {
             stage = Objects.requireNonNull(router).onRequest(apiKey, frame.apiVersion(), frame.header(), frame.body(), routingContext);
         }
         catch (Exception t) {
-            completion.accept(null, t);
+            completeOnEventLoop(ctx, frame, completion, null, t);
             return;
         }
         if (stage == null) {
-            completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
+            completeOnEventLoop(ctx, frame, completion, null,
+                    new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
             return;
         }
         whenCompleteOnEventLoop(ctx.executor(), stage, completion, e -> onCompletionRejected(ctx, frame, e));
+    }
+
+    // The synchronous-exception and null-stage outcomes are dispatched the same way as an
+    // asynchronous completion, so every completion of a router invocation is handled on the
+    // event loop (or rejected through the same path).
+    private void completeOnEventLoop(ChannelHandlerContext ctx,
+                                     DecodedRequestFrame<?> frame,
+                                     BiConsumer<RouterResponse, Throwable> completion,
+                                     @Nullable RouterResponse result,
+                                     @Nullable Throwable error) {
+        executeOnEventLoop(ctx.executor(), () -> completion.accept(result, error), e -> onCompletionRejected(ctx, frame, e));
     }
 
     /**
