@@ -9,6 +9,7 @@ package io.kroxylicious.authorizer.provider.acl;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 
 import com.google.re2j.Pattern;
 
@@ -46,5 +47,10 @@ class TypePatternMatch {
             }
         }
         return result;
+    }
+
+    /** Calls the action for every pattern and its operations, in key order. */
+    public void forEach(BiConsumer<ResourceMatcherNameMatches<?>, Set<?>> action) {
+        map.forEach(action);
     }
 }
