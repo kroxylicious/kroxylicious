@@ -55,9 +55,10 @@ The release workflow uses a team-based ruleset bypass to merge the release PR be
 - The release tag must point to the exact commit that artifacts were built from
 
 The `kroxylicious-robot` account is a member of the `release-automation` team,
-which has write access to the repository and a "For Pull Requests Only" ruleset
-bypass configured in the repository settings. This allows the robot to use the
-`--merge` strategy when merging PRs despite the squash-only restriction.
+which has write access to the repository and an "Always Allow" ruleset bypass
+configured in the "Lock down default branch" ruleset. This allows the robot to
+bypass both the merge queue requirement and the squash-only restriction when
+merging PRs.
 
 **Note:** The `--delete-branch` flag cannot be used with merge queue enabled, so
 the workflow deletes the PR branch and release branch separately after merging.

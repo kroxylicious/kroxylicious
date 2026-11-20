@@ -58,18 +58,18 @@ organization members and has write access to the kroxylicious/kroxylicious repos
 **Team configuration:**
 - Visibility: Visible (not secret) - required for team to appear in repository settings
 - Repository access: Write - required for team to appear in ruleset bypass lists
-- Bypass type: For Pull Requests Only - most restrictive, only affects PR merges
+- Bypass mode: Always Allow - required to bypass both merge queue and squash restriction
 
 **Ruleset bypass:**
-The team has a "For Pull Requests Only" ruleset bypass configured that allows
-merge commits during the release process. This is necessary because:
+The team has an "Always Allow" bypass configured in the "Lock down default branch"
+ruleset. This allows merge commits during the release process, which is necessary because:
 - The merge queue requires squash merges
 - The release process requires true merge commits to preserve commit ancestry
 - The release tag must point to the exact commit that artifacts were built from
 
-The "For Pull Requests Only" bypass type ensures the team can only bypass rules
-when merging pull requests, not when pushing directly to branches. This provides
-better security than an "Always Allow" bypass.
+The "Always Allow" bypass mode is required to bypass both the merge queue requirement
+and the squash-only restriction. Despite the name, this is still secure because the
+ruleset itself is scoped to pull requests, preventing direct pushes to protected branches.
 
 ## Dependabot Integration
 
