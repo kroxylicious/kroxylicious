@@ -47,6 +47,21 @@ gpg --armor --export-secret-key ${KEY_ID} | pbcopy
 
 While `pbcopy` is macOS specific, similar utilities exist for Linux see [StackExchange](https://superuser.com/a/288333)
 
+## Merge Queue Compatibility
+
+The release workflow uses a team-based ruleset bypass to merge the release PR because:
+- The merge queue requires squash merges
+- The release process requires true merge commits to preserve commit ancestry
+- The release tag must point to the exact commit that artifacts were built from
+
+The `kroxylicious-robot` account is a member of the `release-automation` team,
+which has write access to the repository and a "For Pull Requests Only" ruleset
+bypass configured in the repository settings. This allows the robot to use the
+`--merge` strategy when merging PRs despite the squash-only restriction.
+
+**Note:** The `--delete-branch` flag cannot be used with merge queue enabled, so
+the workflow deletes the PR branch and release branch separately after merging.
+
 ## Prepare the release blog post
 
 Prepare the release blog post by opening a PR [kroxylicious.github.io](https://github.com/kroxylicious/kroxylicious.github.io).  Get the PR

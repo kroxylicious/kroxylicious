@@ -46,6 +46,31 @@ stores, at repository or organisation level:
 If the token is missing from the store used by a run, the workflow skips the changelog steps and emits a warning
 annotation on the run naming the store that needs to be configured.
 
+## Release Automation Team
+
+The `release-automation` team is used to grant ruleset bypass permissions to
+automation accounts used in the release process. The team is visible to all
+organization members and has write access to the kroxylicious/kroxylicious repository.
+
+**Current members:**
+- `kroxylicious-robot`
+
+**Team configuration:**
+- Visibility: Visible (not secret) - required for team to appear in repository settings
+- Repository access: Write - required for team to appear in ruleset bypass lists
+- Bypass type: For Pull Requests Only - most restrictive, only affects PR merges
+
+**Ruleset bypass:**
+The team has a "For Pull Requests Only" ruleset bypass configured that allows
+merge commits during the release process. This is necessary because:
+- The merge queue requires squash merges
+- The release process requires true merge commits to preserve commit ancestry
+- The release tag must point to the exact commit that artifacts were built from
+
+The "For Pull Requests Only" bypass type ensures the team can only bypass rules
+when merging pull requests, not when pushing directly to branches. This provides
+better security than an "Always Allow" bypass.
+
 ## Dependabot Integration
 
 We use Dependabot to automatically create Pull Requests (PR) upgrading dependencies. Dependabot is also allowed to merge
