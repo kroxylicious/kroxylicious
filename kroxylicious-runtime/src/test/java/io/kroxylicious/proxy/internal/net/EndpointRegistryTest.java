@@ -1217,7 +1217,7 @@ class EndpointRegistryTest {
         private final BlockingQueue<NetworkBindingOperation<?>> queue = new LinkedBlockingQueue<>();
 
         @Override
-        public void start(ServerBootstrap plain, ServerBootstrap tls) {
+        public void start(ServerBootstrap serverBootstrap) {
             throw new UnsupportedOperationException();
         }
 

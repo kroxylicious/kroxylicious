@@ -17,10 +17,9 @@ public interface NetworkBindingOperationProcessor extends AutoCloseable {
     /**
      * Starts the processor running.
      *
-     * @param plain plain bootstrap
-     * @param tls tls bootstrap
+     * @param serverBootstrap bootstrap on which binding operations are performed
      */
-    void start(ServerBootstrap plain, ServerBootstrap tls);
+    void start(ServerBootstrap serverBootstrap);
 
     /**
      * Enqueues a network binding operation. Once the operation is complete the processor

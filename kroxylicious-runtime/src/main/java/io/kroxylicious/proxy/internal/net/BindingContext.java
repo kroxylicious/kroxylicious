@@ -14,5 +14,6 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
  * time — before the per-connection binding is resolved.
  *
  * @param proxyProtocolMode the PROXY protocol enforcement mode for this listening port
+ * @param tls whether this listening port serves TLS connections
  */
-public record BindingContext(ProxyProtocolMode proxyProtocolMode) {}
+public record BindingContext(ProxyProtocolMode proxyProtocolMode, boolean tls) {}
