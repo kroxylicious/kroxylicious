@@ -48,7 +48,7 @@ runs:
   using: "composite"
   steps:
     - name: Slack Notification
-      uses: rtCamp/action-slack-notify@06cc13f74fa8d4d2296c09455d91e9453e4025f4 # v2
+      uses: rtCamp/action-slack-notify@06cc13f74fa8d4d2296c09455d91e9453e4025f4
       env:
         SLACK_WEBHOOK: ${{ inputs.slackWebhook }}
         SLACK_COLOR: ${{ inputs.slackColor }}

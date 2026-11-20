@@ -21,6 +21,8 @@ on:
     types: [ opened, synchronize, reopened ]
   merge_group:
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -28,23 +30,19 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
-
-      - name: 'Test for Slack secret'
-        if: github.event_name != 'merge_group'
-        env:
-          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
-        run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
       - name: 'Check out repository'
         if: github.event_name != 'merge_group'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Test release documentation scripts'
         if: github.event_name != 'merge_group'
         run: |
@@ -53,10 +51,10 @@ jobs:
           ./scripts/update-latest-docs-release-test.sh
       - name: Setup Java
         if: github.event_name != 'merge_group'
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         if: github.event_name != 'merge_group'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Compile and lint the project'
         if: github.event_name != 'merge_group'
         env:

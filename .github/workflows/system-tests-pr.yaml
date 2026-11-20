@@ -19,6 +19,8 @@ name: System Tests for Pull-Requests
 on:
   workflow_call:
 
+permissions: {}
+
 jobs:
   # JOB to run change detection
   changes:
@@ -52,6 +54,8 @@ jobs:
 
   set_variables:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
     steps:
@@ -63,6 +67,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Discover test clients'
         working-directory: kroxylicious-systemtests
         id: discover
@@ -91,7 +96,11 @@ jobs:
   run_system_tests:
     needs: [changes,set_variables]
     if: always()
-    uses: ./.github/workflows/run-system-tests.yaml
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+    uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
       KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}

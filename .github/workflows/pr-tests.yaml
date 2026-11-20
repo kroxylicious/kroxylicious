@@ -24,29 +24,43 @@ on:
       - 'release/**'
   merge_group:
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build_artifacts:
+    permissions:
+      contents: read
     if: github.event_name != 'merge_group'
-    uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
+    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
 
   integration_test_pr:
+    permissions:
+      contents: read
+      actions: read
     if: github.event_name != 'merge_group'
     needs: build_artifacts
-    uses: ./.github/workflows/integration-tests.yaml
+    uses: $/.github/workflows/integration-tests.yaml
 
   documentation_tests:
+    permissions:
+      contents: read
     if: github.event_name != 'merge_group'
     needs: build_artifacts
-    uses: ./.github/workflows/documentation-tests.yml
+    uses: $/.github/workflows/documentation-tests.yml
 
   system_tests_pr:
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+      checks: write
     if: github.event_name != 'merge_group'
     needs: build_artifacts
-    uses: ./.github/workflows/system-tests-pr.yaml
+    uses: $/.github/workflows/system-tests-pr.yaml
 
   pr_test_gate:
     runs-on: ubuntu-latest

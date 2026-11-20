@@ -17,12 +17,18 @@
 name: Kroxylicious Robot Command Dispatcher
 
 on:
+  # zizmor: ignore[dangerous-triggers] — issue_comment is required for PR bot commands needing release secrets.
+  # Mitigations: permissions: {}, harden-runner, team membership check before any privileged action.
   issue_comment:
     types: [created]
+
+permissions: {}
 
 jobs:
 
   process-command:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@kroxylicious-robot')  && !contains(github.event.comment.body, '@kroxylicious-robot run')}}
     steps:
@@ -35,6 +41,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          persist-credentials: false
 
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
@@ -49,9 +56,11 @@ jobs:
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ACTOR: ${{ github.actor }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
-          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
+          gh issue comment  "${ISSUE_NUMBER}" --body "${ACTOR} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
+          echo "${ACTOR} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
           exit 1
 
       - name: 'Extract command from comment'
@@ -73,15 +82,22 @@ jobs:
       unrecognized: ${{ env.UNRECOGNIZED }}
 
   dispatch-release-or-drop:
+    permissions:
+      contents: read
     needs: process-command
     if: ${{ needs.process-command.outputs.command == 'drop-release' || needs.process-command.outputs.command == 'promote-release' }}
-    uses: ./.github/workflows/promote_release.yaml
+    uses: $/.github/workflows/promote_release.yaml
     with:
       command: ${{ needs.process-command.outputs.command }}
       release-pr-issue-number: ${{ github.event.issue.number }}
-    secrets: inherit
+    secrets:
+      KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+      KROXYLICIOUS_RELEASE_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
   dispatch-help:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: process-command
     if: ${{ needs.process-command.outputs.unrecognized == 'true' }}
@@ -95,11 +111,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          persist-credentials: false
 
       - name: 'Send help'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMAND: ${{ needs.process-command.outputs.command }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "Sorry, I don't understand the command '${{ needs.process-command.outputs.command }}'."
+          gh issue comment  "${ISSUE_NUMBER}" --body "Sorry, I don't understand the command '${COMMAND}'."
 
 

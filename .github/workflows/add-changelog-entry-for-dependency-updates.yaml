@@ -67,6 +67,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.KROXYLICIOUS_CHANGELOG_TOKEN }}
+          persist-credentials: false
 
       - name: 'Check whether changelog entry is needed'
         if: env.CHANGELOG_TOKEN_SET == 'true'

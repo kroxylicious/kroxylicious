@@ -23,12 +23,16 @@ on:
     types: [ opened, synchronize, reopened ]
   merge_group:
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   unittest_all:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: compute_pom_version
     strategy:
@@ -45,35 +49,38 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Sonar secret'
+        id: check_sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_ENV"
+          echo "token_set=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_OUTPUT"
       - name: 'Test for Slack secret'
+        id: check_slack
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: ${{ matrix.java.version }}
           javaDistro: ${{ matrix.java.distro }}
       - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
+        uses: $/.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Cache Maven packages'
         id: cache-maven
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
         with:
-          read-only: 'false'
+          read-only: ${{ github.event_name == 'pull_request' }}
       - name: 'Warm Maven dependency cache'
         # Only on a cache miss or restore-key hit; an exact hit already has everything.
         if: steps.cache-maven.outputs.cache-hit != 'true'
@@ -108,6 +115,8 @@ jobs:
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
           IMAGE_TAG="dev-git-${GIT_HASH}"
@@ -117,32 +126,38 @@ jobs:
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
           # On PRs, skip QA checks (already run in lint.yaml). On push to main, run QA checks.
-          QA_OPTS="${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            QA_OPTS="--activate-profiles !qa -Derrorprone.skip=true"
+          else
+            QA_OPTS=""
+          fi
           mvn --batch-mode \
             --activate-profiles ci \
             ${QA_OPTS} \
             -DskipITs \
-            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }} \
+            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}" \
             install
       - name: Cache SonarCloud packages
+        # zizmor: ignore[cache-poisoning] — gated to push-to-main only; PRs never reach this step.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.check_sonar.outputs.token_set == 'true'
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
       - name: 'Build Kroxylicious maven project on main with Sonar'
-        if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.check_sonar.outputs.token_set == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
-            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
+            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}"
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        if: failure() && steps.check_slack.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
@@ -152,6 +167,8 @@ jobs:
           runId: ${{ github.run_id }}
 
   compute_pom_version:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -163,10 +180,12 @@ jobs:
           egress-policy: audit
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Determine project version'
         id: version
         run: echo "version=$(mvn --quiet help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
@@ -195,6 +214,8 @@ jobs:
           egress-policy: audit
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: 'Select architectures'
         id: arches
         env:
@@ -258,8 +279,10 @@ jobs:
           echo "arches=${ARCHES}" >> "$GITHUB_OUTPUT"
 
   build_container_images:
+    permissions:
+      contents: read
     needs: [ compute_pom_version, select_architectures ]
-    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
+    uses: $/.github/workflows/build-kroxylicious-container-images.yaml
     with:
       push-images: ${{ github.event_name == 'push' }}
       arches: ${{ needs.select_architectures.outputs.arches }}
@@ -268,6 +291,7 @@ jobs:
       REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
   container_images_slack_notification:
+    permissions: {}
     runs-on: ubuntu-latest
     needs: build_container_images
     if: failure() && github.event_name == 'push'
@@ -277,13 +301,14 @@ jobs:
         with:
           egress-policy: audit
       - name: 'Test for Slack secret'
+        id: check_slack
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
       - name: Slack Notification on Failure
-        if: env.SLACK_WEBHOOK_SET == 'true'
-        uses: ./.github/actions/common/slack-notification
+        if: steps.check_slack.outputs.slack_webhook_set == 'true'
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'

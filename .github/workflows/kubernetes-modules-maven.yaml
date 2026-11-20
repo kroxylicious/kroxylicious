@@ -23,6 +23,8 @@ on:
     types: [ opened, synchronize, reopened ]
   merge_group:
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -30,6 +32,8 @@ concurrency:
 jobs:
   build_kubernetes_modules:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -38,26 +42,31 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Sonar secret'
+        id: check_sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_ENV"
+          echo "token_set=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_OUTPUT"
       - name: 'Test for Slack secret'
+        id: check_slack
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        # zizmor: ignore[cache-poisoning] — read-only by default; PRs never write to cache.
+        uses: $/.github/actions/common/cache-maven-packages
       - name: Cache SonarCloud packages
+        # zizmor: ignore[cache-poisoning] — gated to push-to-main only; PRs never reach this step.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.check_sonar.outputs.token_set == 'true'
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
@@ -87,7 +96,7 @@ jobs:
             -DskipITs=true \
             verify
       - name: 'SonarCloud scan on main for the Operator'
-        if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.check_sonar.outputs.token_set == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -106,8 +115,8 @@ jobs:
           path: PR_NUMBER.txt
           if-no-files-found: error
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        if: failure() && steps.check_slack.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'

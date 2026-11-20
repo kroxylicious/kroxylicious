@@ -29,10 +29,7 @@ on:
         default: 'main'
         type: string
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: "pages"
@@ -40,6 +37,8 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     services:
       registry:
@@ -53,15 +52,17 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Slack secret'
+        id: check_slack
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           path: kroxylicious
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
+          persist-credentials: false
 
       - name: Setup Java
         uses: $/.github/actions/common/setup-java
@@ -80,6 +81,7 @@ jobs:
           path: kroxylicious.github.io
           repository: kroxylicious/kroxylicious.github.io
           ref: main
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
@@ -98,8 +100,10 @@ jobs:
       - name: Load Jekyll configuration overrides
         run: |
           echo "baseurl: kroxylicious" > _config-baseurl.yml
-          echo "${{ vars.JEKYLL_CONFIG_OVERRIDES }}" > _config-overrides.yml
+          echo "$JEKYLL_CONFIG_OVERRIDES" > _config-overrides.yml
         working-directory: kroxylicious.github.io
+        env:
+          JEKYLL_CONFIG_OVERRIDES: ${{ vars.JEKYLL_CONFIG_OVERRIDES }}
 
       - name: copy built documentation into website
         run: cp -r kroxylicious/kroxylicious-docs/target/web/* kroxylicious.github.io/
@@ -119,7 +123,7 @@ jobs:
           path: kroxylicious.github.io/_site
           retention-days: 14
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
+        if: failure() && steps.check_slack.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
         uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
@@ -131,6 +135,9 @@ jobs:
 
   # Deployment job
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -143,15 +150,16 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Slack secret'
+        id: check_slack
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
+        if: failure() && steps.check_slack.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
         uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}

@@ -1,9 +1,13 @@
 name: Sonar Scan
 
 on:
+  # zizmor: ignore[dangerous-triggers] — workflow_run is required for SonarCloud to access SONAR_TOKEN on fork PRs.
+  # Mitigations: permissions: {}, harden-runner, conclusion == 'success' gate.
   workflow_run:
     workflows: [ "Lint Pull Request" ]
     types: [completed]
+
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
@@ -11,6 +15,9 @@ concurrency:
 
 jobs:
   Sonar:
+    permissions:
+      contents: read
+      checks: write
     runs-on: ubuntu-latest
     if: github.event.workflow_run && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'merge_group')
     steps:
@@ -20,10 +27,11 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Sonar secret'
+        id: check_sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_ENV"
+          echo "token_set=$(test ${SONAR_TOKEN} && echo true)" >> "$GITHUB_OUTPUT"
       - name: Mark SonarCloud checks as succeeded for merge queue
         # Merge queue items trust the scan already run against the PR branch; a
         # queue merge commit gets no PR to decorate, so skip the real scan and
@@ -39,19 +47,19 @@ jobs:
           done
       - name: Download PR number artifact
         uses: dawidd6/action-download-artifact@a92c7ae74cf1df8810783758581e485ac3aaa309
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: PR_NUMBER
       - name: Read PR_NUMBER.txt
         id: pr_number
         uses: juliangruber/read-file-action@271ff311a4947af354c6abcd696a306553b9ec18
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
         with:
           path: ./PR_NUMBER.txt
       - name: Request GitHub API for PR data
         uses: octokit/request-action@b66ca9cd744693e9c29b490fc08831ab66c4a970
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
         id: get_pr_data
         with:
           route: GET /repos/${{env.full_name}}/pulls/${{env.pr_number}}
@@ -70,42 +78,47 @@ jobs:
             echo "BRANCH '${HEAD_BRANCH}' contains potentially malicious characters as it matches BRANCH_REGEX '${BRANCH_REGEX}'"
             exit 1
           else
-            echo "SANITIZED_HEAD_REF=${HEAD_BRANCH}" >> "$GITHUB_ENV"
+            echo "sanitized_head_ref=${HEAD_BRANCH}" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: ${{env.SANITIZED_HEAD_REF}}
+          ref: ${{ steps.set_branch_name.outputs.sanitized_head_ref }}
           fetch-depth: 0
           allow-unsafe-pr-checkout: true
+          persist-credentials: false
       - name: Checkout base branch
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
         run: |
-          git remote add upstream ${{ github.event.repository.clone_url }}
+          git remote add upstream "${CLONE_URL}"
           git fetch upstream
-          git checkout -B ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} upstream/${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
-          git checkout "origin/${{env.SANITIZED_HEAD_REF}}"
+          git checkout -B "${BASE_REF}" "upstream/${BASE_REF}"
+          git checkout "origin/${SANITIZED_HEAD_REF}"
           git clean -ffdx && git reset --hard HEAD
+        env:
+          CLONE_URL: ${{ github.event.repository.clone_url }}
+          BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
+          SANITIZED_HEAD_REF: ${{ steps.set_branch_name.outputs.sanitized_head_ref }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        uses: $/.github/actions/common/setup-java
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
       - name: 'Cache Maven packages'
         if: github.event.workflow_run.event != 'merge_group'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
       - name: Preinstall prior to SonarCloud scan
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
@@ -118,22 +131,26 @@ jobs:
       - name: SonarCloud scan on PR for the Proxy Core
         id: proxy_scan
         continue-on-error: true
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != ''
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != '' }}
         run: |
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
             -Djapicmp.skip=true \
-            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
+            -Dsonar.scm.revision="${HEAD_SHA}" \
+            -Dsonar.pullrequest.key="${PR_NUMBER}" \
+            -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+            -Dsonar.pullrequest.base="${PR_BASE_REF}"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: SonarCloud scan on PR for the Proxy Core (legacy release branches)
         id: proxy_scan_legacy
         continue-on-error: true
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == ''
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == '' }}
         run: |
           # Old release branches: profile-based build not available; exclude operator modules instead
           mvn --batch-mode \
@@ -142,28 +159,32 @@ jobs:
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \
-            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+            -Dsonar.scm.revision="${HEAD_SHA}" \
+            -Dsonar.pullrequest.key="${PR_NUMBER}" \
+            -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+            -Dsonar.pullrequest.base="${PR_BASE_REF}" \
             verify \
             org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: SonarCloud scan on PR for the Operator
         id: operator_scan
         continue-on-error: true
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != ''
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') != '' }}
         run: |
           source scripts/ci-build-functions.sh
           if [ -f "kroxylicious-kubernetes/pom.xml" ]; then
             run_sonar "${KUBERNETES_PROFILES}" 'Kroxylicious Operator' 'kroxylicious_operator' \
               -Djapicmp.skip=true \
-              -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-              -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-              -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-              -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
+              -Dsonar.scm.revision="${HEAD_SHA}" \
+              -Dsonar.pullrequest.key="${PR_NUMBER}" \
+              -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+              -Dsonar.pullrequest.base="${PR_BASE_REF}"
           else
             # Old release branches: operator was not under kroxylicious-kubernetes/
             mvn --batch-mode \
@@ -174,20 +195,24 @@ jobs:
               -Djapicmp.skip=true \
               -Dsonar.projectName='Kroxylicious Operator' \
               -Dsonar.projectKey='kroxylicious_operator' \
-              -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-              -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-              -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-              -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+              -Dsonar.scm.revision="${HEAD_SHA}" \
+              -Dsonar.pullrequest.key="${PR_NUMBER}" \
+              -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+              -Dsonar.pullrequest.base="${PR_BASE_REF}" \
               verify \
               org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           fi
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: SonarCloud scan on PR for the Operator (legacy release branches)
         id: operator_scan_legacy
         continue-on-error: true
-        if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == ''
+        if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' && hashFiles('scripts/ci-build-functions.sh') == '' }}
         run: |
           # Old release branches: profile-based build not available
           PROJECTS=':kroxylicious-operator,:kroxylicious-parent'
@@ -202,15 +227,19 @@ jobs:
             -Djapicmp.skip=true \
             -Dsonar.projectName='Kroxylicious Operator' \
             -Dsonar.projectKey='kroxylicious_operator' \
-            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+            -Dsonar.scm.revision="${HEAD_SHA}" \
+            -Dsonar.pullrequest.key="${PR_NUMBER}" \
+            -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+            -Dsonar.pullrequest.base="${PR_BASE_REF}" \
             verify \
             org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: Post failed Proxy Core SonarCloud check
         if: steps.proxy_scan.outcome == 'failure' || steps.proxy_scan_legacy.outcome == 'failure'
         env:

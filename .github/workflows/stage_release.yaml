@@ -50,8 +50,15 @@ on:
         description: 'The URI of the website repository, starting with everything after the @, e.g. github.com/kroxylicious/kroxylicious.github.io.git'
         required: false
         default: 'github.com/kroxylicious/kroxylicious.github.io.git'
+permissions: {}
+
 jobs:
   stage-release:
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+      actions: read
     runs-on: ubuntu-latest
 
     steps:
@@ -65,6 +72,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch }}
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          persist-credentials: false
 
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
@@ -77,8 +85,10 @@ jobs:
 
       - name: 'Stop workflow if user is not a release-engineer'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
-          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
+          echo "${GITHUB_ACTOR} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
           exit 1
 
       - name: 'Login to container registry'
@@ -95,10 +105,10 @@ jobs:
           git config --global user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: 'Set up Java'
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'
@@ -111,19 +121,23 @@ jobs:
           mvn-server-repository-origins: central:https://central.sonatype.com
 
       - name: 'Prepare Release Environment'
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.release-version }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
-          echo "WORK_BRANCH=release-work-${{ github.event.inputs.release-version }}-${{github.run_id}}" >> "$GITHUB_ENV"
+          echo "WORK_BRANCH=release-work-${RELEASE_VERSION}-${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
           # This label will be add to the release PR. The run id embedded in the label allows us to download
           # the release state file. This allows us to identify the deployment in Central Publishing Portal.
-          RELCAND_ID_LABEL="__relcand_id-${{github.run_id}}"
+          RELCAND_ID_LABEL="__relcand_id-${GITHUB_RUN_ID}"
           echo "RELCAND_ID_LABEL=${RELCAND_ID_LABEL}" >> "$GITHUB_ENV"
 
       - name: 'Create run label used to tag release PRs'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          RELEASE_VERSION: ${{ github.event.inputs.release-version }}
         run: |
-          gh label create ${RELCAND_ID_LABEL} \
-                          --description "Used by release workflow to identify the PR for release candidate (${{ github.event.inputs.release-version }}). Do not modify." \
+          gh label create "${RELCAND_ID_LABEL}" \
+                          --description "Used by release workflow to identify the PR for release candidate (${RELEASE_VERSION}). Do not modify." \
                           --force
 
       - name: 'Lint changelog entries'
@@ -135,15 +149,20 @@ jobs:
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE }}
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
+          RELEASE_VERSION: ${{ github.event.inputs.release-version }}
+          DEVELOPMENT_VERSION: ${{ github.event.inputs.development-version }}
+          RELEASE_BRANCH: ${{ github.event.inputs.branch }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}' | head -n 1)
           ./scripts/stage-release.sh -k "${SIGNING_KEY_SHORT_NAME}" \
-                                     -v ${{ github.event.inputs.release-version }} \
-                                     -n ${{ github.event.inputs.development-version }} \
-                                     -b ${{ github.event.inputs.branch }} \
-                                     -w ${{ env.WORK_BRANCH }} \
-                                     -l ${{ env.RELCAND_ID_LABEL }} \
-                                     -c "${{ github.server_url }}/${{ github.repository }}"
+                                     -v "${RELEASE_VERSION}" \
+                                     -n "${DEVELOPMENT_VERSION}" \
+                                     -b "${RELEASE_BRANCH}" \
+                                     -w "${WORK_BRANCH}" \
+                                     -l "${RELCAND_ID_LABEL}" \
+                                     -c "${SERVER_URL}/${REPOSITORY}"
           # Deployment id is the id known to Central Publishing Portal
           echo "DEPLOYMENT_ID=$(cat DEPLOYMENT.ID)" >> "$GITHUB_ENV"
 
@@ -186,13 +205,19 @@ jobs:
 
       - name: 'Resolve staged image digests'
         if: ${{ vars.REGISTRY_SERVER != '' }}
+        env:
+          REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
+          REGISTRY_ORGANISATION: ${{ vars.REGISTRY_ORGANISATION }}
+          PROXY_IMAGE_NAME: ${{ vars.PROXY_IMAGE_NAME }}
+          OPERATOR_IMAGE_NAME: ${{ vars.OPERATOR_IMAGE_NAME }}
+          ADMISSION_IMAGE_NAME: ${{ vars.ADMISSION_IMAGE_NAME }}
         run: |
           SHA_TAG="commit-${RELEASE_SHA}"
-          REGISTRY="${{ vars.REGISTRY_SERVER }}"
-          ORG="${{ vars.REGISTRY_ORGANISATION }}"
-          PROXY="${REGISTRY}/${ORG}/${{ vars.PROXY_IMAGE_NAME }}"
-          OPERATOR="${REGISTRY}/${ORG}/${{ vars.OPERATOR_IMAGE_NAME }}"
-          ADMISSION="${REGISTRY}/${ORG}/${{ vars.ADMISSION_IMAGE_NAME }}"
+          REGISTRY="${REGISTRY_SERVER}"
+          ORG="${REGISTRY_ORGANISATION}"
+          PROXY="${REGISTRY}/${ORG}/${PROXY_IMAGE_NAME}"
+          OPERATOR="${REGISTRY}/${ORG}/${OPERATOR_IMAGE_NAME}"
+          ADMISSION="${REGISTRY}/${ORG}/${ADMISSION_IMAGE_NAME}"
 
           {
             echo "PROXY_DIGEST=$(skopeo inspect "docker://${PROXY}:${SHA_TAG}" | jq -r '.Digest')"
@@ -201,16 +226,25 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: 'Build release state'
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.release-version }}
+          DEVELOPMENT_VERSION: ${{ github.event.inputs.development-version }}
+          WEBSITE_REPOSITORY: ${{ github.event.inputs.website-repository }}
+          REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
+          REGISTRY_ORGANISATION: ${{ vars.REGISTRY_ORGANISATION }}
+          PROXY_IMAGE_NAME: ${{ vars.PROXY_IMAGE_NAME }}
+          OPERATOR_IMAGE_NAME: ${{ vars.OPERATOR_IMAGE_NAME }}
+          ADMISSION_IMAGE_NAME: ${{ vars.ADMISSION_IMAGE_NAME }}
         run: |
-          VERSION="${{ github.event.inputs.release-version }}"
+          VERSION="${RELEASE_VERSION}"
           # RELEASE_SHA is the pre-merge release commit; it is also what build-kroxylicious-container-images.yaml tagged
           # images with (GITHUB_SHA on the release branch == this commit).
           SHA_TAG="commit-${RELEASE_SHA}"
-          REGISTRY="${{ vars.REGISTRY_SERVER }}"
-          ORG="${{ vars.REGISTRY_ORGANISATION }}"
-          PROXY="${REGISTRY}/${ORG}/${{ vars.PROXY_IMAGE_NAME }}"
-          OPERATOR="${REGISTRY}/${ORG}/${{ vars.OPERATOR_IMAGE_NAME }}"
-          ADMISSION="${REGISTRY}/${ORG}/${{ vars.ADMISSION_IMAGE_NAME }}"
+          REGISTRY="${REGISTRY_SERVER}"
+          ORG="${REGISTRY_ORGANISATION}"
+          PROXY="${REGISTRY}/${ORG}/${PROXY_IMAGE_NAME}"
+          OPERATOR="${REGISTRY}/${ORG}/${OPERATOR_IMAGE_NAME}"
+          ADMISSION="${REGISTRY}/${ORG}/${ADMISSION_IMAGE_NAME}"
 
           # The per-architecture image entries are generated from the registry so
           # that staging an architecture and recording it cannot drift apart.
@@ -232,13 +266,13 @@ jobs:
 
           jq -n \
             --argjson proxyArchImages "${PROXY_ARCH_IMAGES}" \
-            --arg deploymentId "${{ env.DEPLOYMENT_ID }}" \
+            --arg deploymentId "${DEPLOYMENT_ID}" \
             --arg releaseVersion "${VERSION}" \
-            --arg developmentVersion "${{ github.event.inputs.development-version }}" \
-            --arg workBranch "${{ env.WORK_BRANCH }}" \
+            --arg developmentVersion "${DEVELOPMENT_VERSION}" \
+            --arg workBranch "${WORK_BRANCH}" \
             --arg releaseCommitSha "${RELEASE_SHA}" \
-            --arg imageWorkflowRunId "${{ env.DOCKER_RUN_ID }}" \
-            --arg websiteRepository "${{ github.event.inputs.website-repository }}" \
+            --arg imageWorkflowRunId "${DOCKER_RUN_ID}" \
+            --arg websiteRepository "${WEBSITE_REPOSITORY}" \
             --arg proxyManifest "${PROXY}:${SHA_TAG}" \
             --arg proxyDigest "${PROXY_DIGEST}" \
             --arg operatorManifest "${OPERATOR}:${SHA_TAG}" \
@@ -287,8 +321,10 @@ jobs:
           if-no-files-found: error
 
       - name: 'Collect release assets'
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.release-version }}
         run: |
-          VERSION="${{ github.event.inputs.release-version }}"
+          VERSION="${RELEASE_VERSION}"
           mkdir release-assets
 
           copy_dist() {
@@ -355,10 +391,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
           RELEASE_BRANCH: ${{ inputs.branch }}
+          RELEASE_VERSION: ${{ github.event.inputs.release-version }}
+          DEVELOPMENT_VERSION: ${{ github.event.inputs.development-version }}
         run: |
-          export REPO="https://central.sonatype.com/api/v1/publisher/deployment/${{ env.DEPLOYMENT_ID }}/download"
-          envsubst << "EOF" | gh pr comment ${{ env.WORK_BRANCH }} --body-file -
-          Hey, that's the ${{ github.event.inputs.release-version }} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${{ github.event.inputs.release-version }} and a commit for ${{ github.event.inputs.development-version }} which will reopen ${RELEASE_BRANCH} for new work.
+          export REPO="https://central.sonatype.com/api/v1/publisher/deployment/${DEPLOYMENT_ID}/download"
+          envsubst << "EOF" | gh pr comment "${WORK_BRANCH}" --body-file -
+          Hey, that's the ${RELEASE_VERSION} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${RELEASE_VERSION} and a commit for ${DEVELOPMENT_VERSION} which will reopen ${RELEASE_BRANCH} for new work.
 
           There are a couple of steps to do before the release is completed.
 

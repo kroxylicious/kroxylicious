@@ -40,6 +40,8 @@ on:
       - main
       - 'release/*'
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -47,6 +49,8 @@ concurrency:
 jobs:
   publish-snapshot:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.repository == 'kroxylicious/kroxylicious'
 
     steps:
@@ -57,12 +61,14 @@ jobs:
 
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: 'Set up Java'
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'
@@ -101,17 +107,17 @@ jobs:
       - name: 'Summary'
         if: steps.version.outputs.is_snapshot == 'true'
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" << 'SUMMARY'
+          cat >> "$GITHUB_STEP_SUMMARY" << SUMMARY
           ## SNAPSHOT Published
 
-          **Version:** `${{ steps.version.outputs.PROJECT_VERSION }}`
-          **Commit:** `${{ github.sha }}`
+          **Version:** \`${PROJECT_VERSION}\`
+          **Commit:** \`${COMMIT_SHA}\`
 
           ### Consumer configuration
 
-          Add the Central Portal snapshot repository to your `pom.xml` or `settings.xml`:
+          Add the Central Portal snapshot repository to your \`pom.xml\` or \`settings.xml\`:
 
-          ```xml
+          \`\`\`xml
           <repositories>
             <repository>
               <id>central-snapshots</id>
@@ -121,8 +127,11 @@ jobs:
               </snapshots>
             </repository>
           </repositories>
-          ```
+          \`\`\`
           SUMMARY
+        env:
+          PROJECT_VERSION: ${{ steps.version.outputs.PROJECT_VERSION }}
+          COMMIT_SHA: ${{ github.sha }}
 
       - name: 'Summary (skipped)'
         if: steps.version.outputs.is_snapshot != 'true'
@@ -130,5 +139,7 @@ jobs:
           {
             echo "## SNAPSHOT Publish Skipped"
             echo ""
-            echo "Version \`${{ steps.version.outputs.PROJECT_VERSION }}\` does not end with \`-SNAPSHOT\`, nothing to publish."
+            echo "Version \`${PROJECT_VERSION}\` does not end with \`-SNAPSHOT\`, nothing to publish."
           } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          PROJECT_VERSION: ${{ steps.version.outputs.PROJECT_VERSION }}

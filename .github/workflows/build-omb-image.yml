@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.kroxylicious_ref }}
+          persist-credentials: false
 
       - name: Resolve OMB commit SHA
         id: omb
@@ -62,9 +63,12 @@ jobs:
 
       - name: Compute image tag
         id: tag
+        env:
+          OMB_SHORT: ${{ steps.omb.outputs.short }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           KROX_SHORT=$(git rev-parse --short=7 HEAD)
-          IMAGE_TAG="omb-${{ steps.omb.outputs.short }}-krox-${KROX_SHORT}-${{ github.run_number }}"
+          IMAGE_TAG="omb-${OMB_SHORT}-krox-${KROX_SHORT}-${RUN_NUMBER}"
           echo "image_tag=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
           echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
           echo "Image tag: ${IMAGE_TAG}" >> "${GITHUB_STEP_SUMMARY}"
@@ -74,13 +78,17 @@ jobs:
 
       - name: Determine build configuration
         id: build_configuration
+        env:
+          REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
+          REGISTRY_ORGANISATION: ${{ vars.REGISTRY_ORGANISATION }}
+          IMAGE_TAG: ${{ steps.tag.outputs.image_tag }}
         run: |
-          if [[ "${{ vars.REGISTRY_SERVER }}" != "" ]]; then
-            FULL_IMAGE=${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ env.IMAGE_NAME }}
-            echo "tags=${FULL_IMAGE}:${{ steps.tag.outputs.image_tag }}" >> "${GITHUB_OUTPUT}"
+          if [[ "${REGISTRY_SERVER}" != "" ]]; then
+            FULL_IMAGE="${REGISTRY_SERVER}/${REGISTRY_ORGANISATION}/${IMAGE_NAME}"
+            echo "tags=${FULL_IMAGE}:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
             echo "push_images=true" >> "${GITHUB_OUTPUT}"
           else
-            echo "tags=${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.image_tag }}" >> "${GITHUB_OUTPUT}"
+            echo "tags=${IMAGE_NAME}:${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
             echo "push_images=false" >> "${GITHUB_OUTPUT}"
           fi
 
@@ -111,9 +119,12 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd
 
       - name: Summary
+        env:
+          PUSH_IMAGES: ${{ steps.build_configuration.outputs.push_images }}
+          IMAGE_TAGS: ${{ steps.build_configuration.outputs.tags }}
         run: |
-          if [[ "${{ steps.build_configuration.outputs.push_images }}" == "true" ]]; then
-            echo "Pushed ${{ steps.build_configuration.outputs.tags }}" >> "${GITHUB_STEP_SUMMARY}"
+          if [[ "${PUSH_IMAGES}" == "true" ]]; then
+            echo "Pushed ${IMAGE_TAGS}" >> "${GITHUB_STEP_SUMMARY}"
           else
             echo "Registry not configured — image built but not pushed." >> "${GITHUB_STEP_SUMMARY}"
           fi

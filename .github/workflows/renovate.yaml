@@ -26,9 +26,14 @@ on:
     # Run weekly on Saturday at 3am UTC to match Dependabot schedule
     - cron: '0 3 * * 6'
   workflow_dispatch:
+
+permissions: {}
+
 jobs:
   renovate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 5
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -57,10 +62,15 @@ jobs:
           echo "RENOVATE_GIT_AUTHOR=${TOKEN_ACTOR} <${TOKEN_ACTOR_ID}+${TOKEN_ACTOR_LOGIN}@users.noreply.github.com>" >> "$GITHUB_ENV"
       - name: "Set actor from Github token"
         if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET != 'true'
+        env:
+          ACTOR: ${{ github.actor }}
+          ACTOR_ID: ${{ github.actor_id }}
         run: |
-          echo "RENOVATE_GIT_AUTHOR=${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>" >> "$GITHUB_ENV"
+          echo "RENOVATE_GIT_AUTHOR=${ACTOR} <${ACTOR_ID}+${ACTOR}@users.noreply.github.com>" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Setup node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       - name: Renovate

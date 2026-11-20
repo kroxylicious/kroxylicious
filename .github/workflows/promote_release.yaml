@@ -69,6 +69,7 @@ jobs:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
           fetch-tags: true
           fetch-depth: 0
+          persist-credentials: false
 
       - name: 'Require promote-release to be run on base repository'
         if: ${{ inputs.command == 'promote-release' && github.repository != 'kroxylicious/kroxylicious' }}
@@ -88,16 +89,19 @@ jobs:
       - name: 'Stop workflow if user is not a release-engineer'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ACTOR: ${{ github.actor }}
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          gh issue comment  "${ISSUE_NUMBER}" --body "${ACTOR} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
           exit 1
 
       - name: 'Get run id of stage release workflow'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          RELCAND_ID=$(gh issue view ${{ github.event.issue.number }} --json labels | jq --raw-output --exit-status \
+          RELCAND_ID=$(gh issue view "${ISSUE_NUMBER}" --json labels | jq --raw-output --exit-status \
             '[.labels.[] | select(.name | startswith("__relcand_id-"))] |
              if . | length == 1 then first else "unexpected number of relcand_ids on PR" | halt_error end | 
              .name | sub("__relcand_id-"; "")')
@@ -255,9 +259,10 @@ jobs:
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+          DESIRED_STATE: ${{ inputs.command == 'promote-release' && 'release' || 'drop' }}
         run: |
-          ./scripts/transition-staging-repository-state.sh -d "${{ env.DEPLOYMENT_ID}}" \
-                                                           -s "${{ inputs.command == 'promote-release' && 'release' || 'drop' }}"
+          ./scripts/transition-staging-repository-state.sh -d "${DEPLOYMENT_ID}" \
+                                                           -s "${DESIRED_STATE}"
 
       - name: 'Unblock the merge'
         if: ${{ inputs.command == 'promote-release' }}
@@ -308,7 +313,7 @@ jobs:
           # The staging tag is stripped from the manifest ref to derive the image name.
           tag_release() {
             local manifest="$1" image="$2"
-            skopeo copy --all "docker://${manifest}" "docker://${image}:${{ env.RELEASE_VERSION }}"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:${RELEASE_VERSION}"
             skopeo copy --all "docker://${manifest}" "docker://${image}:latest"
           }
 
@@ -322,7 +327,7 @@ jobs:
 
       - name: 'Set up Java'
         if: ${{ inputs.command == 'promote-release' }}
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           javaVersion: '21'
           javaDistro: 'temurin'

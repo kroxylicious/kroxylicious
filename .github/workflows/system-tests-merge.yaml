@@ -19,14 +19,18 @@ name: System Tests for Main branch
 on:
   workflow_call:
 
+permissions: {}
+
 jobs:
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
-    uses: ./.github/workflows/run-system-tests.yaml
+    uses: $/.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
 
   discover_system_test_clients:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       test_clients: ${{ steps.discover.outputs.test_clients }}
@@ -37,6 +41,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Discover STs'
         working-directory: kroxylicious-systemtests
         id: discover
@@ -53,7 +58,7 @@ jobs:
   # Then we run the tests that with the KAFKA_CLIENT selected
   run_system_tests:
     needs: [discover_system_test_clients]
-    uses: ./.github/workflows/run-system-tests.yaml
+    uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
       KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
@@ -76,10 +81,11 @@ jobs:
       # StepSecurity harden-runner cannot be used here because of the limitation of running it on containers
       # https://github.com/step-security/harden-runner/blob/main/docs/limitations.md
       - name: 'Test for Slack secret'
+        id: check_slack
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_ENV"
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
       - name: 'Check all matrix builds'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,8 +103,8 @@ jobs:
           echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
           exit 1
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        if: failure() && steps.check_slack.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'

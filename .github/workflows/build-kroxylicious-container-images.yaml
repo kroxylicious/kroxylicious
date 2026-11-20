@@ -91,12 +91,16 @@ on:
         type: boolean
         default: false
 
+permissions: {}
+
 env:
   ARCH_MATRIX_FILE: .github/workflows/config/arch-matrix.json
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       matrix: ${{ steps.arches.outputs.matrix }}
       arches: ${{ steps.arches.outputs.arches }}
@@ -118,12 +122,14 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       # Matrix object keys use underscores: GitHub expressions parse `matrix.runs-on`
       # as a subtraction, so hyphenated keys cannot be read in `${{ }}`. The
@@ -186,8 +192,15 @@ jobs:
         id: build_configuration
         env:
           ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
+          INPUT_OUTPUT_TARBALLS: ${{ inputs.output-tarballs }}
+          INPUT_PUSH_IMAGES: ${{ inputs.push-images }}
+          VAR_REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
+          VAR_REGISTRY_ORGANISATION: ${{ vars.REGISTRY_ORGANISATION }}
+          VAR_PROXY_IMAGE_NAME: ${{ vars.PROXY_IMAGE_NAME }}
+          VAR_OPERATOR_IMAGE_NAME: ${{ vars.OPERATOR_IMAGE_NAME }}
+          VAR_ADMISSION_IMAGE_NAME: ${{ vars.ADMISSION_IMAGE_NAME }}
         run: |
-          if [[ "${{ inputs.output-tarballs }}" == "true" && "${{ inputs.push-images }}" == "true" ]]; then
+          if [[ "${INPUT_OUTPUT_TARBALLS}" == "true" && "${INPUT_PUSH_IMAGES}" == "true" ]]; then
             echo "::error::output-tarballs and push-images are mutually exclusive; set at most one to true." >&2
             exit 1
           fi
@@ -196,11 +209,11 @@ jobs:
           {
             echo "release_version=${POMS_VERSION}"
             echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "output_tarballs=${{ inputs.output-tarballs }}"
+            echo "output_tarballs=${INPUT_OUTPUT_TARBALLS}"
           } >> "$GITHUB_OUTPUT"
           SHA_TAG="commit-${GITHUB_SHA}"
 
-          if [[ "${{ inputs.output-tarballs }}" == "true" ]]; then
+          if [[ "${INPUT_OUTPUT_TARBALLS}" == "true" ]]; then
             # Tarball mode: no push, and Maven image names for compatibility with
             # system-test tooling that verifies image names via Maven properties.
             # The tarball is loaded by name, so it carries no per-arch tag suffix.
@@ -212,7 +225,7 @@ jobs:
               echo "operator_tags=quay.io/kroxylicious/operator:${POMS_VERSION}"
               echo "admission_tags=quay.io/kroxylicious/webhook:${POMS_VERSION}"
             } >> "$GITHUB_OUTPUT"
-          elif [[ "${{ inputs.push-images }}" != "true" || "${{ vars.REGISTRY_SERVER }}" == "" ]]; then
+          elif [[ "${INPUT_PUSH_IMAGES}" != "true" || "${VAR_REGISTRY_SERVER}" == "" ]]; then
             # No-push mode: validation build only (CI PRs, or forks without registry
             # vars). Every requested architecture is still built, so a pull request
             # that asks for an architecture by label gets it checked.
@@ -225,9 +238,9 @@ jobs:
               echo "admission_tags=kroxylicious-admission:${SHA_TAG}"
             } >> "$GITHUB_OUTPUT"
           else
-            PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
-            OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
-            ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
+            PROXY_IMAGE="${VAR_REGISTRY_SERVER}/${VAR_REGISTRY_ORGANISATION}/${VAR_PROXY_IMAGE_NAME}"
+            OPERATOR_IMAGE="${VAR_REGISTRY_SERVER}/${VAR_REGISTRY_ORGANISATION}/${VAR_OPERATOR_IMAGE_NAME}"
+            ADMISSION_IMAGE="${VAR_REGISTRY_SERVER}/${VAR_REGISTRY_ORGANISATION}/${VAR_ADMISSION_IMAGE_NAME}"
 
             # All builds get a commit SHA tag. Callers may also pass arbitrary
             # additional-tags (e.g. maven.yaml adds the POM version on pushes
@@ -305,15 +318,17 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: Restore installed Kroxylicious modules
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
@@ -583,6 +598,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
@@ -591,10 +608,10 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: Restore installed Kroxylicious modules
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093

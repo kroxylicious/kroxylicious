@@ -11,6 +11,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "saturday"
+    cooldown:
+      default-days: 7
     # Default limit is 5, which is tight for a large project with many dependencies
     open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
@@ -20,6 +22,8 @@ updates:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
       day: "saturday"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "dev/github_actions"
@@ -33,6 +37,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "saturday"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "dev/github_actions"

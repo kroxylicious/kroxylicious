@@ -31,7 +31,9 @@ name: Test Operator on MicroShift (OpenShift substitute)
 on:
   push:
     branches: [ main ]
-  workflow_run: # uses workflow_run as we need access to the secrets
+  # zizmor: ignore[dangerous-triggers] — workflow_run is required for REDHAT_PULL_SECRET access on fork PRs.
+  # Mitigations: permissions: {}, harden-runner, conclusion == 'success' gate, maintainer approval for new contributors.
+  workflow_run:
     workflows: [ "Lint Pull Request" ]
     types: [completed]
 
@@ -43,12 +45,15 @@ on:
         default: ''
         required: false
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
 jobs:
   preflight:
+    permissions: {}
     name: Preflight checks
     runs-on: ubuntu-latest
     outputs:
@@ -66,6 +71,8 @@ jobs:
         run: echo "pullsecret=$(test ${REDHAT_PULL_SECRET} && echo true)" >> "$GITHUB_OUTPUT"
 
   operator-tests-microshift:
+    permissions:
+      contents: read
     name: Operator integration & system tests on MicroShift
     # Pinned to ubuntu-24.04: crc-org/crc-github-action@v1.0.1 fails on ubuntu-26.04
     # due to missing qemu-kvm package (replaced by qemu-system-x86 in newer Ubuntu)
@@ -81,10 +88,11 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Slack secret'
+        id: check_slack
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
 
       - name: 'Install podman'
         run: |
@@ -99,12 +107,13 @@ jobs:
           # fork code carries risk. The mitigation here is requiring maintainer approval before
           # this workflow runs for contributions from new contributors.
           allow-unsafe-pr-checkout: true
+          persist-credentials: false
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: 'Cache crc cache'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -131,6 +140,7 @@ jobs:
           kubectl version
 
       - name: 'Build Kroxylicious Operand Container Images'
+        id: operand_image
         run: |
           eval "$(crc podman-env --root)"
 
@@ -150,9 +160,12 @@ jobs:
               install
 
           # This ensures that the tests will use the built operand.
-          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
+          echo "kroxylicious_image=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_OUTPUT}"
 
       - name: Run operator integration tests
+        env:
+          KROXYLICIOUS_IMAGE: ${{ steps.operand_image.outputs.kroxylicious_image }}
+          ADDITIONAL_MAVEN_ARGS: ${{ github.event.inputs.additionalMavenArguments }}
         run: |
           eval "$(crc podman-env --root)"
 
@@ -161,7 +174,7 @@ jobs:
             --activate-profiles '!qa' \
             -Derrorprone.skip=true \
             -Dmaven.javadoc.skip=true \
-            ${{ github.event.inputs.additionalMavenArguments }} \
+            ${ADDITIONAL_MAVEN_ARGS} \
             verify
 
       - name: Upload Maven surefire / failsafe reports
@@ -175,8 +188,8 @@ jobs:
           retention-days: 7
 
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        if: failure() && steps.check_slack.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'

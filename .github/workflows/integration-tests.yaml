@@ -35,6 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Discover ITs'
         id: discover
         run: |
@@ -77,6 +78,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Get operand image'
         id: build_image
         env:
@@ -101,8 +103,9 @@ jobs:
 
       - name: Parse test specifications
         id: parse
+        env:
+          CHUNK: ${{ matrix.tests }}
         run: |
-          CHUNK="${{ matrix.tests }}"
           echo "Processing chunk: $CHUNK"
 
           # Extract module from first test (all tests in chunk are from same module)
@@ -116,15 +119,19 @@ jobs:
           echo "tests=$TEST_LIST" >> "$GITHUB_OUTPUT"
 
       - name: Log tests to run
-        run: echo "Running tests '${{ steps.parse.outputs.tests }}' in module '${{ steps.parse.outputs.module }}'"
+        env:
+          TESTS: ${{ steps.parse.outputs.tests }}
+          MODULE: ${{ steps.parse.outputs.module }}
+        run: echo "Running tests '${TESTS}' in module '${MODULE}'"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
@@ -161,7 +168,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: Setup Minikube
         if: steps.check_k8s.outputs.needs_minikube == 'true'
-        uses: ./.github/actions/common/setup-minikube
+        uses: $/.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: Download Operand Image Artifact
@@ -186,18 +193,20 @@ jobs:
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
       - name: 'Extract dist artifacts for KT tests'
         if: steps.check_k8s.outputs.needs_minikube == 'true'
+        env:
+          MODULE: ${{ steps.parse.outputs.module }}
         run: |
           KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
 
           # Extract operator dist ZIP if this is an operator test
-          if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
+          if [ "$MODULE" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-operator/target/packaged
             unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator/${KROXYLICIOUS_VERSION}/kroxylicious-operator-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-operator/target/packaged/
           fi
 
           # Extract admission dist ZIP if this is an admission test
-          if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
+          if [ "$MODULE" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-admission/target/packaged
             unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission/${KROXYLICIOUS_VERSION}/kroxylicious-admission-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-admission/target/packaged/
@@ -210,10 +219,14 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
-        working-directory: ${{ steps.parse.outputs.module }}
+          MODULE: ${{ steps.parse.outputs.module }}
+          HAS_KT_TESTS: ${{ steps.check_k8s.outputs.has_kt_tests }}
+          IT_TESTS: ${{ steps.parse.outputs.tests }}
         run: |
+          cd "$MODULE"
+
           # Activate dist profile and skip flags for KT tests
-          if [ "${{ steps.check_k8s.outputs.has_kt_tests }}" = "true" ]; then
+          if [ "$HAS_KT_TESTS" = "true" ]; then
             PROFILES="dist,!qa"
             # Skip default integration-test execution, enable kube-integration-test execution
             EXTRA_PROPS="-DskipITs=true -DskipKTs=false"
@@ -226,7 +239,7 @@ jobs:
             --activate-profiles "${PROFILES}" \
             -DskipUTs \
             -Derrorprone.skip=true \
-            -Dit.test="${{ steps.parse.outputs.tests }}" \
+            -Dit.test="${IT_TESTS}" \
             ${EXTRA_PROPS} \
             verify
   integration_test_filter_archetype:
@@ -242,10 +255,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
