@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.util.concurrent.EventExecutor;
 
 import io.kroxylicious.kafka.common.errors.ApiException;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
@@ -48,6 +47,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+import static io.kroxylicious.proxy.internal.util.NettyFutures.whenCompleteOnEventLoop;
 
 /**
  * A Netty handler that wraps a single {@link Router} — either the top-level
@@ -419,20 +419,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
             completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
             return;
         }
-        EventExecutor executor = ctx.executor();
-        stage.whenComplete((result, error) -> {
-            if (executor.inEventLoop()) {
-                completion.accept(result, error);
-            }
-            else {
-                try {
-                    executor.execute(() -> completion.accept(result, error));
-                }
-                catch (RejectedExecutionException e) {
-                    onCompletionRejected(frame, e);
-                }
-            }
-        });
+        whenCompleteOnEventLoop(ctx.executor(), stage, completion, e -> onCompletionRejected(frame, e));
     }
 
     // The task queue is unbounded by default (io.netty.eventLoop.maxPendingTasks), so a rejection
