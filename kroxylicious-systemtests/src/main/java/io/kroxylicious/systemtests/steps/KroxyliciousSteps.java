@@ -10,12 +10,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.kafka.common.record.CompressionType;
-
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 
+import io.kroxylicious.kafka.common.record.internal.CompressionType;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.StrimziTestClient;

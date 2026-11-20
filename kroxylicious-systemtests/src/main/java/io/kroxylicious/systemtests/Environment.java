@@ -117,7 +117,7 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
     private static final String AZURE_KEY_VAULT_NAME_DEFAULT = "kroxylicious-key-vault";
-    private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.14.0-kafka-" + KAFKA_VERSION_DEFAULT;
+    private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.15.0-kafka-" + KAFKA_VERSION_DEFAULT;
     /**
      * A build of {@link #TEST_CLIENTS_IMAGE_DEFAULT} with jose4j added to the classpath, built by the
      * kroxylicious-test-images module. Needed because Kafka 4.1+ eagerly loads jose4j during OAUTHBEARER
