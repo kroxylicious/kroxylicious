@@ -1,0 +1,7 @@
+title: "fix(proxy): require OpenJDK with the Java4Shell fix"
+type: security
+merge_requests:
+  - 5374
+links:
+  - name: CVE-2026-114938
+    url: https://access.redhat.com/security/cve/CVE-2026-114938
