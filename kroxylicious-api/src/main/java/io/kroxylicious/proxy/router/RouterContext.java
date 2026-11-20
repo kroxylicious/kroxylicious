@@ -23,11 +23,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * to named routes and constructing the routing outcome.
  *
  * <p>A fresh instance is created for each {@link Router#onRequest}
- * invocation. All methods on this interface, and all
- * {@link java.util.concurrent.CompletionStage CompletionStage}
- * callbacks chained on futures returned by {@link #sendRequest},
- * execute on the same Netty event loop thread. Router implementations
- * do not need to synchronise access to their own state.</p>
+ * invocation. The {@link java.util.concurrent.CompletionStage CompletionStage}
+ * returned by {@link #sendRequest} is completed on the same Netty event
+ * loop thread that invoked {@link Router#onRequest}, whichever thread the
+ * upstream response arrives on, and callbacks chained on it without the
+ * {@code *Async} variants run on that thread too. Router implementations
+ * that do all their work on the event loop do not need to synchronise
+ * access to their own state.</p>
+ *
+ * <p>See {@link Router#onRequest} for the threading model that applies to
+ * the stage a router returns.</p>
  *
  * <h2>Response delivery</h2>
  *
