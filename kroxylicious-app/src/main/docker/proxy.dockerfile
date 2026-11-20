@@ -14,7 +14,6 @@ FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a28
 #####
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1788166357@sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93 AS builder
 
-ARG JAVA_VERSION=21
 ARG CONTAINER_USER=kroxylicious
 ARG CONTAINER_USER_UID=185
 ARG ROOTFS=/mnt/rootfs
@@ -27,7 +26,7 @@ RUN microdnf install -y --nodocs shadow-utils
 # Copy the ubi9-micro rootfs (including its RPM database) as the install root
 COPY --from=base / ${ROOTFS}
 
-# Require the RHSA-2026:100567 fix for CVE-2026-114938 when building with OpenJDK 21.
+# Require the RHSA-2026:100567 fix for CVE-2026-114938.
 RUN microdnf install \
         --installroot ${ROOTFS} \
         --noplugins \
@@ -39,18 +38,16 @@ RUN microdnf install \
         --setopt=tsflags=nodocs \
         --releasever 9 \
         -y \
-        java-${JAVA_VERSION}-openjdk-headless \
+        java-21-openjdk-headless \
         openssl \
-    && if [ "${JAVA_VERSION}" = "21" ]; then \
-        minimum_evr='1:21.0.13.1.2-1.2.el9'; \
-        installed_evr=$(rpm --root "${ROOTFS}" -q --qf '%{EPOCHNUM}:%{VERSION}-%{RELEASE}' java-21-openjdk-headless) || exit 1; \
-        comparison=$(rpm --define "installed_evr ${installed_evr}" --define "minimum_evr ${minimum_evr}" \
-            --eval '%{lua:print(rpm.vercmp(rpm.expand("%{installed_evr}"), rpm.expand("%{minimum_evr}")))}') || exit 1; \
-        case "${comparison}" in \
-            0|1) ;; \
-            *) echo "OpenJDK RPM ${installed_evr} does not meet minimum ${minimum_evr} for CVE-2026-114938" >&2; exit 1 ;; \
-        esac; \
-    fi \
+    && minimum_evr='1:21.0.13.1.2-1.2.el9' \
+    && installed_evr=$(rpm --root "${ROOTFS}" -q --qf '%{EPOCHNUM}:%{VERSION}-%{RELEASE}' java-21-openjdk-headless) \
+    && comparison=$(rpm --define "installed_evr ${installed_evr}" --define "minimum_evr ${minimum_evr}" \
+        --eval '%{lua:print(rpm.vercmp(rpm.expand("%{installed_evr}"), rpm.expand("%{minimum_evr}")))}') \
+    && case "${comparison}" in \
+        0|1) ;; \
+        *) echo "OpenJDK RPM ${installed_evr} does not meet minimum ${minimum_evr} for CVE-2026-114938" >&2; exit 1 ;; \
+    esac \
     && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd --root ${ROOTFS} -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd --root ${ROOTFS} -M -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
     && microdnf \
         --installroot ${ROOTFS}\
@@ -77,10 +74,9 @@ FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a28
 
 ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER_UID=185
-ARG JAVA_VERSION=21
 
 ARG ROOTFS=/mnt/rootfs
-ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
+ENV JAVA_HOME=/usr/lib/jvm/jre-21
 
 COPY --from=builder ${ROOTFS} /
 
