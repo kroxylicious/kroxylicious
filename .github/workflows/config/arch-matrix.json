@@ -21,7 +21,7 @@
     "target-netty-classifier": null
   },
   "s390x": {
-    "enabled": false,
+    "enabled": true,
     "default": false,
     "runs-on": "ubuntu-24.04-s390x",
     "dist-profile": "dist,s390x,!qa",

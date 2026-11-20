@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.26.0-SNAPSHOT</version>
+        <version>0.27.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-systemtests</artifactId>
@@ -26,7 +26,7 @@
 
     <properties>
         <!-- Override for kafka version - used when Apache Kafka is ahead of the Strimzi (or strimzi-test-clients image) release  -->
-        <!--<kafka.version>4.2.0</kafka.version>-->
+        <kafka.version>4.3.1</kafka.version>
         <maven.deploy.skip>true</maven.deploy.skip>
         <central.publishing.skip>true</central.publishing.skip>
     </properties>

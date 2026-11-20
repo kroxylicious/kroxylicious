@@ -1,0 +1,4 @@
+title: "fix(authorizer-acl): prefix rules match only principals and resources of their own type, and overlapping prefix rules all apply"
+type: security
+issues:
+  - 5235

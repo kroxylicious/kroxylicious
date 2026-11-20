@@ -304,6 +304,144 @@ class AclAuthorizerTest {
         assertThat(result.denied()).isEmpty();
     }
 
+    private static Decision decide(AclAuthorizer authz, Subject subject, FakeTopicResource op, String name) {
+        return getAuthorization(authz, subject, List.of(new Action(op, name))).decision(op, name);
+    }
+
+    /**
+     * A prefix rule for one principal type (say {@code RolePrincipal}) must not grant access to a subject that holds a
+     * principal of a different type (say {@code User}) whose name starts with the same prefix.
+     */
+    @Test
+    void prefixRuleForOnePrincipalClassDoesNotMatchAnotherClass() {
+        var authz = AclAuthorizer.builder()
+                .allow()
+                .subjectsHavingPrincipal(RolePrincipal.class)
+                .withNameStartingWith("reader-")
+                .allOperations(FakeTopicResource.class)
+                .onAllResources()
+                .build();
+
+        assertThat(decide(authz, new Subject(Set.of(new User("reader-bob"))), FakeTopicResource.READ, "t"))
+                .isEqualTo(Decision.DENY);
+        assertThat(decide(authz, new Subject(Set.of(new User("someone"), new RolePrincipal("reader-bob"))), FakeTopicResource.READ, "t"))
+                .isEqualTo(Decision.ALLOW);
+    }
+
+    /**
+     * A broader deny on {@code team-b*} must not be bypassed just because a narrower deny on
+     * {@code team-b-internal*} also exists. Both matching prefix rules apply; the broader one's
+     * operation set still contributes.
+     */
+    @Test
+    void broaderDenyOnResourceNotBypassedByNarrowerOverlappingDeny() {
+        var authz = AclAuthorizer.builder()
+                .deny()
+                .subjectsHavingPrincipal(User.class)
+                .withNameEqualTo("bob")
+                .allOperations(FakeTopicResource.class)
+                .onResourcesWithNameStartingWith("team-b")
+                .deny()
+                .subjectsHavingPrincipal(User.class)
+                .withNameEqualTo("bob")
+                .operations(Set.of(FakeTopicResource.READ))
+                .onResourcesWithNameStartingWith("team-b-internal")
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withNameEqualTo("bob")
+                .allOperations(FakeTopicResource.class)
+                .onAllResources()
+                .build();
+        Subject bob = new Subject(Set.of(new User("bob")));
+
+        assertThat(decide(authz, bob, FakeTopicResource.WRITE, "team-b-internal-x")).isEqualTo(Decision.DENY);
+        assertThat(decide(authz, bob, FakeTopicResource.READ, "team-b-internal-x")).isEqualTo(Decision.DENY);
+        assertThat(decide(authz, bob, FakeTopicResource.WRITE, "team-b-public")).isEqualTo(Decision.DENY);
+        assertThat(decide(authz, bob, FakeTopicResource.WRITE, "team-c")).isEqualTo(Decision.ALLOW);
+    }
+
+    /**
+     * A broader allow on {@code team-a*} must not be lost just because a narrower allow on
+     * {@code team-a-internal*} also exists. Both matching prefix rules apply; each one's
+     * operation set contributes.
+     */
+    @Test
+    void broaderAllowOnResourceNotLostByNarrowerOverlappingAllow() {
+        var authz = AclAuthorizer.builder()
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withNameEqualTo("alice")
+                .operations(Set.of(FakeTopicResource.READ))
+                .onResourcesWithNameStartingWith("team-a")
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withNameEqualTo("alice")
+                .operations(Set.of(FakeTopicResource.WRITE))
+                .onResourcesWithNameStartingWith("team-a-internal")
+                .build();
+        Subject alice = new Subject(Set.of(new User("alice")));
+
+        assertThat(decide(authz, alice, FakeTopicResource.READ, "team-a-internal-x")).isEqualTo(Decision.ALLOW);
+        assertThat(decide(authz, alice, FakeTopicResource.WRITE, "team-a-internal-x")).isEqualTo(Decision.ALLOW);
+        assertThat(decide(authz, alice, FakeTopicResource.WRITE, "team-a-public")).isEqualTo(Decision.DENY);
+    }
+
+    /**
+     * A broader deny on principals matching {@code a*} must not be bypassed just because a narrower
+     * deny on {@code alic*} also exists. Both matching principal prefix rules apply; the broader
+     * one's operation set still contributes.
+     */
+    @Test
+    void broaderDenyOnPrincipalNotBypassedByNarrowerOverlappingDeny() {
+        var authz = AclAuthorizer.builder()
+                .deny()
+                .subjectsHavingPrincipal(User.class)
+                .withNameStartingWith("a")
+                .operations(Set.of(FakeTopicResource.WRITE))
+                .onResourceWithNameEqualTo("t")
+                .deny()
+                .subjectsHavingPrincipal(User.class)
+                .withNameStartingWith("alic")
+                .operations(Set.of(FakeTopicResource.ALTER))
+                .onResourceWithNameEqualTo("t")
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withAnyName()
+                .allOperations(FakeTopicResource.class)
+                .onResourceWithNameEqualTo("t")
+                .build();
+        Subject alice = new Subject(Set.of(new User("alice")));
+
+        assertThat(decide(authz, alice, FakeTopicResource.WRITE, "t")).isEqualTo(Decision.DENY);
+        assertThat(decide(authz, alice, FakeTopicResource.ALTER, "t")).isEqualTo(Decision.DENY);
+        assertThat(decide(authz, alice, FakeTopicResource.CREATE, "t")).isEqualTo(Decision.ALLOW);
+    }
+
+    /**
+     * A broader allow on principals matching {@code al*} must not be lost just because a narrower
+     * allow on {@code ali*} also exists. Both matching principal prefix rules apply; each one's
+     * operation set contributes.
+     */
+    @Test
+    void broaderAllowOnPrincipalNotLostByNarrowerOverlappingAllow() {
+        var authz = AclAuthorizer.builder()
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withNameStartingWith("al")
+                .operations(Set.of(FakeTopicResource.READ))
+                .onResourceWithNameEqualTo("t")
+                .allow()
+                .subjectsHavingPrincipal(User.class)
+                .withNameStartingWith("ali")
+                .operations(Set.of(FakeTopicResource.WRITE))
+                .onResourceWithNameEqualTo("t")
+                .build();
+        Subject alice = new Subject(Set.of(new User("alice")));
+
+        assertThat(decide(authz, alice, FakeTopicResource.READ, "t")).isEqualTo(Decision.ALLOW);
+        assertThat(decide(authz, alice, FakeTopicResource.WRITE, "t")).isEqualTo(Decision.ALLOW);
+    }
+
     private static AuthorizeResult getAuthorization(AclAuthorizer authz, Subject alice, List<Action> op) {
         CompletionStage<AuthorizeResult> authorizationStage = authz.authorize(alice,
                 op);
