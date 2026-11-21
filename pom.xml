@@ -88,7 +88,7 @@
         <azure.security.keyvault.keys.version>4.11.3</azure.security.keyvault.keys.version>
         <azure.identity.version>1.16.2</azure.identity.version>
         <lowkey.version>7.4.0</lowkey.version>
-        <bouncycastle.version>1.86</bouncycastle.version>
+        <bouncycastle.version>1.87</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.2</wiremock.version>
         <docker-java.version>3.7.1</docker-java.version>
