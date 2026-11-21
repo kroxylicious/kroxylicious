@@ -23,9 +23,11 @@ import org.junit.jupiter.api.AfterEach;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
@@ -137,7 +139,14 @@ public abstract class FilterHarness {
                         inboundChannel, clientConnectionStateMachine, e.getKey()))
 
                 .map(ChannelHandler.class::cast);
-        var handlers = Stream.concat(filterHandlers, channelProcessors);
+        var frontendAdapter = new ChannelDuplexHandler() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+                clientConnectionStateMachine.onBeforeClientResponse(msg);
+                super.write(ctx, msg, promise);
+            }
+        };
+        var handlers = Stream.concat(Stream.of(frontendAdapter), Stream.concat(filterHandlers, channelProcessors));
 
         channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));
         // When requestClose() initiates drain, the CCSM calls inClosed() on the frontend handler

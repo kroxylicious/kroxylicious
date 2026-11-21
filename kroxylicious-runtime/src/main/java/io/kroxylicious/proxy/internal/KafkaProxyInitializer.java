@@ -286,7 +286,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                         staticRoutes,
                         clientConnectionStateMachine,
                         binding.nodeId());
-                clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(
                         virtualNodeId -> routingHandler.resolveRouterNodeAddress(virtualNodeId)
                                 .or(() -> endpointReconciler.upstreamAddress(

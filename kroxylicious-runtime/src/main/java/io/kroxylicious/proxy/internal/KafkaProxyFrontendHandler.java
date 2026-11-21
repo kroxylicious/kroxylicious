@@ -25,12 +25,13 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
@@ -81,7 +82,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @SuppressWarnings("java:S1192") // ignore dupe string literals is due to logger keys
 public class KafkaProxyFrontendHandler
-        extends ChannelInboundHandlerAdapter {
+        extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
@@ -245,6 +246,16 @@ public class KafkaProxyFrontendHandler
                             ChannelHandlerContext ctx,
                             Object msg) {
         clientConnectionStateMachine.onClientRequest(msg);
+    }
+
+    @Override
+    public void write(
+                      ChannelHandlerContext ctx,
+                      Object msg,
+                      ChannelPromise promise)
+            throws Exception {
+        clientConnectionStateMachine.onBeforeClientResponse(msg);
+        super.write(ctx, msg, promise);
     }
 
     /**
