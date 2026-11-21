@@ -12,8 +12,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
 
@@ -415,5 +417,44 @@ class NettyFilterDispatchExecutorTest {
         doReturn(futures).when(mock).invokeAll(callables, 1L, TimeUnit.SECONDS);
         List<Future<String>> results = dispatch.invokeAll(callables, 1L, TimeUnit.SECONDS);
         assertThat(results).isSameAs(futures);
+    }
+
+    @Test
+    void completeOnFilterDispatchThreadFailsWhenEventLoopRejectsTheCompletion() {
+        // Given
+        var eventLoop = new RejectNextExecuteEventLoop();
+        try {
+            FilterDispatchExecutor dispatch = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
+            var source = new CompletableFuture<Object>();
+            var result = chainStandardCompletableFuture(dispatch.completeOnFilterDispatchThread(source));
+
+            // When
+            eventLoop.rejectNextExecute();
+            source.complete("arbitrary");
+
+            // Then
+            assertThat(result).failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(RejectedExecutionException.class);
+        }
+        finally {
+            eventLoop.shutdownGracefully().syncUninterruptibly();
+        }
+    }
+
+    private static final class RejectNextExecuteEventLoop extends DefaultEventLoop {
+        private final AtomicBoolean rejectNext = new AtomicBoolean();
+
+        void rejectNextExecute() {
+            rejectNext.set(true);
+        }
+
+        @Override
+        public void execute(Runnable task) {
+            if (rejectNext.compareAndSet(true, false)) {
+                throw new RejectedExecutionException("task queue is full");
+            }
+            super.execute(task);
+        }
     }
 }

@@ -77,11 +77,16 @@ public interface Router {
      * <p><strong>Threading model</strong></p>
      *
      * <p>All invocations of this method, all calls to
-     * {@link RouterContext#sendRequest}, and all
+     * {@link RouterContext#sendRequest}, and all non-async
      * {@link CompletionStage} callbacks chained on the futures returned
      * by {@code sendRequest}, execute on the same Netty event loop
-     * thread. Router implementations do not need to synchronise access
-     * to their own state.</p>
+     * thread. Router implementations that do all their work there do
+     * not need to synchronise access to their own state.</p>
+     *
+     * <p>The stage returned by this method may be completed on any thread;
+     * the runtime handles the outcome on the event loop. Code a router runs
+     * on its own threads is not on the event loop and must synchronise any
+     * router state it touches.</p>
      *
      * @param apiKey the API key identifying the request type
      * @param apiVersion the API version of the request

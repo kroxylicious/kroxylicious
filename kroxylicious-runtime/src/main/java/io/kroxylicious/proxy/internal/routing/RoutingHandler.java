@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -45,7 +46,9 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.util.NettyFutures.executeOnEventLoop;
 import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
+import static io.kroxylicious.proxy.internal.util.NettyFutures.whenCompleteOnEventLoop;
 
 /**
  * A Netty handler that wraps a single {@link Router} — either the top-level
@@ -375,17 +378,17 @@ public class RoutingHandler extends ChannelDuplexHandler {
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
             if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
-                invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, frame, routingContext,
                         (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
             }
             else {
-                invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+                invokeRouter(ctx, frame, routingContext,
                         (result, error) -> handleNestedOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
             }
         }
         else {
             long seq = sequence;
-            invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
+            invokeRouter(ctx, frame, routingContext,
                     (result, error) -> handleCompletion(ctx, frame, result, error, apiKey, apiVersion, correlationId, seq));
         }
     }
@@ -396,26 +399,80 @@ public class RoutingHandler extends ChannelDuplexHandler {
      * {@link io.kroxylicious.proxy.router.RouterContext}'s documented contract, the runtime must
      * close the connection rather than let the exception escape to the pipeline's generic error
      * handler, which only logs and leaves the connection (and any pending OOB promise) hanging.
+     * <p>
+     * The router may complete its stage on any thread, so completion is handled on the event loop,
+     * where {@link ResponseSequencer} and the {@link ClientConnectionStateMachine} are confined.
      */
-    private void invokeRouter(ApiKeys apiKey,
-                              short apiVersion,
-                              RequestHeaderData header,
-                              ApiMessage body,
+    private void invokeRouter(ChannelHandlerContext ctx,
+                              DecodedRequestFrame<?> frame,
                               RouterContextImpl routingContext,
                               BiConsumer<RouterResponse, Throwable> completion) {
+        ApiKeys apiKey = frame.apiKey();
         CompletionStage<RouterResponse> stage;
         try {
-            stage = Objects.requireNonNull(router).onRequest(apiKey, apiVersion, header, body, routingContext);
+            stage = Objects.requireNonNull(router).onRequest(apiKey, frame.apiVersion(), frame.header(), frame.body(), routingContext);
         }
         catch (Exception t) {
-            completion.accept(null, t);
+            completeOnEventLoop(ctx, frame, completion, null, t);
             return;
         }
         if (stage == null) {
-            completion.accept(null, new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
+            completeOnEventLoop(ctx, frame, completion, null,
+                    new NullPointerException("Router.onRequest(...) returned a null CompletionStage"));
             return;
         }
-        stage.whenComplete(completion);
+        whenCompleteOnEventLoop(ctx.executor(), stage, completion, e -> onCompletionRejected(ctx, frame, e));
+    }
+
+    // The synchronous-exception and null-stage outcomes are dispatched the same way as an
+    // asynchronous completion, so every completion of a router invocation is handled on the
+    // event loop (or rejected through the same path).
+    private void completeOnEventLoop(ChannelHandlerContext ctx,
+                                     DecodedRequestFrame<?> frame,
+                                     BiConsumer<RouterResponse, Throwable> completion,
+                                     @Nullable RouterResponse result,
+                                     @Nullable Throwable error) {
+        executeOnEventLoop(ctx.executor(), () -> completion.accept(result, error), e -> onCompletionRejected(ctx, frame, e));
+    }
+
+    /**
+     * Handles a completion the event loop would not accept. A rejection while the loop is shutting
+     * down means the connection is already gone, so there is nothing to do beyond failing any
+     * pending out-of-band promise.
+     * <p>
+     * A rejection from a live loop means its task queue is full (the queue is unbounded unless
+     * {@code io.netty.eventLoop.maxPendingTasks} is configured). The completion cannot safely run
+     * off the loop and must not be dropped, so the connection is closed rather than leaving a
+     * client waiting for a response that will never arrive.
+     */
+    private void onCompletionRejected(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame, RejectedExecutionException e) {
+        if (ctx.executor().isShuttingDown()) {
+            LOGGER.atDebug()
+                    .setCause(e)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, frame.apiKey())
+                    .log("Event loop shut down before router completion; connection already terminated");
+        }
+        else {
+            LOGGER.atWarn()
+                    .setCause(e)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, frame.apiKey())
+                    .log("Event loop rejected router completion; closing connection rather than dropping the completion");
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after event loop rejected router completion"));
+        }
+        // Completing the promise here runs its dependents on the thread that completed the
+        // router's stage, not the event loop. That is deliberate: the connection is already gone
+        // or is being closed, so loop-confined state is being torn down, and leaving the promise
+        // incomplete would strand its owner forever.
+        if (frame instanceof InternalRequestFrame<?> oobFrame) {
+            var routing = oobFrame.routing();
+            if (routing != null) {
+                routing.pendingPromise().ifPresent(promise -> promise.completeExceptionally(e));
+            }
+        }
     }
 
     // --- OOB completion (top-level only) ---
