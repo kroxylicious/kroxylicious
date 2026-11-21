@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
@@ -68,6 +69,7 @@ class ScramStateMachine implements MechanismStateMachine {
     private final int phantomIterations;
     private final byte[] phantomSaltKey;
     private final FilterDispatchExecutor filterDispatchExecutor;
+    private final String virtualClusterName;
 
     // Set during the first round when the credential lookup finds the user
     @Nullable
@@ -81,19 +83,22 @@ class ScramStateMachine implements MechanismStateMachine {
     private boolean phantomUser;
 
     /**
-     * Create a SCRAM state machine for the specified mechanism.
+     * Create a SCRAM state machine for the specified mechanism with virtual cluster context.
      *
      * @param mechanism the SCRAM mechanism (SHA-256 or SHA-512)
      * @param credentialStore the credential store for looking up user credentials
      * @param phantomIterations PBKDF2 iteration count for phantom user challenges
      * @param filterDispatchExecutor executor for returning to the filter dispatch thread after async credential lookup
+     * @param virtualClusterName virtual cluster name
      */
-    ScramStateMachine(ScramMechanism mechanism, ScramCredentialStore credentialStore, int phantomIterations, FilterDispatchExecutor filterDispatchExecutor) {
+    ScramStateMachine(ScramMechanism mechanism, ScramCredentialStore credentialStore, int phantomIterations, FilterDispatchExecutor filterDispatchExecutor,
+                      String virtualClusterName) {
         this.mechanism = Objects.requireNonNull(mechanism);
         this.credentialStore = Objects.requireNonNull(credentialStore);
         this.phantomIterations = phantomIterations;
         this.phantomSaltKey = credentialStore.phantomSaltKey();
         this.filterDispatchExecutor = Objects.requireNonNull(filterDispatchExecutor);
+        this.virtualClusterName = Objects.requireNonNull(virtualClusterName);
     }
 
     @Override
@@ -140,7 +145,13 @@ class ScramStateMachine implements MechanismStateMachine {
             ClientFirst clientFirst = parseClientFirst(authBytes);
             extractedUsername = clientFirst.username();
 
+            long lookupStartNanos = System.nanoTime();
             return filterDispatchExecutor.completeOnFilterDispatchThread(credentialStore.lookupCredential(extractedUsername))
+                    .whenComplete((credential, throwable) -> {
+                        long durationNanos = System.nanoTime() - lookupStartNanos;
+                        String outcome = (throwable == null) ? "success" : "failure";
+                        recordLookupDuration(outcome, durationNanos);
+                    })
                     .thenCompose(credential -> {
                         if (credential == null) {
                             return generatePhantomChallenge(clientFirst.nonce());
@@ -157,6 +168,14 @@ class ScramStateMachine implements MechanismStateMachine {
             return CompletableFuture.completedFuture(
                     RoundResult.failure(new byte[0], e));
         }
+    }
+
+    private void recordLookupDuration(String outcome, long durationNanos) {
+        SaslTerminationFilter.recordScramLookupDuration(
+                mechanismName(),
+                virtualClusterName,
+                outcome,
+                Duration.ofNanos(durationNanos));
     }
 
     private CompletionStage<RoundResult> processWithCredential(

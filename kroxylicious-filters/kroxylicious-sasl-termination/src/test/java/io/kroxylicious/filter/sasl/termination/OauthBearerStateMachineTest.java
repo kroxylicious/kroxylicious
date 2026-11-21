@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OauthBearerStateMachineTest {
 
+    private static final String TEST_VIRTUAL_CLUSTER = "my-cluster";
     private static final byte[] CONTROL_A = new byte[]{ 0x01 };
 
     private OauthBearerStateMachine handler;
@@ -40,7 +41,7 @@ class OauthBearerStateMachineTest {
     @BeforeEach
     void setUp() {
         callbackHandler = new OAuthBearerValidatorCallbackHandler();
-        handler = new OauthBearerStateMachine(callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+        handler = new OauthBearerStateMachine(callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, TEST_VIRTUAL_CLUSTER);
     }
 
     @AfterEach
@@ -66,7 +67,15 @@ class OauthBearerStateMachineTest {
     @Test
     void shouldRejectNullCallbackHandler() {
         // When/Then
-        assertThatThrownBy(() -> new OauthBearerStateMachine(null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES))
+        assertThatThrownBy(() -> new OauthBearerStateMachine(null, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, TEST_VIRTUAL_CLUSTER))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    @Test
+    void shouldRejectNullVirtualClusterName() {
+        // When/Then
+        assertThatThrownBy(() -> new OauthBearerStateMachine(callbackHandler, OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -106,7 +115,7 @@ class OauthBearerStateMachineTest {
     void shouldReturnChallengeWithJsonErrorWhenTokenIsRejected() throws Exception {
         // Given
         handler = new OauthBearerStateMachine(
-                rejectingCallbackHandler("invalid_token", null, null), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+                rejectingCallbackHandler("invalid_token", null, null), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, TEST_VIRTUAL_CLUSTER);
 
         // When
         RoundResult result = handler.evaluateRound(clientInitialResponse())
@@ -125,7 +134,7 @@ class OauthBearerStateMachineTest {
         handler = new OauthBearerStateMachine(
                 rejectingCallbackHandler("insufficient_scope", "email profile",
                         "https://example.com/.well-known/openid-configuration"),
-                OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+                OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, TEST_VIRTUAL_CLUSTER);
 
         // When
         RoundResult result = handler.evaluateRound(clientInitialResponse())
@@ -144,7 +153,7 @@ class OauthBearerStateMachineTest {
     void shouldFailAfterClientAcknowledgesErrorWithControlA() throws Exception {
         // Given
         handler = new OauthBearerStateMachine(
-                rejectingCallbackHandler("invalid_token", null, null), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES);
+                rejectingCallbackHandler("invalid_token", null, null), OauthBearerMechanismConfig.DEFAULT_MAX_AUTH_BYTES, TEST_VIRTUAL_CLUSTER);
         handler.evaluateRound(clientInitialResponse()).toCompletableFuture().get();
 
         // When

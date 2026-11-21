@@ -301,7 +301,12 @@ class SaslTerminationFilterTest {
         assertThat(response.authBytes()).containsExactly(40, 50);
         assertThat(response.sessionLifetimeMs()).isEqualTo(3600000);
         assertThat(meterRegistry.find(SaslTerminationFilter.AUTH_DURATION_METRIC)
-                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
+                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER),
+                        Tag.of(SaslTerminationFilter.OUTCOME_TAG, "success")))
+                .timer()).isNotNull();
+        assertThat(meterRegistry.find(SaslTerminationFilter.SUBJECT_BUILDING_DURATION_METRIC)
+                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER),
+                        Tag.of(SaslTerminationFilter.OUTCOME_TAG, "success")))
                 .timer()).isNotNull();
     }
 
@@ -361,7 +366,8 @@ class SaslTerminationFilterTest {
         verify(closeOrTerminal).withCloseConnection();
         verify(filterContext).clientSaslAuthenticationFailure(eq("OAUTHBEARER"), isNull(), eq(exception));
         assertThat(meterRegistry.find(SaslTerminationFilter.AUTH_DURATION_METRIC)
-                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER)))
+                .tags(List.of(Tag.of("mechanism", "OAUTHBEARER"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER),
+                        Tag.of(SaslTerminationFilter.OUTCOME_TAG, "failure")))
                 .timer()).isNotNull();
     }
 
@@ -523,6 +529,33 @@ class SaslTerminationFilterTest {
     }
 
     // --- Reauthentication consistency ---
+
+    @Test
+    void shouldRecordGranularMetricsForScramLookup() throws Exception {
+        // Given
+        var store = mock(io.kroxylicious.scram.credentialstore.ScramCredentialStore.class);
+        when(store.phantomSaltKey()).thenReturn(new byte[32]);
+        var cred = mock(io.kroxylicious.scram.credentialstore.ScramCredential.class);
+        when(store.lookupCredential(eq("alice"))).thenReturn(CompletableFuture.completedFuture(cred));
+
+        var executor = mock(FilterDispatchExecutor.class);
+        when(executor.completeOnFilterDispatchThread(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var scram = new ScramStateMachine(
+                org.apache.kafka.common.security.scram.internals.ScramMechanism.SCRAM_SHA_256,
+                store,
+                4096,
+                executor,
+                TEST_VIRTUAL_CLUSTER);
+
+        byte[] clientFirst = "n,,n=alice,r=fyko+d2lbbFgAQHuEQlEyW".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        scram.evaluateRound(clientFirst).toCompletableFuture().get();
+
+        assertThat(meterRegistry.find(SaslTerminationFilter.SCRAM_LOOKUP_DURATION_METRIC)
+                .tags(List.of(Tag.of("mechanism", "SCRAM-SHA-256"), Tag.of(SaslTerminationFilter.VIRTUAL_CLUSTER_TAG, TEST_VIRTUAL_CLUSTER),
+                        Tag.of(SaslTerminationFilter.OUTCOME_TAG, "success")))
+                .timer()).isNotNull();
+    }
 
     @SuppressWarnings("unchecked")
     @Test
@@ -902,6 +935,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
+        when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
         when(builder.shortCircuitResponse(captor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 
@@ -971,6 +1005,7 @@ class SaslTerminationFilterTest {
 
         when(filterContext.requestFilterResultBuilder()).thenReturn(builder);
         when(filterContext.sessionId()).thenReturn("test-session");
+        when(filterContext.getVirtualClusterName()).thenReturn(TEST_VIRTUAL_CLUSTER);
         when(builder.errorResponse(any(), any(), errorsCaptor.capture(), messageCaptor.capture())).thenReturn(closeOrTerminal);
         when(closeOrTerminal.completed()).thenReturn(CompletableFuture.completedFuture(result));
 

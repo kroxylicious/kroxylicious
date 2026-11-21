@@ -38,6 +38,7 @@ import io.kroxylicious.scram.credentialstore.ScramCredentialStore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -46,6 +47,7 @@ import static org.mockito.Mockito.when;
 
 class ScramStateMachineTest {
 
+    private static final String TEST_VIRTUAL_CLUSTER = "my-cluster";
     private static final String TEST_USERNAME = "alice";
     private static final String TEST_PASSWORD = "alice-secret";
 
@@ -66,7 +68,8 @@ class ScramStateMachineTest {
         when(credentialStore.phantomSaltKey()).thenReturn(new byte[32]);
         filterDispatchExecutor = mock(FilterDispatchExecutor.class);
         when(filterDispatchExecutor.completeOnFilterDispatchThread(any(CompletionStage.class))).thenAnswer(inv -> inv.getArgument(0));
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_256, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_256, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor,
+                TEST_VIRTUAL_CLUSTER);
     }
 
     @AfterEach
@@ -83,8 +86,18 @@ class ScramStateMachineTest {
 
     @Test
     void shouldReturnCorrectMechanismNameForSha512() {
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor,
+                TEST_VIRTUAL_CLUSTER);
         assertThat(handler.mechanismName()).isEqualTo("SCRAM-SHA-512");
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    @Test
+    void shouldRejectNullVirtualClusterName() {
+        assertThatThrownBy(
+                () -> new ScramStateMachine(ScramMechanism.SCRAM_SHA_256, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor,
+                        null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -320,7 +333,8 @@ class ScramStateMachineTest {
     @Test
     void shouldGeneratePhantomChallengeForSha512() throws Exception {
         // Given
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor,
+                TEST_VIRTUAL_CLUSTER);
         when(credentialStore.lookupCredential("alice"))
                 .thenReturn(CompletableFuture.completedFuture(null));
         byte[] clientFirstMessage = "n,,n=alice,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(StandardCharsets.UTF_8);
@@ -401,7 +415,8 @@ class ScramStateMachineTest {
     @Test
     void shouldCompleteFullAuthenticationWithSha512() throws Exception {
         // Given
-        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor);
+        handler = new ScramStateMachine(ScramMechanism.SCRAM_SHA_512, credentialStore, ScramMechanismConfig.DEFAULT_PHANTOM_ITERATIONS, filterDispatchExecutor,
+                TEST_VIRTUAL_CLUSTER);
         ScramCredential credential = generateCredential(TEST_USERNAME, TEST_PASSWORD, ScramMechanism.SCRAM_SHA_512);
         when(credentialStore.lookupCredential(TEST_USERNAME))
                 .thenReturn(CompletableFuture.completedFuture(credential));

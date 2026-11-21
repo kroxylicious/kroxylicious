@@ -251,6 +251,22 @@ class StateTest {
         assertThat(reauth.accumulatedAuthWorkNanos()).isZero();
     }
 
+    @Test
+    void shouldTrackSubjectBuildingDurationAndTotalAuthWork() {
+        // Given
+        State.RequiringAuthenticate authenticating = State.start().nextState(new TestMechanismStateMachine("SCRAM-SHA-256"));
+        authenticating.addRoundDuration(100);
+        authenticating.addRoundDuration(200);
+
+        // When
+        authenticating.addSubjectBuildingDuration(150);
+
+        // Then
+        assertThat(authenticating.accumulatedAuthWorkNanos()).isEqualTo(300);
+        assertThat(authenticating.subjectBuildingDurationNanos()).isEqualTo(150);
+        assertThat(authenticating.totalAuthWorkNanos()).isEqualTo(450);
+    }
+
     // Test mechanism handler implementation
     private static class TestMechanismStateMachine implements MechanismStateMachine {
         private final String mechanismName;
