@@ -12,7 +12,7 @@ FROM registry.access.redhat.com/ubi9/ubi-micro:9.9-1794478307@sha256:dbd325b96bc
 #####
 # Stage 2: Install runtime dependencies into the ubi9-micro rootfs using dnf --installroot
 #####
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.9-1795001629@sha256:d8162789d7913ef8941481687b92ab4bbec311870948f66cf52b9cc7e0c57c06 AS builder
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.9-1795198179@sha256:08d4c70f1baf6537a0728656cf7942d561e74a35916509d205b6519861266352 AS builder
 
 ARG JAVA_VERSION=21
 ARG CONTAINER_USER=kroxylicious
