@@ -46,6 +46,7 @@ public class KafkaProxyNetworkPolicyIngressAssert extends AbstractObjectAssert<K
      *
      * @return an assertion on the ingressRef name
      */
+    @SuppressWarnings("java:S1452") // wildcard cannot be removed without resorting a raw type, which is worse
     public AbstractStringAssert<?> ingressRefName() {
         return Assertions.assertThat(actual.getIngressRef()).extracting(IngressRef::getName)
                 .asInstanceOf(InstanceOfAssertFactories.STRING);

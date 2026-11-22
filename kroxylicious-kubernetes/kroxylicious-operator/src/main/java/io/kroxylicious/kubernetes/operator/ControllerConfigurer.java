@@ -22,7 +22,6 @@ import io.javaoperatorsdk.operator.api.config.ControllerConfigurationOverrider;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -38,6 +37,8 @@ class ControllerConfigurer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ControllerConfigurer.class);
     private static final Pattern WATCHED_NAMESPACE_SPLITTER = Pattern.compile(" *, *");
+    private static final String LOGGING_KEY_ENV_VAR = "envVar";
+    private static final String LOGGING_KEY_VALUE = "value";
 
     @Nullable
     private final Duration maxReconciliationInterval;
@@ -85,12 +86,11 @@ class ControllerConfigurer {
                         () -> LOGGER.atInfo().log("Watching all namespaces"));
 
         LOGGER.atInfo()
-                .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
-                .addKeyValue("value", kpnpAbsent.value())
+                .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
+                .addKeyValue(LOGGING_KEY_VALUE, kpnpAbsent.value())
                 .log("Configuring handling of proxies with no KafkaProxyNetworkPolicy");
     }
 
-    @NonNull
     <T extends HasMetadata> Consumer<ControllerConfigurationOverrider<T>> configurationOverrider() {
         return configOverrider -> {
             Optional.ofNullable(maxReconciliationInterval)
@@ -109,7 +109,6 @@ class ControllerConfigurer {
     /**
      * @return the configured maximum reconciliation interval, or empty if the JOSDK default is used
      */
-    @NonNull
     Optional<Duration> getMaxReconciliationInterval() {
         return Optional.ofNullable(maxReconciliationInterval);
     }
@@ -117,7 +116,6 @@ class ControllerConfigurer {
     /**
      * @return the policy to apply when a proxy has no {@code KafkaProxyNetworkPolicy}
      */
-    @NonNull
     KpnpAbsent getKpnpAbsent() {
         return kpnpAbsent;
     }
@@ -132,8 +130,8 @@ class ControllerConfigurer {
             long seconds = Long.parseLong(envValue);
             if (seconds <= 0) {
                 LOGGER.atWarn()
-                        .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
-                        .addKeyValue("value", envValue)
+                        .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
+                        .addKeyValue(LOGGING_KEY_VALUE, envValue)
                         .log("Invalid value (must be positive), using JOSDK default max reconciliation interval");
                 return null;
             }
@@ -141,8 +139,8 @@ class ControllerConfigurer {
         }
         catch (NumberFormatException e) {
             LOGGER.atWarn()
-                    .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
-                    .addKeyValue("value", envValue)
+                    .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
+                    .addKeyValue(LOGGING_KEY_VALUE, envValue)
                     .log("Invalid value (not a number), using JOSDK default max reconciliation interval");
             return null;
         }
@@ -165,7 +163,6 @@ class ControllerConfigurer {
                 .collect(Collectors.toSet());
     }
 
-    @NonNull
     private static KpnpAbsent getKpnpAbsentFromEnvironment() {
         String envValue = System.getenv(OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME);
         if (envValue == null) {
@@ -177,8 +174,8 @@ class ControllerConfigurer {
         }
         catch (IllegalArgumentException e) {
             LOGGER.atError()
-                    .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
-                    .addKeyValue("value", envValue)
+                    .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
+                    .addKeyValue(LOGGING_KEY_VALUE, envValue)
                     .setCause(e)
                     .log("Invalid value for environment variable, refusing to start");
             throw e;
