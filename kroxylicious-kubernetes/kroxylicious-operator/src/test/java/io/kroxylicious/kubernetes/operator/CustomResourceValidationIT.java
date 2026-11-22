@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -121,6 +122,8 @@ class CustomResourceValidationIT {
     void kafkaProxyNetworkPolicyProxyRefShouldBeImmutable() {
         // Given
         KubernetesClient client = OperatorTestUtils.kubeClient();
+        // Pass explicit empty lists: the zero-argument varargs overloads of the generated
+        // builders leave the field null, which would omit these required arrays from the JSON.
         var policy = new KafkaProxyNetworkPolicyBuilder()
                 .withNewMetadata()
                 .withName("immutable-proxy-ref")
@@ -134,11 +137,11 @@ class CustomResourceValidationIT {
                 .withName("my-proxy")
                 .endProxyRef()
                 .withAllowEgressToClusterDns(true)
-                .withAllowIngressForMetrics()
+                .withAllowIngressForMetrics(List.of())
                 .endKafkaProxy()
-                .withKafkaProxyIngresses()
-                .withKafkaServices()
-                .withKafkaProtocolFilters()
+                .withKafkaProxyIngresses(List.of())
+                .withKafkaServices(List.of())
+                .withKafkaProtocolFilters(List.of())
                 .endSpec()
                 .build();
         var created = client.resource(policy).create();
