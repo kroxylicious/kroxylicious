@@ -17,5 +17,4 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *                     pinned {@code client.id}; the router uses the route of the first matching
  *                     rule.
  */
-public record Config(@JsonProperty(required = true) List<Rule> routingRules) {
-}
+public record Config(@JsonProperty(required = true) List<Rule> routingRules) {}

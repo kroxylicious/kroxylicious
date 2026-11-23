@@ -18,5 +18,4 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *                 the rule matches.
  */
 public record Rule(@Nullable String hasClientId,
-                   @Nullable String useRoute) {
-}
+                   @Nullable String useRoute) {}

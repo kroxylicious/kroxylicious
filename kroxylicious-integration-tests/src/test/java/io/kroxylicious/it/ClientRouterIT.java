@@ -129,7 +129,7 @@ class ClientRouterIT {
         // When / Then
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED)
                 .createDefaultKroxyliciousTester()) {
-            String[] hostPort = tester.getBootstrapAddress().split(":", -1); // NOPMD
+            String[] hostPort = tester.getBootstrapAddress().split(":", -1);
             try (var client = new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]))) {
                 client.getSync(new Request(ApiKeys.METADATA, (short) 9, "unmapped-client", new MetadataRequestData()));
                 await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(client.isOpen()).isFalse());

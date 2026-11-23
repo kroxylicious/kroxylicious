@@ -36,11 +36,6 @@ public class ClientRouter implements RouterFactory<Config, ClientRouter.Initiali
     }
 
     /**
-     * Key used to detect two rules with identical predicates at startup.
-     */
-    private record PredicateKey(@Nullable String hasClientId) {}
-
-    /**
      * Immutable, thread-safe: shared across all connections of a virtual cluster.
      *
      * @param rules ordered, compiled rules
@@ -52,9 +47,13 @@ public class ClientRouter implements RouterFactory<Config, ClientRouter.Initiali
         Config cfg = Plugins.requireConfig(this, config);
         List<Rule> routingRules = cfg.routingRules();
 
+        // key used to detect two rules with identical predicates
+        record PredicateKey(@Nullable String hasClientId) {}
+
         Set<PredicateKey> seenPredicates = new HashSet<>();
         List<Rule> compiledRules = new ArrayList<>();
-        for (Rule rule : routingRules) {
+        for (int i = 0; i < routingRules.size(); i++) {
+            Rule rule = routingRules.get(i);
             if (rule.hasClientId() == null) {
                 throw new PluginConfigurationException("routingRules entry needs hasClientId");
             }
@@ -63,7 +62,7 @@ public class ClientRouter implements RouterFactory<Config, ClientRouter.Initiali
             }
             if (!seenPredicates.add(new PredicateKey(rule.hasClientId()))) {
                 throw new PluginConfigurationException(
-                        "routingRules contains more than one rule with hasClientId " + rule.hasClientId());
+                        "routingRules[" + i + "] contains more than one rule with hasClientId " + rule.hasClientId());
             }
             compiledRules.add(new Rule(rule.hasClientId(), rule.useRoute()));
         }

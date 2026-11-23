@@ -73,6 +73,19 @@ class ClientRouterTest {
     }
 
     @Test
+    void initializeReturnsEmptyInitializedDataForEmptyRules() {
+        // Given
+        when(context.routeNames()).thenReturn(Set.of());
+        Config config = new Config(List.of());
+
+        // When
+        ClientRouter.Initialized initialized = router.initialize(context, config);
+
+        // Then
+        assertThat(initialized.rules()).isEmpty();
+    }
+
+    @Test
     void initializeThrowsWhenRuleHasRouteButNoClientId() {
         // Given
         when(context.routeNames()).thenReturn(Set.of("team-a"));

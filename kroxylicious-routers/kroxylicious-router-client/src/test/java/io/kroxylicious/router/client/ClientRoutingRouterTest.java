@@ -194,6 +194,19 @@ class ClientRoutingRouterTest {
     }
 
     @Test
+    void nullClientIdRejectedWhenNoRuleMatchesIt() {
+        // Given
+        RequestHeaderData noClientIdHeader = new RequestHeaderData();
+        when(ctx.respondWithError(noClientIdHeader, REQUEST, Errors.POLICY_VIOLATION)).thenReturn(closeableStage(mock(RouterResponse.class)));
+
+        // When
+        newRouter().onRequest(ApiKeys.METADATA, (short) 0, noClientIdHeader, REQUEST, ctx).toCompletableFuture().join();
+
+        // Then
+        verify(ctx).respondWithError(noClientIdHeader, REQUEST, Errors.POLICY_VIOLATION);
+    }
+
+    @Test
     void repeatedRequestsForSameRouteAllForward() {
         // Given
         RequestHeaderData aliceHeader = header("alice");
