@@ -1897,9 +1897,7 @@ public class KafkaProxyReconcilerIT {
     private static KafkaProxy withServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {
         return proxy.edit().editOrNewSpec()
                 .editOrNewInfrastructure()
-                .editOrNewPodSpec()
                 .withServiceAccountName(serviceAccountName)
-                .endPodSpec()
                 .endInfrastructure()
                 .endSpec()
                 .build();

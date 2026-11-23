@@ -220,10 +220,7 @@ public class ProxyDeploymentDependentResource
         }
         Optional<Infrastructure> infrastructure = infrastructure(primary);
         Optional<PodSpec> podSpec = infrastructure.map(Infrastructure::getPodSpec);
-        // podSpec.serviceAccountName replaces the deprecated infrastructure.serviceAccountName; the CRD rejects setting both.
-        String serviceAccountName = podSpec.map(PodSpec::getServiceAccountName)
-                .or(() -> infrastructure.map(Infrastructure::getServiceAccountName))
-                .orElse(null);
+        String serviceAccountName = infrastructure.map(Infrastructure::getServiceAccountName).orElse(null);
         return specBuilder
                     // Also set the deprecated serviceAccount alias, which Kubernetes keeps as a copy of serviceAccountName.
                     // Server-side apply only removes fields we set, so without this, removing the account from the

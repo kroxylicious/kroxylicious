@@ -1,4 +1,4 @@
-title: "feat(operator): add KafkaProxy infrastructure.podSpec with nodeSelector, tolerations, affinity, topologySpreadConstraints and serviceAccountName"
+title: "feat(operator): add KafkaProxy infrastructure.podSpec with nodeSelector, tolerations, affinity and topologySpreadConstraints"
 type: added
 issues:
   - 4978

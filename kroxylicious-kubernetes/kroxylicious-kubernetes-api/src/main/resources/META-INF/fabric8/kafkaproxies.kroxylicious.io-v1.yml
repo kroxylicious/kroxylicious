@@ -63,13 +63,9 @@ spec:
                     - Resource limits and requests
                     - The ServiceAccount used by proxy pods
                     - The scheduling of proxy pods (node selector, tolerations, affinity, and topology spread constraints)
-                  x-kubernetes-validations:
-                    - rule: "!has(self.serviceAccountName) || !has(self.podSpec) || !has(self.podSpec.serviceAccountName)"
-                      message: "serviceAccountName is deprecated and must not be set together with podSpec.serviceAccountName"
                   properties:
                     serviceAccountName:
                       description: |
-                        Deprecated: use podSpec.serviceAccountName instead. Must not be set together with podSpec.serviceAccountName.
                         The name of the user-managed ServiceAccount to use for proxy pods.
                         The ServiceAccount must exist in the same namespace as this KafkaProxy.
                         If omitted, Kubernetes uses the namespace's default ServiceAccount.
@@ -86,17 +82,6 @@ spec:
                         More info: https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#PodSpec
                       type: object
                       properties:
-                        serviceAccountName:
-                          description: |
-                            The name of the user-managed ServiceAccount to use for proxy pods.
-                            The ServiceAccount must exist in the same namespace as this KafkaProxy.
-                            If omitted, Kubernetes uses the namespace's default ServiceAccount.
-                          type: string
-                          # ServiceAccount names are DNS-1123 subdomains; length and pattern match Kubernetes'
-                          # IsDNS1123Subdomain (k8s.io/apimachinery/pkg/util/validation).
-                          minLength: 1
-                          maxLength: 253
-                          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'
                         # nodeSelector, tolerations, affinity and topologySpreadConstraints are copied from the Kubernetes v1.34
                         # core/v1 OpenAPI v3 schema (PodSpec.nodeSelector, io.k8s.api.core.v1.Toleration, Affinity and
                         # TopologySpreadConstraint), with `$ref`s inlined, `default` and `x-kubernetes-patch-*` removed, the

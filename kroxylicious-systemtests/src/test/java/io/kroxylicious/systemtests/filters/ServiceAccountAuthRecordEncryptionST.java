@@ -209,9 +209,7 @@ class ServiceAccountAuthRecordEncryptionST extends AbstractSystemTests {
         KafkaProxy kafkaProxy = KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1)
                 .editSpec()
                     .withNewInfrastructure()
-                        .withNewPodSpec()
-                            .withServiceAccountName(serviceAccountName)
-                        .endPodSpec()
+                        .withServiceAccountName(serviceAccountName)
                     .endInfrastructure()
                 .endSpec()
                 .build();

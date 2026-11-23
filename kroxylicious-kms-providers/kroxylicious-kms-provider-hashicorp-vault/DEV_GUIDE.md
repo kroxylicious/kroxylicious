@@ -120,7 +120,7 @@ In-cluster testing is covered by the system test `ServiceAccountAuthRecordEncryp
 
 ## Testing in a Real Kubernetes Cluster
 
-In-cluster testing is covered by the system test `ServiceAccountAuthRecordEncryptionST` (in `kroxylicious-systemtests`). It deploys the proxy via the operator under a dedicated ServiceAccount (`KafkaProxy.spec.infrastructure.podSpec.serviceAccountName`), binds a Vault role to that ServiceAccount, and verifies records are encrypted at rest and decrypted through the proxy. See "Running system tests locally" in the top-level [DEV_GUIDE.md](../../DEV_GUIDE.md).
+In-cluster testing is covered by the system test `ServiceAccountAuthRecordEncryptionST` (in `kroxylicious-systemtests`). It deploys the proxy via the operator under a dedicated ServiceAccount (`KafkaProxy.spec.infrastructure.serviceAccountName`), binds a Vault role to that ServiceAccount, and verifies records are encrypted at rest and decrypted through the proxy. See "Running system tests locally" in the top-level [DEV_GUIDE.md](../../DEV_GUIDE.md).
 
 ## Testing Token Renewal
 
