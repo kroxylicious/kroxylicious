@@ -86,7 +86,9 @@
         <awaitility.version>4.3.0</awaitility.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <azure.security.keyvault.keys.version>4.11.3</azure.security.keyvault.keys.version>
-        <azure.identity.version>1.16.2</azure.identity.version>
+        <azure.identity.version>1.19.0</azure.identity.version>
+        <azure.core.version>1.61.0</azure.core.version>
+        <azure.core.http.netty.version>1.17.0</azure.core.http.netty.version>
         <lowkey.version>7.4.0</lowkey.version>
         <bouncycastle.version>1.86</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
@@ -96,7 +98,6 @@
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
         <opentest4j.version>1.3.0</opentest4j.version>
-        <azure.core.version>1.60.0</azure.core.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logsquelcher.version>0.2.2</logsquelcher.version>
@@ -503,6 +504,12 @@
                 <groupId>com.azure</groupId>
                 <artifactId>azure-core</artifactId>
                 <version>${azure.core.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-core-http-netty</artifactId>
+                <version>${azure.core.http.netty.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
