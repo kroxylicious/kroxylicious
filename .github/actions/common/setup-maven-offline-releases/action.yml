@@ -1,0 +1,49 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+name: "Setup Maven Offline Releases"
+description: "Configure Maven to trust cached release artifacts without network verification (updatePolicy=never)"
+
+outputs:
+  settings-path:
+    description: 'Path to generated settings.xml file'
+    value: ${{ steps.generate.outputs.settings-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: 'Merge CI offline-releases policy into Maven settings'
+      id: generate
+      shell: bash
+      run: |
+        SETTINGS_FILE="$HOME/.m2/settings.xml"
+        mkdir -p "$HOME/.m2"
+
+        # If settings.xml doesn't exist, create a seed with empty profiles/activeProfiles
+        if [[ ! -f "$SETTINGS_FILE" ]]; then
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' \
+            '  <profiles></profiles>' \
+            '  <activeProfiles></activeProfiles>' \
+            '</settings>' > "$SETTINGS_FILE"
+        fi
+
+        # Merge our ci-offline-releases profile into settings.xml using Python for robust XML handling
+        python3 "${{ github.workspace }}/scripts/merge-maven-profile.py" "$SETTINGS_FILE"
+
+        echo "settings-path=${SETTINGS_FILE}" >> "$GITHUB_OUTPUT"
+        echo "Configured Maven offline-releases policy in ${SETTINGS_FILE}"
