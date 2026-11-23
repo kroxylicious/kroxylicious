@@ -13,8 +13,9 @@ resource:
     namespace: proxy-ns
   spec:
     infrastructure:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution: {}
+      podSpec:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution: {}
 expectFailureMessageToContain: |-
-  spec.infrastructure.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms
+  spec.infrastructure.podSpec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms

@@ -327,7 +327,7 @@ public class KafkaProxyReconcilerIT {
         var created = doCreate(suffix, kafkaService(CLUSTER_BAR_REF + suffix, CLUSTER_BAR_BOOTSTRAP), withScheduling(proxy));
 
         // Then
-        var expected = withScheduling(proxy).getSpec().getInfrastructure();
+        var expected = withScheduling(proxy).getSpec().getInfrastructure().getPodSpec();
         AWAIT.alias("Proxy pod scheduled with configured scheduling").untilAsserted(() -> assertThat(clusterUser.resources(Pod.class)
                 .withLabels(ProxyDeploymentDependentResource.podLabels(created.proxy()))
                 .list().getItems())
@@ -368,9 +368,9 @@ public class KafkaProxyReconcilerIT {
 
         // When
         // "Equals" passes the CRD schema (a string) but is not a valid toleration operator for a pod
-        updateKafkaProxy(created.proxy(), proxy -> proxy.edit().editSpec().editOrNewInfrastructure()
+        updateKafkaProxy(created.proxy(), proxy -> proxy.edit().editSpec().editOrNewInfrastructure().editOrNewPodSpec()
                 .addNewToleration().withKey("node-pool").withOperator("Equals").withValue("kafka-proxy").endToleration()
-                .endInfrastructure().endSpec().build());
+                .endPodSpec().endInfrastructure().endSpec().build());
 
         // Then
         AWAIT.alias("KafkaProxy Ready condition reports the rejected Deployment").untilAsserted(() -> assertThat(clusterUser.get(KafkaProxy.class, name(created.proxy())))
@@ -1897,7 +1897,9 @@ public class KafkaProxyReconcilerIT {
     private static KafkaProxy withServiceAccountName(KafkaProxy proxy, @Nullable String serviceAccountName) {
         return proxy.edit().editOrNewSpec()
                 .editOrNewInfrastructure()
+                .editOrNewPodSpec()
                 .withServiceAccountName(serviceAccountName)
+                .endPodSpec()
                 .endInfrastructure()
                 .endSpec()
                 .build();
@@ -1935,6 +1937,7 @@ public class KafkaProxyReconcilerIT {
         // @formatter:off
         return proxy.edit().editOrNewSpec()
                 .editOrNewInfrastructure()
+                .editOrNewPodSpec()
                     .withNodeSelector(Map.of("kubernetes.io/os", "linux"))
                     .addNewToleration()
                         .withKey("example.com/dedicated").withOperator("Equal").withValue("kafka-proxy").withEffect("NoSchedule")
@@ -1954,6 +1957,7 @@ public class KafkaProxyReconcilerIT {
                         .withMaxSkew(1).withTopologyKey("kubernetes.io/hostname").withWhenUnsatisfiable("ScheduleAnyway")
                         .withNewLabelSelector().withMatchLabels(ProxyDeploymentDependentResource.podLabels(proxy)).endLabelSelector()
                     .endTopologySpreadConstraint()
+                .endPodSpec()
                 .endInfrastructure()
                 .endSpec()
                 .build();

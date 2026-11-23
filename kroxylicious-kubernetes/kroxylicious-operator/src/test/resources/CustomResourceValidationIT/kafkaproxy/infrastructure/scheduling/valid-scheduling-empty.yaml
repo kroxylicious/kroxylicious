@@ -12,7 +12,8 @@ metadata:
   namespace: proxy-ns
 spec:
   infrastructure:
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-    topologySpreadConstraints: []
+    podSpec:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      topologySpreadConstraints: []

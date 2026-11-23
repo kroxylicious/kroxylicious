@@ -37,6 +37,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.PodSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyContainer;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.MountedResourceConfigProvider;
@@ -218,7 +219,11 @@ public class ProxyDeploymentDependentResource
             specBuilder = specBuilder.editSecurityContext().withFsGroup(PROXY_IMAGE_GID).endSecurityContext();
         }
         Optional<Infrastructure> infrastructure = infrastructure(primary);
-        String serviceAccountName = infrastructure.map(Infrastructure::getServiceAccountName).orElse(null);
+        Optional<PodSpec> podSpec = infrastructure.map(Infrastructure::getPodSpec);
+        // podSpec.serviceAccountName replaces the deprecated infrastructure.serviceAccountName; the CRD rejects setting both.
+        String serviceAccountName = podSpec.map(PodSpec::getServiceAccountName)
+                .or(() -> infrastructure.map(Infrastructure::getServiceAccountName))
+                .orElse(null);
         return specBuilder
                     // Also set the deprecated serviceAccount alias, which Kubernetes keeps as a copy of serviceAccountName.
                     // Server-side apply only removes fields we set, so without this, removing the account from the
@@ -227,10 +232,10 @@ public class ProxyDeploymentDependentResource
                     .withServiceAccount(serviceAccountName)
                     // Unset scheduling fields are empty rather than null: that matches the PodSpec defaults, and fabric8 omits
                     // empty collections when serializing, so server-side apply releases the fields when they are removed.
-                    .withNodeSelector(infrastructure.map(Infrastructure::getNodeSelector).orElse(Map.of()))
-                    .withTolerations(infrastructure.map(Infrastructure::getTolerations).orElse(List.of()))
-                    .withAffinity(infrastructure.map(Infrastructure::getAffinity).orElse(null))
-                    .withTopologySpreadConstraints(infrastructure.map(Infrastructure::getTopologySpreadConstraints).orElse(List.of()))
+                    .withNodeSelector(podSpec.map(PodSpec::getNodeSelector).orElse(Map.of()))
+                    .withTolerations(podSpec.map(PodSpec::getTolerations).orElse(List.of()))
+                    .withAffinity(podSpec.map(PodSpec::getAffinity).orElse(null))
+                    .withTopologySpreadConstraints(podSpec.map(PodSpec::getTopologySpreadConstraints).orElse(List.of()))
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)

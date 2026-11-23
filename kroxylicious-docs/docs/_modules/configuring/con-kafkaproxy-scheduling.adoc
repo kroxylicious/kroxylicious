@@ -15,10 +15,10 @@
 
 [role="_abstract"]
 By default, proxy pods have no scheduling constraints, so Kubernetes can place them on any schedulable node without taints.
-To control which nodes run the proxy, and how proxy pods are spread across nodes and zones, set scheduling fields in the `infrastructure` section of your `KafkaProxy` specification.
+To control which nodes run the proxy, and how proxy pods are spread across nodes and zones, set scheduling fields in the `infrastructure.podSpec` section of your `KafkaProxy` specification.
 
 The following fields are supported.
-Each field has the same schema and semantics as the field of the same name in the Kubernetes `PodSpec`, and the operator copies it unchanged to the proxy pod template:
+Each field matches the schema and semantics of the corresponding field in the Kubernetes `PodSpec`. The operator copies these fields unchanged to the proxy pod template:
 
 `nodeSelector`:: Node labels that a node must have to run proxy pods.
 `tolerations`:: Tolerations that allow proxy pods to run on nodes with matching taints, such as a dedicated node pool.
@@ -36,35 +36,36 @@ metadata:
 spec:
   replicas: 3
   infrastructure:
-    nodeSelector:
-      node-pool: kafka-proxy # <1>
-    tolerations:
-      - key: node-pool # <2>
-        operator: Equal
-        value: kafka-proxy
-        effect: NoSchedule
-    affinity:
-      podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution: # <3>
-          - weight: 100
-            podAffinityTerm:
-              topologyKey: kubernetes.io/hostname
-              labelSelector:
-                matchLabels:
-                  app.kubernetes.io/name: kroxylicious
-                  app.kubernetes.io/component: proxy
-                  app.kubernetes.io/instance: simple
-    topologySpreadConstraints:
-      - maxSkew: 1 # <4>
-        topologyKey: topology.kubernetes.io/zone
-        whenUnsatisfiable: ScheduleAnyway
-        labelSelector:
-          matchLabels:
-            app.kubernetes.io/name: kroxylicious
-            app.kubernetes.io/component: proxy
-            app.kubernetes.io/instance: simple
-        matchLabelKeys:
-          - pod-template-hash
+    podSpec:
+      nodeSelector:
+        node-pool: kafka-proxy # <1>
+      tolerations:
+        - key: node-pool # <2>
+          operator: Equal
+          value: kafka-proxy
+          effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution: # <3>
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: kroxylicious
+                    app.kubernetes.io/component: proxy
+                    app.kubernetes.io/instance: simple
+      topologySpreadConstraints:
+        - maxSkew: 1 # <4>
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: kroxylicious
+              app.kubernetes.io/component: proxy
+              app.kubernetes.io/instance: simple
+          matchLabelKeys:
+            - pod-template-hash
 ----
 <1> Runs proxy pods only on nodes labeled `node-pool: kafka-proxy`.
 <2> Allows proxy pods onto those nodes despite a `node-pool=kafka-proxy:NoSchedule` taint.
@@ -83,6 +84,11 @@ If no node satisfies the constraints, the replacement pods remain `Pending`.
 The rollout uses the default Kubernetes rolling update strategy, which can stop up to 25% of the existing proxy pods, rounded down, before their replacements are running.
 With fewer than four replicas, all existing proxy pods keep running; with four or more, the proxy can run with reduced capacity until the rollout progresses.
 To diagnose this, check the events of the `Pending` pods.
+
+While replacement pods are `Pending`, configuration changes do not take effect either.
+The proxy reads its configuration only when a pod starts, and the operator applies every configuration change, such as a change to a virtual cluster, filter, service, ingress, or one of their Secrets, by rolling out new proxy pods.
+Those new pods are subject to the same scheduling constraints, so they also remain `Pending`, and the existing pods keep serving the previous configuration.
+If a configuration change, such as a filter change, does not seem to apply, check whether the proxy pods are `Pending` and correct the scheduling fields first.
 
 The `KafkaProxy` schema checks only the structure of the scheduling fields.
 Values that Kubernetes rejects for pods, such as a toleration `operator` other than `Exists` or `Equal`, are reported when the operator updates the Deployment.

@@ -13,26 +13,27 @@ metadata:
   generation: 1
 spec:
   infrastructure:
-    nodeSelector:
-      node-pool: "kafka-proxy"
-    tolerations:
-      - key: "node-pool"
-        operator: "Equal"
-        value: "kafka-proxy"
-        effect: "NoSchedule"
-    affinity:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: "kubernetes.io/arch"
-                  operator: "In"
-                  values:
-                    - "arm64"
-    topologySpreadConstraints:
-      - maxSkew: 1
-        topologyKey: "topology.kubernetes.io/zone"
-        whenUnsatisfiable: "ScheduleAnyway"
-        labelSelector:
-          matchLabels:
-            app.kubernetes.io/instance: "minimal"
+    podSpec:
+      nodeSelector:
+        node-pool: "kafka-proxy"
+      tolerations:
+        - key: "node-pool"
+          operator: "Equal"
+          value: "kafka-proxy"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: "kubernetes.io/arch"
+                    operator: "In"
+                    values:
+                      - "arm64"
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: "ScheduleAnyway"
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: "minimal"

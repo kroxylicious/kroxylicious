@@ -13,10 +13,11 @@ resource:
     namespace: proxy-ns
   spec:
     infrastructure:
-      tolerations:
-        - key: node.kubernetes.io/unreachable
-          operator: Exists
-          effect: NoExecute
-          tolerationSeconds: soon
+      podSpec:
+        tolerations:
+          - key: node.kubernetes.io/unreachable
+            operator: Exists
+            effect: NoExecute
+            tolerationSeconds: soon
 expectFailureMessageToContain: |-
-  spec.infrastructure.tolerations[0].tolerationSeconds
+  spec.infrastructure.podSpec.tolerations[0].tolerationSeconds

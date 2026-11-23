@@ -13,8 +13,9 @@ resource:
     namespace: proxy-ns
   spec:
     infrastructure:
-      nodeSelector:
-        node-pool:
-          nested: value
+      podSpec:
+        nodeSelector:
+          node-pool:
+            nested: value
 expectFailureMessageToContain: |-
-  spec.infrastructure.nodeSelector.node-pool
+  spec.infrastructure.podSpec.nodeSelector.node-pool

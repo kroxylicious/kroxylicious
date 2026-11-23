@@ -13,8 +13,9 @@ resource:
     namespace: proxy-ns
   spec:
     infrastructure:
-      topologySpreadConstraints:
-        - maxSkew: 1
-          whenUnsatisfiable: DoNotSchedule
+      podSpec:
+        topologySpreadConstraints:
+          - maxSkew: 1
+            whenUnsatisfiable: DoNotSchedule
 expectFailureMessageToContain: |-
-  spec.infrastructure.topologySpreadConstraints[0].topologyKey
+  spec.infrastructure.podSpec.topologySpreadConstraints[0].topologyKey

@@ -13,7 +13,8 @@ resource:
     namespace: proxy-ns
   spec:
     infrastructure:
-      tolerations:
-        key: node-pool
+      podSpec:
+        tolerations:
+          key: node-pool
 expectFailureMessageToContain: |-
-  spec.infrastructure.tolerations
+  spec.infrastructure.podSpec.tolerations

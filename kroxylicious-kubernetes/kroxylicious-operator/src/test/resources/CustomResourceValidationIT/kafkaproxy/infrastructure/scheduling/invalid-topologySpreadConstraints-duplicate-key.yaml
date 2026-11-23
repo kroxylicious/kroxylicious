@@ -13,12 +13,13 @@ resource:
     namespace: proxy-ns
   spec:
     infrastructure:
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: ScheduleAnyway
-        - maxSkew: 2
-          topologyKey: topology.kubernetes.io/zone
-          whenUnsatisfiable: ScheduleAnyway
+      podSpec:
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+          - maxSkew: 2
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
 expectFailureMessageToContain: |-
-  spec.infrastructure.topologySpreadConstraints[1]
+  spec.infrastructure.podSpec.topologySpreadConstraints[1]

@@ -12,7 +12,8 @@ metadata:
   namespace: proxy-ns
 spec:
   infrastructure:
-    nodeSelector: null
-    tolerations: null
-    affinity: null
-    topologySpreadConstraints: null
+    podSpec:
+      nodeSelector: null
+      tolerations: null
+      affinity: null
+      topologySpreadConstraints: null

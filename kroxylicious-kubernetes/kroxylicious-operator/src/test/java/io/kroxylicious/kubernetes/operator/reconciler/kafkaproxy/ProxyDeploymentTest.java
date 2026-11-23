@@ -224,10 +224,12 @@ class ProxyDeploymentTest {
                 .build();
         KafkaProxy proxyWithScheduling = kafkaProxy.edit().editOrNewSpec()
                 .editOrNewInfrastructure()
+                .editOrNewPodSpec()
                 .withNodeSelector(nodeSelector)
                 .withTolerations(toleration)
                 .withAffinity(affinity)
                 .withTopologySpreadConstraints(topologySpreadConstraint)
+                .endPodSpec()
                 .endInfrastructure()
                 .endSpec()
                 .build();
