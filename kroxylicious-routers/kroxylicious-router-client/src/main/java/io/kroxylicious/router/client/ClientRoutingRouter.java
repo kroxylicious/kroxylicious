@@ -42,8 +42,7 @@ class ClientRoutingRouter implements Router {
      * never be derived from unbounded or sensitive input.
      */
     enum RejectReason {
-        UNMAPPED("unmapped", Errors.POLICY_VIOLATION),
-        ROUTE_CHANGED("route-changed", Errors.UNKNOWN_SERVER_ERROR);
+        UNMAPPED("unmapped", Errors.POLICY_VIOLATION);
 
         private final String tagValue;
         private final Errors errorCode;
@@ -66,12 +65,6 @@ class ClientRoutingRouter implements Router {
     private final String virtualClusterName;
     private final String routerName;
     private final Meter.MeterProvider<Counter> rejectedCounter;
-
-    /**
-     * Set on the first forward. {@code onRequest} is invoked serially, on the same event loop thread,
-     * for a given connection, so no synchronisation is needed.
-     */
-    private @Nullable String pinnedRoute;
 
     /**
      * Captured from the first request's header and never re-read, anticipating KIP-1313. Distinct
@@ -103,23 +96,11 @@ class ClientRoutingRouter implements Router {
             clientIdPinned = true;
         }
         Optional<String> ruleRoute = resolveRoute(pinnedClientId);
-        return ruleRoute.map(s -> forward(ctx, apiKey, apiVersion, header, request, s))
+        return ruleRoute.map(s -> forward(ctx, header, request, s))
                 .orElseGet(() -> reject(ctx, apiKey, apiVersion, header, request, RejectReason.UNMAPPED, "no rule matched clientId"));
     }
 
-    /**
-     * Pins the connection to {@code route} on the first forward; closes the connection fail-closed if
-     * a later forward resolves to a different route.
-     */
-    private CompletionStage<RouterResponse> forward(RouterContext ctx, ApiKeys apiKey, short apiVersion,
-                                                    RequestHeaderData header, ApiMessage request, String route) {
-        if (pinnedRoute == null) {
-            pinnedRoute = route;
-        }
-        else if (!pinnedRoute.equals(route)) {
-            return reject(ctx, apiKey, apiVersion, header, request, RejectReason.ROUTE_CHANGED, "client route changed mid-connection from "
-                    + pinnedRoute + " to " + route);
-        }
+    private CompletionStage<RouterResponse> forward(RouterContext ctx, RequestHeaderData header, ApiMessage request, String route) {
         // Prefer the node the client is already connected to (a broker-specific gateway
         // endpoint) over an arbitrary node of the route, so a client that dialed a specific
         // broker keeps talking to that broker.

@@ -214,4 +214,48 @@ class ClientRouterIT {
                 .extracting(ConsumerRecord::key)
                 .contains("t6-demo-key");
     }
+
+    @Test
+    void twoRoutesCanTargetTheSameCluster() {
+        // Given: route-a and route-b both target cluster-a, with a filter attached to route-a only
+        var counterId = "t7-route-a-counter";
+        ProduceCountingFilter.reset(counterId);
+        var counter = new NamedFilterDefinitionBuilder(ProduceCountingFilterFactory.class.getName(), ProduceCountingFilterFactory.class.getName())
+                .withConfig("counterId", counterId)
+                .build();
+        var clusterDefA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(counter.name()), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-a", null));
+        var routingRules = List.of(new Rule("alice", "route-a"), new Rule("carol", "route-b"));
+        var routerDef = new RouterDefinition("client-router", ClientRouter.class.getName(),
+                new Config(routingRules), List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "client-router"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                .build();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefA)
+                .addToFilterDefinitions(counter)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        // When
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED)
+                .createDefaultKroxyliciousTester();
+                Producer<String, String> aliceProducer = tester.producer(Map.of(CLIENT_ID_CONFIG, "alice"));
+                Producer<String, String> carolProducer = tester.producer(Map.of(CLIENT_ID_CONFIG, "carol"))) {
+            assertThat(aliceProducer.send(new ProducerRecord<>(TOPIC, "t7-alice-key", "t7-alice-value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
+            assertThat(carolProducer.send(new ProducerRecord<>(TOPIC, "t7-carol-key", "t7-carol-value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
+        }
+
+        // Then: both clients' traffic reached cluster-a, but only route-a's (alice's) traffic
+        // passed through the filter attached to route-a
+        assertThat(consumeFrom(clusterA, "t7-verify-a"))
+                .extracting(ConsumerRecord::key)
+                .contains("t7-alice-key", "t7-carol-key");
+        assertThat(ProduceCountingFilter.countFor(counterId)).isEqualTo(1);
+    }
 }
