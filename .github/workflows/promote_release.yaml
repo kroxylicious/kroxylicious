@@ -282,10 +282,9 @@ jobs:
           # 1. Release tag must point to exact commit artifacts were built from
           # 2. Squash would create a new commit, breaking the tag reference
           # The kroxylicious-robot account is a member of the release-automation
-          # team, which has a "For Pull Requests Only" ruleset bypass that allows
+          # team, which has a "Always Allow" ruleset bypass that allows
           # merge commits despite the repository's squash-only restriction.
           gh pr merge --merge ${{ inputs.release-pr-issue-number }}
-          # Note: --delete-branch flag removed because it's incompatible with merge queue
           
           # Tag the release commit
           git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT_SHA}"
@@ -312,7 +311,6 @@ jobs:
           
           # Delete the PR branch (e.g., release-work-0.27.0-12345)
           # This branch contains both the release commit and the development version commit
-          # The --delete-branch flag was removed from gh pr merge because it's incompatible with merge queue
           git push origin --delete "${PR_BRANCH}" || echo "Branch ${PR_BRANCH} not found (already deleted?)"
 
       - name: 'Tag release container images'
