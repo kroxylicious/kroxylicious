@@ -113,7 +113,9 @@ class OperatorServiceAccountST extends AbstractSystemTests {
         KafkaProxy kafkaProxy = KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1)
                 .editSpec()
                     .withNewInfrastructure()
-                        .withServiceAccountName(serviceAccountName)
+                        .withNewPodSpec()
+                            .withServiceAccountName(serviceAccountName)
+                        .endPodSpec()
                     .endInfrastructure()
                 .endSpec()
                 .build();

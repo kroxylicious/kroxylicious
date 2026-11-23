@@ -18,7 +18,8 @@ By default, proxy pods have no scheduling constraints, so Kubernetes can place t
 To control which nodes run the proxy, and how proxy pods are spread across nodes and zones, set scheduling fields in the `infrastructure.podSpec` section of your `KafkaProxy` specification.
 
 The following fields are supported.
-Each field matches the schema and semantics of the corresponding field in the Kubernetes `PodSpec`. The operator copies these fields unchanged to the proxy pod template:
+Each field matches the schema and semantics of the corresponding field in the Kubernetes `PodSpec`.
+The operator copies these fields unchanged to the proxy pod template:
 
 `nodeSelector`:: Node labels that a node must have to run proxy pods.
 `tolerations`:: Tolerations that allow proxy pods to run on nodes with matching taints, such as a dedicated node pool.
