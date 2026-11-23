@@ -101,6 +101,11 @@ class ClientRoutingRouter implements Router {
     }
 
     private CompletionStage<RouterResponse> forward(RouterContext ctx, RequestHeaderData header, ApiMessage request, String route) {
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", ctx.sessionId())
+                .addKeyValue("clientId", header.clientId())
+                .addKeyValue("route", route)
+                .log("routing request by clientId");
         // Prefer the node the client is already connected to (a broker-specific gateway
         // endpoint) over an arbitrary node of the route, so a client that dialed a specific
         // broker keeps talking to that broker.
@@ -130,7 +135,7 @@ class ClientRoutingRouter implements Router {
     private CompletionStage<RouterResponse> reject(RouterContext ctx, ApiKeys apiKey, short apiVersion, RequestHeaderData header,
                                                    ApiMessage request, RejectReason reason, String detail) {
         rejectedCounter.withTags(ClientRouterMetrics.REASON_LABEL, reason.tagValue()).increment();
-        LOGGER.atDebug()
+        LOGGER.atWarn()
                 .addKeyValue("sessionId", ctx.sessionId())
                 .addKeyValue("virtualCluster", virtualClusterName)
                 .addKeyValue("router", routerName)

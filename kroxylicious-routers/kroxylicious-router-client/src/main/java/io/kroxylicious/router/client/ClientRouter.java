@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
@@ -28,6 +31,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 @Plugin(configType = Config.class)
 public class ClientRouter implements RouterFactory<Config, ClientRouter.Initialized> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientRouter.class);
 
     /**
      * Creates a {@link ClientRouter}.
@@ -85,6 +90,11 @@ public class ClientRouter implements RouterFactory<Config, ClientRouter.Initiali
     @Override
     public Router createRouter(RouterFactoryContext context, @Nullable Initialized init) {
         Objects.requireNonNull(init);
+        LOGGER.atInfo()
+                .addKeyValue("virtualCluster", context.virtualClusterName())
+                .addKeyValue("router", context.routerName())
+                .addKeyValue("ruleCount", init.rules().size())
+                .log("configured client router");
         return new ClientRoutingRouter(init.rules(), context.virtualClusterName(), context.routerName());
     }
 
