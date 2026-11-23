@@ -18,11 +18,15 @@ import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.ClearEnvironmentVariable;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Toleration;
+import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.api.model.SecurityContextConstraints;
@@ -177,6 +181,83 @@ class ProxyDeploymentTest {
         assertThat(actual.getSpec().getTemplate().getSpec())
                 .extracting(PodSpec::getServiceAccountName, PodSpec::getServiceAccount)
                 .containsOnly("kroxylicious-proxy");
+    }
+
+    @Test
+    void shouldLeavePodSchedulingUnsetByDefault() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        PodSpec podSpec = actual.getSpec().getTemplate().getSpec();
+        assertThat(podSpec.getNodeSelector()).isNullOrEmpty();
+        assertThat(podSpec.getTolerations()).isNullOrEmpty();
+        assertThat(podSpec.getAffinity()).isNull();
+    }
+
+    @Test
+    void shouldLeavePodUnchangedWhenInfrastructureHasNoSchedulingFields() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+        KafkaProxy proxyWithEmptyInfrastructure = kafkaProxy.edit().editOrNewSpec()
+                .withNewInfrastructure()
+                .endInfrastructure()
+                .endSpec()
+                .build();
+        PodSpec podSpecWithoutInfrastructure = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext)
+                .getSpec().getTemplate().getSpec();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(proxyWithEmptyInfrastructure, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec()).isEqualTo(podSpecWithoutInfrastructure);
+    }
+
+    @Test
+    void shouldUseConfiguredPodScheduling() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+        Map<String, String> nodeSelector = Map.of("kubernetes.io/os", "linux");
+        Toleration toleration = new TolerationBuilder()
+                .withKey("dedicated")
+                .withOperator("Equal")
+                .withValue("kroxylicious")
+                .withEffect("NoSchedule")
+                .build();
+        Affinity affinity = new AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression()
+                .withKey("topology.kubernetes.io/zone")
+                .withOperator("In")
+                .withValues("zone-a", "zone-b")
+                .endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+        KafkaProxy proxyWithScheduling = kafkaProxy.edit().editOrNewSpec()
+                .editOrNewInfrastructure()
+                .withNodeSelector(nodeSelector)
+                .withTolerations(toleration)
+                .withAffinity(affinity)
+                .endInfrastructure()
+                .endSpec()
+                .build();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(proxyWithScheduling, kubernetesContext);
+
+        // Then
+        PodSpec podSpec = actual.getSpec().getTemplate().getSpec();
+        assertThat(podSpec.getNodeSelector()).isEqualTo(nodeSelector);
+        assertThat(podSpec.getTolerations()).containsExactly(toleration);
+        assertThat(podSpec.getAffinity()).isEqualTo(affinity);
     }
 
     @Test

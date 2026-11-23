@@ -1,0 +1,67 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-operate-proxy.adoc
+
+[id='con-kafkaproxy-pod-scheduling-{context}']
+= Controlling where proxy pods are scheduled
+
+[role="_abstract"]
+By default, Kubernetes can schedule proxy pods onto any node that has capacity for them.
+To control which nodes the proxy pods run on, set `nodeSelector`, `tolerations`, or `affinity` in the `infrastructure` section of your `KafkaProxy` specification.
+
+These properties use the standard Kubernetes types and the operator copies them unchanged to the pod template of the proxy `Deployment`:
+
+`nodeSelector`:: Node labels that a node must have for proxy pods to be scheduled onto it.
+`tolerations`:: Tolerations that allow proxy pods to be scheduled onto nodes with matching taints, such as nodes dedicated to the proxy.
+`affinity`:: Node affinity, pod affinity, and pod anti-affinity rules, for example, to spread proxy pods across zones or nodes.
+
+Each property is optional.
+If you omit a property, the operator does not set it on the proxy pods.
+
+.Example `KafkaProxy` configuration that schedules proxy pods onto dedicated nodes
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  infrastructure:
+    nodeSelector:
+      node-role.example.com/proxy: "true"
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: kroxylicious
+        effect: NoSchedule
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/instance: simple
+----
+
+Changing any of these properties replaces the proxy pods through a normal Deployment rollout.
+If no node satisfies the constraints, the replacement pods stay in the `Pending` state and their events explain why they cannot be scheduled.
+
+The `KafkaProxy` resource only checks that `affinity` is an object; it does not validate the rules inside it.
+If the rules are invalid, Kubernetes rejects the proxy `Deployment` when the operator applies it.
+
+[role="_additional-resources"]
+.Additional resources
+
+* https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/[Kubernetes documentation: Assigning Pods to Nodes^]
+* https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/[Kubernetes documentation: Taints and Tolerations^]

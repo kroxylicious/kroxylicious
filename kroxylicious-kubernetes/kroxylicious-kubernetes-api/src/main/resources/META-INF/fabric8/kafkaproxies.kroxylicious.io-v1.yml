@@ -62,7 +62,58 @@ spec:
                     the platform layer, such as:
                     - Resource limits and requests
                     - The ServiceAccount used by proxy pods
+                    - The scheduling of proxy pods onto nodes
                   properties:
+                    nodeSelector:
+                      description: |
+                        Labels that a node must have for proxy pods to be scheduled onto it.
+                        This is applied as the `nodeSelector` of the proxy pods.
+                        If omitted, proxy pods can be scheduled onto any node.
+                      type: object
+                      additionalProperties:
+                        type: string
+                    tolerations:
+                      description: |
+                        Tolerations that allow proxy pods to be scheduled onto nodes with matching taints.
+                        These are applied as the `tolerations` of the proxy pods, using the standard
+                        Kubernetes Toleration type.
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          effect:
+                            description: |
+                              The taint effect to match. Empty means match all taint effects.
+                              When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.
+                            type: string
+                          key:
+                            description: |
+                              The taint key that the toleration applies to. Empty means match all taint keys.
+                              If the key is empty, operator must be Exists.
+                            type: string
+                          operator:
+                            description: |
+                              The relationship of the key to the value. Valid operators are Exists and Equal.
+                              Defaults to Equal.
+                            type: string
+                          tolerationSeconds:
+                            description: |
+                              The period of time the toleration tolerates a taint with effect NoExecute.
+                              If omitted, the taint is tolerated forever.
+                            type: integer
+                            format: int64
+                          value:
+                            description: |
+                              The taint value that the toleration matches. If the operator is Exists,
+                              the value must be empty.
+                            type: string
+                    affinity:
+                      description: |
+                        Scheduling constraints for proxy pods, using the standard Kubernetes Affinity type
+                        (nodeAffinity, podAffinity and podAntiAffinity).
+                        This is applied as the `affinity` of the proxy pods.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
                     serviceAccountName:
                       description: |
                         The name of the user-managed ServiceAccount to use for proxy pods.

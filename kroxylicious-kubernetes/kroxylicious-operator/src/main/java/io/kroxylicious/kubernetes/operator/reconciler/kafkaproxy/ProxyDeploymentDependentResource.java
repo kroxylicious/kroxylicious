@@ -217,6 +217,10 @@ public class ProxyDeploymentDependentResource
         if (!isOpenShift) {
             specBuilder = specBuilder.editSecurityContext().withFsGroup(PROXY_IMAGE_GID).endSecurityContext();
         }
+        // Only set the scheduling fields the user supplied, so that omitting them leaves the pod spec unchanged.
+        infrastructure(primary).map(Infrastructure::getNodeSelector).ifPresent(specBuilder::withNodeSelector);
+        infrastructure(primary).map(Infrastructure::getTolerations).ifPresent(specBuilder::withTolerations);
+        infrastructure(primary).map(Infrastructure::getAffinity).ifPresent(specBuilder::withAffinity);
         String serviceAccountName = infrastructure(primary).map(Infrastructure::getServiceAccountName).orElse(null);
         return specBuilder
                     // Also set the deprecated serviceAccount alias, which Kubernetes keeps as a copy of serviceAccountName.

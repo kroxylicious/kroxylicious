@@ -1,0 +1,4 @@
+title: "feat(operator): add nodeSelector, tolerations and affinity to KafkaProxy infrastructure"
+type: added
+issues:
+  - 5402
