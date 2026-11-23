@@ -197,6 +197,7 @@ class PlainResolverHandlerTest {
         ByteBuf buf = Unpooled.buffer(4).writeInt(42);
         activateChannel();
         channel.pipeline().fireChannelRead(buf);
+        buf.release();
 
         // When
         resolveBinding();
@@ -275,6 +276,7 @@ class PlainResolverHandlerTest {
         ByteBuf buf = Unpooled.buffer(4).writeInt(42);
         activateChannel();
         channel.pipeline().fireChannelRead(buf);
+        buf.release();
 
         // When
         failBindingResolution();
@@ -289,6 +291,7 @@ class PlainResolverHandlerTest {
         ByteBuf buf = Unpooled.buffer(4).writeInt(42);
         activateChannel();
         channel.pipeline().fireChannelRead(buf);
+        buf.release();
 
         // When
         channel.pipeline().remove(handler);
@@ -331,12 +334,33 @@ class PlainResolverHandlerTest {
         doThrow(new IllegalStateException("initialisation failed")).when(connectionInitializer).accept(channel, binding);
         activateChannel();
         channel.pipeline().fireChannelRead(buf);
+        buf.release();
 
         // When
         resolveBinding();
 
         // Then
         assertThat(buf.refCnt()).isZero();
+    }
+
+    @Test
+    void shouldRetainBufferedBytebufsToPreventCorruptionWhenSourceIsReleased() {
+        // Given - simulate HAProxyMessageDecoder's cumulative buffer scenario
+        var sharedBuffer = Unpooled.buffer(4);
+        sharedBuffer.writeInt(42);
+        activateChannel();
+
+        channel.pipeline().fireChannelRead(sharedBuffer);
+        sharedBuffer.release(); // Simulates an earlier handler (such as the HAProxyHandler releasing the buffer it has processed).
+
+        // When
+        resolveBinding();
+
+        // Then
+        assertThat(downstream.events).hasSize(3); // channelActive + replayed message + channelReadComplete
+        var replayedBuf = (ByteBuf) downstream.events.get(1);
+        assertThat(replayedBuf.refCnt()).isOne();
+        assertThat(replayedBuf.readInt()).isEqualTo(42);
     }
 
     private void activateChannel() {
@@ -368,7 +392,7 @@ class PlainResolverHandlerTest {
 
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
-            events.add(msg);
+            events.add(ReferenceCountUtil.retain(msg));
         }
 
         @Override

@@ -88,13 +88,13 @@ class PlainResolverHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        pending.add(msg);
+        pending.add(ReferenceCountUtil.retain(msg));
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
         // Release any messages that were buffered but never replayed (error/close path).
-        pending.forEach(ReferenceCountUtil::release);
+        releasePending();
     }
 
     // Throwable is the right choice as we are forwarding it on.
@@ -114,6 +114,7 @@ class PlainResolverHandler extends ChannelInboundHandlerAdapter {
                             ? "Exception resolving Virtual Cluster Binding, closing connection"
                             : "Exception resolving Virtual Cluster Binding, closing connection. Increase log level to DEBUG for stacktrace");
             clientToProxyErrorCounter.increment();
+            releasePending();
             ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
             return;
         }
@@ -126,13 +127,20 @@ class PlainResolverHandler extends ChannelInboundHandlerAdapter {
             if (!pending.isEmpty()) {
                 ctx.fireChannelReadComplete();
             }
-            pending.clear();
         }
         catch (Throwable t1) {
             ctx.fireExceptionCaught(t1);
         }
         finally {
+            // Release all retained references
+            releasePending();
             ch.pipeline().remove(this);
         }
     }
+
+    private void releasePending() {
+        pending.forEach(ReferenceCountUtil::release);
+        pending.clear();
+    }
+
 }
