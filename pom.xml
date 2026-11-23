@@ -90,7 +90,7 @@
         <azure.core.version>1.61.0</azure.core.version>
         <azure.core.http.netty.version>1.17.0</azure.core.http.netty.version>
         <lowkey.version>7.4.0</lowkey.version>
-        <bouncycastle.version>1.86</bouncycastle.version>
+        <bouncycastle.version>1.87</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.2</wiremock.version>
         <docker-java.version>3.7.1</docker-java.version>
