@@ -21,11 +21,11 @@ description: "Configure Maven to trust cached release artifacts without network 
 runs:
   using: "composite"
   steps:
-    - name: 'Write Maven settings with updatePolicy=never for central'
+    - name: 'Write updatePolicy=never to Maven global settings'
       shell: bash
       run: |
-        mkdir -p "$HOME/.m2"
-        cat > "$HOME/.m2/settings.xml" << 'EOF'
+        MAVEN_HOME=$(mvn --version | grep 'Maven home' | sed 's/Maven home: //')
+        cat > "${MAVEN_HOME}/conf/settings.xml" << 'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
         <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
