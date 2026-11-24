@@ -134,7 +134,6 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAVEN_ARGS:
       - name: SonarCloud scan on PR for the Proxy Core (legacy release branches)
         id: proxy_scan_legacy
         continue-on-error: true
@@ -189,7 +188,6 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAVEN_ARGS:
       - name: SonarCloud scan on PR for the Operator (legacy release branches)
         id: operator_scan_legacy
         continue-on-error: true
