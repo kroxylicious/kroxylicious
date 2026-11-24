@@ -7,11 +7,15 @@
 :_mod-docs-content-type: CONCEPT
 
 [id='con-configuring-vc-other-settings-{context}']
-= Configuring per-virtual cluster logging
+= Configuring other virtual cluster settings
 
 [role="_abstract"]
-You can enable low level logging on a per-virtual cluster basis.
-The `logNetwork` property controls logging of information about requests and responses at the network level, before they've been decoded into Kafka requests and responses.
+You can configure low-level logging and graceful connection draining on a per-virtual cluster basis.
+
+== Configuring per-virtual cluster logging
+
+You can enable low-level logging on a per-virtual cluster basis.
+The `logNetwork` property controls logging of information about requests and responses at the network level, before they have been decoded into Kafka requests and responses.
 The `logFrames` property controls logging of the decoded requests and responses.
 
 
@@ -31,4 +35,29 @@ where:
 
 * `logNetwork` enables low-level network logging for the virtual cluster.
 * `logFrames` enables low-level protocol frame logging for the virtual cluster.
+
+== Configuring connection draining timeout
+
+When a virtual cluster stops, such as during proxy shutdown, removal, or modified cluster reload, it gracefully drains existing client connections before closing them.
+During draining, the virtual cluster stops accepting new connections and waits for in-flight requests and responses to complete.
+The `drainTimeout` property specifies the maximum duration to wait for in-flight requests to complete before connections are forcefully closed.
+
+[id='con-configuring-vc-drain-timeout-{context}']
+.Configuration fragment showing the `drainTimeout` property
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    drainTimeout: 10s
+    # ...
+----
+where:
+
+* `drainTimeout` defines the maximum time period allowed for in-flight requests to complete during graceful connection draining for this virtual cluster.
+If omitted, the proxy default of `10s` is used.
+When specified, `drainTimeout` must be a positive duration (for example, `10s`, `500ms`).
+The value must be strictly less than the Netty shutdown timeout (`network.proxy.shutdownTimeout`, which defaults to `15s`), otherwise Netty force-close runs first and the per-connection drain timer never fires.
+
 
