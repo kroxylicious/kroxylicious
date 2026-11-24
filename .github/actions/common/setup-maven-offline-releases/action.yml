@@ -18,32 +18,51 @@
 name: "Setup Maven Offline Releases"
 description: "Configure Maven to trust cached release artifacts without network verification (updatePolicy=never)"
 
-outputs:
-  settings-path:
-    description: 'Path to generated settings.xml file'
-    value: ${{ steps.generate.outputs.settings-path }}
-
 runs:
   using: "composite"
   steps:
-    - name: 'Merge CI offline-releases policy into Maven settings'
-      id: generate
+    - name: 'Write Maven settings with updatePolicy=never for central'
       shell: bash
       run: |
-        SETTINGS_FILE="$HOME/.m2/settings.xml"
         mkdir -p "$HOME/.m2"
-
-        # If settings.xml doesn't exist, create a seed with empty profiles/activeProfiles
-        if [[ ! -f "$SETTINGS_FILE" ]]; then
-          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
-            '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' \
-            '  <profiles></profiles>' \
-            '  <activeProfiles></activeProfiles>' \
-            '</settings>' > "$SETTINGS_FILE"
-        fi
-
-        # Merge our ci-offline-releases profile into settings.xml using Python for robust XML handling
-        python3 "${{ github.workspace }}/scripts/merge-maven-profile.py" "$SETTINGS_FILE"
-
-        echo "settings-path=${SETTINGS_FILE}" >> "$GITHUB_OUTPUT"
-        echo "Configured Maven offline-releases policy in ${SETTINGS_FILE}"
+        cat > "$HOME/.m2/settings.xml" << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <profiles>
+            <profile>
+              <id>ci-offline-releases</id>
+              <repositories>
+                <repository>
+                  <id>central</id>
+                  <url>https://repo.maven.apache.org/maven2</url>
+                  <releases>
+                    <enabled>true</enabled>
+                    <updatePolicy>never</updatePolicy>
+                  </releases>
+                  <snapshots>
+                    <enabled>false</enabled>
+                  </snapshots>
+                </repository>
+              </repositories>
+              <pluginRepositories>
+                <pluginRepository>
+                  <id>central</id>
+                  <url>https://repo.maven.apache.org/maven2</url>
+                  <releases>
+                    <enabled>true</enabled>
+                    <updatePolicy>never</updatePolicy>
+                  </releases>
+                  <snapshots>
+                    <enabled>false</enabled>
+                  </snapshots>
+                </pluginRepository>
+              </pluginRepositories>
+            </profile>
+          </profiles>
+          <activeProfiles>
+            <activeProfile>ci-offline-releases</activeProfile>
+          </activeProfiles>
+        </settings>
+        EOF
