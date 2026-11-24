@@ -1,0 +1,4 @@
+title: "build(deps): bump org.jsoup:jsoup from 1.23.2 to 1.24.1"
+type: build
+merge_requests:
+  - 5390

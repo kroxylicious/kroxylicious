@@ -17,21 +17,24 @@ sealed interface OrderedKey<T>
 
     @Override
     default int compareTo(OrderedKey<T> o) {
-        var cmp = this.type().getName().compareTo(o.type().getName());
+        var cmp = 0;
         // any < equal < startswith
-        if (cmp == 0 && !this.getClass().equals(o.getClass())) {
+        if (!this.getClass().equals(o.getClass())) {
             if (this instanceof ResourceMatcherAnyOfType<T>) {
-                return -1;
+                cmp = -1;
             }
             else if (this instanceof ResourceMatcherNameStarts<T>) {
-                return 1;
+                cmp = 1;
             }
             else if (o instanceof ResourceMatcherAnyOfType<T>) {
-                return 1;
+                cmp = 1;
             }
             else if (o instanceof ResourceMatcherNameStarts<T>) {
-                return -1;
+                cmp = -1;
             }
+        }
+        if (cmp == 0) {
+            cmp = this.type().getName().compareTo(o.type().getName());
         }
         if (cmp == 0) {
             if (this.operand() == null) {

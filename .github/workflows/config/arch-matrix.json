@@ -4,27 +4,31 @@
     "default": true,
     "runs-on": "ubuntu-latest",
     "dist-profile": "dist,!qa",
-    "target-netty-classifier": "x86_64"
+    "target-netty-classifier": "x86_64",
+    "architecture-override": null
   },
   "arm64": {
     "enabled": true,
     "default": false,
     "runs-on": "ubuntu-24.04-arm",
     "dist-profile": "dist,aarch64,!qa",
-    "target-netty-classifier": "aarch_64"
+    "target-netty-classifier": "aarch_64",
+    "architecture-override": null
   },
   "ppc64le": {
-    "enabled": false,
+    "enabled": true,
     "default": false,
     "runs-on": "ubuntu-24.04-ppc64le",
     "dist-profile": "dist,ppc64le,!qa",
-    "target-netty-classifier": null
+    "target-netty-classifier": null,
+    "architecture-override": "ppc64le"
   },
   "s390x": {
-    "enabled": false,
+    "enabled": true,
     "default": false,
     "runs-on": "ubuntu-24.04-s390x",
     "dist-profile": "dist,s390x,!qa",
-    "target-netty-classifier": null
+    "target-netty-classifier": null,
+    "architecture-override": null
   }
 }

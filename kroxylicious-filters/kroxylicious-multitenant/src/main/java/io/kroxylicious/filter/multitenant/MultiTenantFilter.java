@@ -25,6 +25,9 @@ import io.kroxylicious.kafka.common.message.ConsumerGroupDescribeRequestData;
 import io.kroxylicious.kafka.common.message.ConsumerGroupDescribeResponseData;
 import io.kroxylicious.kafka.common.message.CreateTopicsRequestData;
 import io.kroxylicious.kafka.common.message.CreateTopicsResponseData;
+import io.kroxylicious.kafka.common.message.DeleteRecordsRequestData;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData;
+import io.kroxylicious.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsTopicResultCollection;
 import io.kroxylicious.kafka.common.message.DeleteTopicsRequestData;
 import io.kroxylicious.kafka.common.message.DeleteTopicsResponseData;
 import io.kroxylicious.kafka.common.message.DescribeConfigsRequestData;
@@ -73,6 +76,8 @@ import io.kroxylicious.proxy.filter.ConsumerGroupDescribeRequestFilter;
 import io.kroxylicious.proxy.filter.ConsumerGroupDescribeResponseFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
+import io.kroxylicious.proxy.filter.DeleteRecordsRequestFilter;
+import io.kroxylicious.proxy.filter.DeleteRecordsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DescribeConfigsRequestFilter;
@@ -131,6 +136,7 @@ class MultiTenantFilter
         implements ApiVersionsResponseFilter,
         CreateTopicsRequestFilter, CreateTopicsResponseFilter,
         DeleteTopicsRequestFilter, DeleteTopicsResponseFilter,
+        DeleteRecordsRequestFilter, DeleteRecordsResponseFilter,
         MetadataRequestFilter, MetadataResponseFilter,
         ProduceRequestFilter, ProduceResponseFilter,
         ListOffsetsRequestFilter, ListOffsetsResponseFilter,
@@ -199,6 +205,32 @@ class MultiTenantFilter
     public CompletionStage<ResponseFilterResult> onDeleteTopicsResponse(short apiVersion, ResponseHeaderData header, DeleteTopicsResponseData response,
                                                                         FilterContext context) {
         response.responses().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onDeleteRecordsRequest(short apiVersion, RequestHeaderData header, DeleteRecordsRequestData request,
+                                                                       FilterContext context) {
+        request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
+        return context.forwardRequest(header, request);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onDeleteRecordsResponse(short apiVersion, ResponseHeaderData header, DeleteRecordsResponseData response,
+                                                                         FilterContext context) {
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
+        var tenantTopics = new DeleteRecordsTopicResultCollection(response.topics().size());
+        var topics = response.topics().iterator();
+        while (topics.hasNext()) {
+            var topic = topics.next();
+            if (topic.name().startsWith(tenantPrefix)) {
+                // The topic name is the collection key, so remove the entry before renaming it.
+                topics.remove();
+                topic.setName(removeTenantPrefix(context, topic.name()));
+                tenantTopics.mustAdd(topic);
+            }
+        }
+        response.setTopics(tenantTopics);
         return context.forwardResponse(header, response);
     }
 

@@ -5,6 +5,126 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## 0.26.0
+
+* [#104](https://github.com/kroxylicious/kroxylicious/issues/104): feat(cert-rotation): automatic downstream TLS certificate and key reload for virtual cluster gateways
+* [#3032](https://github.com/kroxylicious/kroxylicious/issues/3032): Configure TLS subject builder through the Kubernetes Operator
+* [#3782](https://github.com/kroxylicious/kroxylicious/issues/3782): feat(api): expose client address and PROXY protocol context to filters ([Proposal 139](https://github.com/kroxylicious/design/blob/main/proposals/139-expose-client-address-to-filters.md))
+* [#4327](https://github.com/kroxylicious/kroxylicious/issues/4327): feat(runtime): make upstream connect timeout configurable
+* [#4605](https://github.com/kroxylicious/kroxylicious/issues/4605): feat(kms): added warning when using an HTTP KMS endpoint
+* [#4969](https://github.com/kroxylicious/kroxylicious/issues/4969): build: publish proxy, operator and admission webhook container images for linux/ppc64le and linux/s390x (the proxy uses the NIO transport on these architectures)
+* [#5118](https://github.com/kroxylicious/kroxylicious/issues/5118): feat(operator): add per-gateway PROXY protocol configuration to KafkaProxyIngress
+* [#5187](https://github.com/kroxylicious/kroxylicious/issues/5187): feat(pqc-kem): PQC key exchange for downstream client connections ([Design proposal 144: PQC support](https://github.com/kroxylicious/design/blob/main/proposals/144-pqc-support.md))
+* [#5188](https://github.com/kroxylicious/kroxylicious/issues/5188): feat(pqc-kem): PQC key exchange for upstream cluster connections ([Design proposal 144: PQC support](https://github.com/kroxylicious/design/blob/main/proposals/144-pqc-support.md))
+* [#5238](https://github.com/kroxylicious/kroxylicious/issues/5238): feat(authorizer-acl): add AclAuthorizerService.parse(String, ClassLoader) to resolve the classes a rules file imports with a given class loader
+* [#5346](https://github.com/kroxylicious/kroxylicious/pull/5346): feat(filters): add client and peer addresses to protocol logger
+* [#4920](https://github.com/kroxylicious/kroxylicious/issues/4920): Use per-run random seed for fidelity tests overridable via system property
+* [#5035](https://github.com/kroxylicious/kroxylicious/issues/5035): refactor(operator): replace deprecated Java Operator SDK APIs
+* [#5062](https://github.com/kroxylicious/kroxylicious/issues/5062): test(kms-vault): system test for authenticating to Vault with a Kubernetes ServiceAccount, and allow the Vault test-support facade to use an alternative, non-static-token authentication method
+* [#5263](https://github.com/kroxylicious/kroxylicious/pull/5263): move PROXY protocol configuration from global to per-gateway
+* [#5318](https://github.com/kroxylicious/kroxylicious/issues/5318): refactor: unify MockFilterContext across filter test suites
+* [#3609](https://github.com/kroxylicious/kroxylicious/pull/3609): remove LoopOverCharArray errorprone warnings
+* [#4589](https://github.com/kroxylicious/kroxylicious/issues/4589): build(chore): replace home-grown maven property `rootDir` with new maven standard `session.rootDirectory`. Needs maven 3.9.2+
+* [#5021](https://github.com/kroxylicious/kroxylicious/pull/5021): remove BooleanLiteral errorprone warnings
+* [#5022](https://github.com/kroxylicious/kroxylicious/pull/5022): remove CanonicalDuration errorprone warnings
+* [#5023](https://github.com/kroxylicious/kroxylicious/pull/5023): remove JdkObsolete errorprone warnings
+* [#5024](https://github.com/kroxylicious/kroxylicious/pull/5024): removed StringCaseLocalUsage errorprone warnings
+* [#5025](https://github.com/kroxylicious/kroxylicious/issues/5025): fix: resolve ErrorProne StringSplitter warnings by using explicit split limit
+* [#5026](https://github.com/kroxylicious/kroxylicious/pull/5026): fix: resolve ErrorProne UnnecessaryLambda warnings by replacing constant lambda expressions by method references
+* [#5027](https://github.com/kroxylicious/kroxylicious/pull/5027): fix: resolve ErrorProne UnnecessaryStringBuilder warnings
+* [#5028](https://github.com/kroxylicious/kroxylicious/pull/5028): remove ExposedPrivateType errorprone warnings
+* [#5043](https://github.com/kroxylicious/kroxylicious/issues/5043): fix(runtime): reject routers whose routes share a target cluster unless the router opts in
+* [#5155](https://github.com/kroxylicious/kroxylicious/pull/5155): fix: resolve ErrorProne DistinctVarargsChecker warnings by replacing Set.of() by List.of()
+* [#5156](https://github.com/kroxylicious/kroxylicious/issues/5156): fix: resolve ErrorProne EqualsIncompatibleType warnings by declaring different as the shared interface type BootstrapSelectionStrategy instead of var
+* [#5157](https://github.com/kroxylicious/kroxylicious/pull/5157): fix: resolve ErrorProne InlineMeSuggester warnings
+* [#5158](https://github.com/kroxylicious/kroxylicious/issues/5158): fix: resolve ErrorProne InvalidParam warnings
+* [#5159](https://github.com/kroxylicious/kroxylicious/pull/5159): fix: resolve ErrorProne MockNotUsedInProduction warnings
+* [#5161](https://github.com/kroxylicious/kroxylicious/issues/5161): fix: resolve ErrorProne TypeParameterUnusedInFormals warnings
+* [#5162](https://github.com/kroxylicious/kroxylicious/pull/5162): fix: resolve ErrorProne UnnecessaryAssignment warnings
+* [#5163](https://github.com/kroxylicious/kroxylicious/issues/5163): fix: resolve ErrorProne UnusedMethod warnings
+* [#5164](https://github.com/kroxylicious/kroxylicious/pull/5164): fix: resolve ErrorProne UnusedNestedClass warnings
+* [#5198](https://github.com/kroxylicious/kroxylicious/issues/5198): fix: translate topic and group resources in DescribeConfigs
+* [#5236](https://github.com/kroxylicious/kroxylicious/issues/5236): fix(authorizer-acl): keep regex escapes in 'matching' literals in ACL rules files
+* [#5244](https://github.com/kroxylicious/kroxylicious/issues/5244): fix: resolve several ErrorProne warnings: `AlmostJavadoc`, `BoxingComparator`, `ClassCanBeStatic`, `CollectionUndefinedEquality`, `DirectInvocationOnMock` and `DuplicateAssertion`
+* [#5245](https://github.com/kroxylicious/kroxylicious/issues/5245): fix: resolve several ErrorProne warnings: `InlineFormatString`, `InlineMeInliner`, `InlineTrivialConstant`, `InputStreamSlowMultibyteRead`, `JavaTimeDefaultTimeZone`, `JavaUtilDate` and `LoopOverCharArray`
+* [#5246](https://github.com/kroxylicious/kroxylicious/issues/5246): fix: resolve several ErrorProne warnings: `ModifiedButNotUsed`, `ModifyCollectionInEnhancedForLoop`, `ObjectEqualsForPrimitives`, `ObjectToString`, `StreamResourceLeak`, `UnusedTypeParameter` and `UnusedVariable`
+* [#5248](https://github.com/kroxylicious/kroxylicious/pull/5248): fix AclAuthorizer incorrectly using getClass() instead of getDeclaringClass() on enum constants
+* [#5267](https://github.com/kroxylicious/kroxylicious/issues/5267): fix(runtime): close plain client connections whose virtual cluster binding cannot be resolved
+* [#5272](https://github.com/kroxylicious/kroxylicious/issues/5272): fix: resolve ErrorProne warnings: `AvoidCommonTypeNames`, `HashCodeInObjectsHash`, `IfChainToSwitch`, `NullOptional` and `SameNameButDifferent`
+* [#5276](https://github.com/kroxylicious/kroxylicious/pull/5276): fix(runtime): release the buffers of decoded frames a filter discards
+* [#5314](https://github.com/kroxylicious/kroxylicious/issues/5314): fix(authorizer-acl): accept block comments in ACL rules files
+* [#5166](https://github.com/kroxylicious/kroxylicious/issues/5166): security(azure-kms): fix SSRF vulnerability in Azure Key Vault KMS provider ([GHSA-5j25-p663-ww5r](https://github.com/kroxylicious/kroxylicious/security/advisories/GHSA-5j25-p663-ww5r))
+* [#5202](https://github.com/kroxylicious/kroxylicious/pull/5202): build(deps): bump kafka from 4.3.1 to 4.3.2
+* [#5235](https://github.com/kroxylicious/kroxylicious/issues/5235): fix(authorizer-acl): prefix rules match only principals and resources of their own type, and overlapping prefix rules all apply
+* [#5013](https://github.com/kroxylicious/kroxylicious/pull/5013): build(deps): bump com.github.ben-manes.caffeine:caffeine from 3.2.4 to 3.3.0
+* [#5068](https://github.com/kroxylicious/kroxylicious/pull/5068): build(deps): bump org.xerial.snappy:snappy-java from 1.1.10.8 to 1.1.10.11
+* [#5069](https://github.com/kroxylicious/kroxylicious/pull/5069): build(deps): bump io.sundr:builder-annotations from 0.300.0 to 0.400.1
+* [#5071](https://github.com/kroxylicious/kroxylicious/pull/5071): build(deps): bump netty.version from 4.2.18.Final to 4.2.19.Final
+* [#5076](https://github.com/kroxylicious/kroxylicious/pull/5076): build(deps-dev): bump com.azure:azure-core from 1.59.1 to 1.60.0
+* [#5077](https://github.com/kroxylicious/kroxylicious/pull/5077): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.6.0 to 5.6.2
+* [#5078](https://github.com/kroxylicious/kroxylicious/pull/5078): build(deps): bump org.mockito:mockito-bom from 5.23.0 to 5.24.0
+* [#5124](https://github.com/kroxylicious/kroxylicious/pull/5124): build(deps): bump org.xerial.snappy:snappy-java from 1.1.10.11 to 1.1.10.12
+* [#5125](https://github.com/kroxylicious/kroxylicious/pull/5125): build(deps): bump com.github.ben-manes.caffeine:caffeine from 3.3.0 to 3.3.1
+* [#5127](https://github.com/kroxylicious/kroxylicious/pull/5127): build(deps): bump io.strimzi:api from 1.2.0 to 1.3.0
+* [#5129](https://github.com/kroxylicious/kroxylicious/pull/5129): build(deps): bump com.azure:azure-security-keyvault-keys from 4.11.1 to 4.11.3
+* [#5131](https://github.com/kroxylicious/kroxylicious/pull/5131): build(deps): bump org.apache.maven.plugin-tools:maven-plugin-annotations from 3.15.2 to 3.16.0
+* [#5132](https://github.com/kroxylicious/kroxylicious/pull/5132): build(deps): bump io.prometheus:prometheus-metrics-bom from 1.8.0 to 1.9.0
+* [#5133](https://github.com/kroxylicious/kroxylicious/pull/5133): build(deps): bump com.github.luben:zstd-jni from 1.5.7-20 to 1.5.7-23
+* [#5151](https://github.com/kroxylicious/kroxylicious/pull/5151): build(deps): bump org.apache.maven:maven-plugin-api from 3.9.16 to 3.10.0
+* [#5152](https://github.com/kroxylicious/kroxylicious/pull/5152): build(deps): bump com.github.spotbugs:spotbugs-annotations from 4.10.4 to 4.10.5
+* [#5153](https://github.com/kroxylicious/kroxylicious/pull/5153): build(deps): bump io.prometheus:prometheus-metrics-bom from 1.9.0 to 1.10.0
+* [#5207](https://github.com/kroxylicious/kroxylicious/pull/5207): build(deps-dev): bump net.javacrumbs.json-unit:json-unit-assertj from 6.2.0 to 6.3.0
+* [#5208](https://github.com/kroxylicious/kroxylicious/pull/5208): build(deps): bump com.github.luben:zstd-jni from 1.5.7-23 to 1.5.7-24
+* [#5214](https://github.com/kroxylicious/kroxylicious/pull/5214): build(deps): bump tools.profiler:async-profiler from 4.5 to 4.6
+* [#5215](https://github.com/kroxylicious/kroxylicious/pull/5215): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.22.3 to 2.22.4
+* [#5251](https://github.com/kroxylicious/kroxylicious/pull/5251): build(deps): bump com.github.luben:zstd-jni from 1.5.7-24 to 1.5.7-25
+* [#5252](https://github.com/kroxylicious/kroxylicious/pull/5252): build(deps): bump at.yawk.lz4:lz4-java from 1.12.0 to 1.12.1
+* [#5254](https://github.com/kroxylicious/kroxylicious/pull/5254): build(deps): bump errorprone.version from 2.50.0 to 2.51.0
+* [#5257](https://github.com/kroxylicious/kroxylicious/pull/5257): build(deps): bump io.micrometer:micrometer-bom from 1.17.1 to 1.17.2
+* [#5258](https://github.com/kroxylicious/kroxylicious/pull/5258): build(deps-dev): bump net.javacrumbs.json-unit:json-unit-assertj from 6.3.0 to 6.4.0
+* [#5302](https://github.com/kroxylicious/kroxylicious/pull/5302): build(deps): bump apicurio-registry.version from 3.3.3 to 3.3.4
+* [#5304](https://github.com/kroxylicious/kroxylicious/pull/5304): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.6.2 to 5.6.3
+* [#5306](https://github.com/kroxylicious/kroxylicious/pull/5306): build(deps): bump errorprone.version from 2.51.0 to 2.52.0
+* [#5307](https://github.com/kroxylicious/kroxylicious/pull/5307): build(deps): bump com.google.guava:guava from 33.7.2-jre to 33.8.0-jre
+* [#5308](https://github.com/kroxylicious/kroxylicious/pull/5308): build(deps): bump netty.version from 4.2.19.Final to 4.2.20.Final
+* [#5334](https://github.com/kroxylicious/kroxylicious/pull/5334): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.6.3 to 5.6.4
+* [#5335](https://github.com/kroxylicious/kroxylicious/pull/5335): build(deps): bump com.github.luben:zstd-jni from 1.5.7-25 to 1.5.7-26
+* [#5336](https://github.com/kroxylicious/kroxylicious/pull/5336): build(deps): bump graalvm.version from 25.4.4.1.1 to 25.5.5.0.3
+
+### Changes, deprecations and removals
+
+* [#104](https://github.com/kroxylicious/kroxylicious/issues/104): Known limitation: certificate reload relies on file-change notifications from the operating system.
+  If Kroxylicious runs in a container on a virtual machine and the certificate files are supplied through a bind mount from the host, a change made on the host might not raise a notification inside the virtual machine, and the proxy continues to serve the previous certificate.
+  Making the change from inside the container, or restarting the proxy, works around this.
+* [#3782](https://github.com/kroxylicious/kroxylicious/issues/3782): `FilterContext` now exposes the client's network address to filters through three accessors:
+  `clientAddress()` (the PROXY protocol source address if present, otherwise the immediate transport peer),
+  `peerAddress()` (the immediate transport peer, e.g. a load balancer) and `clientProxyProtocolContext()`.
+  * Source-incompatible for code that implements `FilterContext` directly (for example a hand-rolled
+    test double): the three new accessors are abstract methods, so such implementations must add them
+    before they will recompile. Filters that only consume a `FilterContext` need no changes.
+  * `kroxylicious-filter-test-support`: `MockFilterContext` implements the new accessors. Its builder
+    gains `withPeerAddress(...)` and `withClientProxyProtocolContext(...)`, and `DEFAULT_PEER_ADDRESS`
+    is the peer address reported unless overridden.
+* [#5187](https://github.com/kroxylicious/kroxylicious/issues/5187): Support for the PQC algorithms is provided by the JDK and varies by provider and version prior to Java 27.
+  * A gateway's downstream TLS can now set a 'namedGroups' attribute with 'allowed' and 'denied' lists, where the order of 'allowed' sets the key exchange preference.
+  * A 'denied' list given without an 'allowed' list prunes the JDK's default named groups. As those defaults aren't exposed by every JDK provider or version, such a configuration is rejected at startup where they're unavailable, so an 'allowed' list should be specified in that case.
+* [#5188](https://github.com/kroxylicious/kroxylicious/issues/5188): Support for the PQC algorithms is provided by the JDK and varies by provider and version prior to Java 27.
+  * A cluster's upstream TLS can now set a 'namedGroups' attribute with 'allowed' and 'denied' lists, where the order of 'allowed' sets the key exchange preference.
+  * A 'denied' list given without an 'allowed' list prunes the JDK's default named groups. As those defaults aren't exposed by every JDK provider or version, such a configuration is rejected at startup where they're unavailable, so an 'allowed' list should be specified in that case.
+* [#5346](https://github.com/kroxylicious/kroxylicious/pull/5346): The protocol logger filter now includes `clientAddress` and `peerAddress` in both the JSON
+  message body and structured logging output. IPv6 addresses are formatted with brackets per
+  RFC 3986 (e.g., `[2001:db8::1]:9092`), while IPv4 addresses use standard notation (e.g.,
+  `192.168.1.100:9092`).
+* [#5035](https://github.com/kroxylicious/kroxylicious/issues/5035): Operator metrics now use the Java Operator SDK MicrometerMetricsV2 names and labels.
+  Update dashboards and alerts that use the previous operator_sdk_ metrics.
+  Metrics are grouped by controller, with a namespace label on event and reconciliation counters;
+  metrics for individual resources are no longer collected.
+  See the operator metrics documentation for migration examples.
+* [#5263](https://github.com/kroxylicious/kroxylicious/pull/5263): Breaking change: the `proxyProtocol` configuration block has moved from the top-level proxy configuration to the individual `virtualClusters[].gateways[]` level. The `allowed` (auto-detect) mode has been removed and the `disabled` mode has been replaced by `forbidden`, which is now the default. Update your configuration by moving the `proxyProtocol` block inside each gateway that requires it, replacing any `disabled` mode with `forbidden`.
+* [#4589](https://github.com/kroxylicious/kroxylicious/issues/4589): Maven 3.9.2+ required from now on. Please update your tool chain in line with the change
+* [#5236](https://github.com/kroxylicious/kroxylicious/issues/5236): **Behaviour change**: in a `matching /…/` literal, a backslash before any character other than `/` or `\` is now kept as part of the regular expression. `/orders\.v1/` now matches only `orders.v1`; previously the backslash was dropped, so it also matched `ordersXv1`. Patterns written with doubled backslashes (`/orders\\.v1/`) are unchanged.
+* [#5166](https://github.com/kroxylicious/kroxylicious/issues/5166): Azure Key Vault KMS provider now validates the vaultName field in Encrypted Data Encryption Keys (EDEKs) to prevent Server-Side Request Forgery (SSRF) attacks.
+
 ## 0.25.0
 
 * [#3758](https://github.com/kroxylicious/kroxylicious/issues/3758): feat(operator): support dedicated ServiceAccounts for proxy pods
