@@ -127,7 +127,7 @@ jobs:
 
       - name: 'Configure Maven offline releases'
         id: configure-maven-artifact-cache
-        uses: ./.github/actions/common/setup-maven-offline-releases
+        uses: ./.github/actions/common/configure-maven-artifact-cache
 
       # Matrix object keys use underscores: GitHub expressions parse `matrix.runs-on`
       # as a subtraction, so hyphenated keys cannot be read in `${{ }}`. The

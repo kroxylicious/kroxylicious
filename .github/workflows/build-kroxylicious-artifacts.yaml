@@ -43,7 +43,7 @@ jobs:
         uses: ./.github/actions/common/cache-maven-packages
       - name: 'Configure Maven offline releases'
         id: configure-maven-artifact-cache
-        uses: ./.github/actions/common/setup-maven-offline-releases
+        uses: ./.github/actions/common/configure-maven-artifact-cache
       - name: 'Build Kroxylicious maven artifacts'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
