@@ -114,6 +114,9 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: 'Cache Maven packages'
         uses: $/.github/actions/common/cache-maven-packages
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: $/.github/actions/common/configure-maven-artifact-cache
       - name: 'Download Kroxylicious Maven artifacts'
         uses: dawidd6/action-download-artifact@a92c7ae74cf1df8810783758581e485ac3aaa309
         with:

@@ -107,6 +107,10 @@ jobs:
       - name: 'Cache Maven packages'
         uses: $/.github/actions/common/cache-maven-packages
 
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: ./.github/actions/common/configure-maven-artifact-cache
+
       - name: 'Set up Java'
         uses: $/.github/actions/common/setup-java
         with:

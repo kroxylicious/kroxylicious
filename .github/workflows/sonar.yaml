@@ -110,6 +110,10 @@ jobs:
       - name: 'Cache Maven packages'
         if: github.event.workflow_run.event != 'merge_group'
         uses: $/.github/actions/common/cache-maven-packages
+      - name: 'Configure Maven offline releases'
+        if: github.event.workflow_run.event != 'merge_group'
+        id: configure-maven-artifact-cache
+        uses: $/.github/actions/common/configure-maven-artifact-cache
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ steps.check_sonar.outputs.token_set == 'true' && github.event.workflow_run.event != 'merge_group' }}

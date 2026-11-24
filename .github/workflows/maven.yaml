@@ -93,7 +93,7 @@ jobs:
         # profiles (proxy-core, runtime-plugins, supplementary, kubernetes-management) are omitted: they're
         # redundant with build-the-world, which is already active by default here.
         run: >
-          mvn dependency:go-offline -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q
+          mvn dependency:go-offline dependency:resolve-plugins -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q
           -P ci
           -P debug
           -P dist

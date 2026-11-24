@@ -63,6 +63,9 @@ jobs:
       - name: 'Cache Maven packages'
         # zizmor: ignore[cache-poisoning] — read-only by default; PRs never write to cache.
         uses: $/.github/actions/common/cache-maven-packages
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: $/.github/actions/common/configure-maven-artifact-cache
       - name: Cache SonarCloud packages
         # zizmor: ignore[cache-poisoning] — gated to push-to-main only; PRs never reach this step.
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
