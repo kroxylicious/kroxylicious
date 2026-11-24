@@ -28,8 +28,10 @@ description: "Configure Maven to trust cached release artifacts without network 
 # traffic and the 429 errors it causes.
 #
 # The profile is written to Maven's global settings (MAVEN_HOME/conf/settings.xml) rather than
-# the user settings (~/.m2/settings.xml). Maven merges both, so this coexists safely with any
-# user settings.xml that setup-java may write for server credentials.
+# the user settings (~/.m2/settings.xml). Maven merges both files, so the updatePolicy takes
+# effect regardless of what is in user settings. It also leaves ~/.m2/settings.xml entirely free
+# for other actions (e.g. setup-java writing server credentials for release workflows) to manage
+# without any risk of conflict or ordering dependency between this action and those actions.
 
 runs:
   using: "composite"
