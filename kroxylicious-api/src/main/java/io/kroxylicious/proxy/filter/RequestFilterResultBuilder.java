@@ -48,6 +48,9 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * the error's default message, either at the top level of the response (if the API for the
      * response has a global error code), or for all entities given in the request (if the API for
      * the response has only per-entity error codes).
+     * <p>If the request expects no response (e.g. a Produce with {@code acks=0}), no error can be
+     * conveyed to the client, so the request is dropped rather than forwarded. A subsequent
+     * {@link CloseOrTerminalStage#withCloseConnection()} still closes the connection.</p>
      * @param header the headers from the request
      * @param requestMessage the API request message to generate an error in response too.
      * @param error the error to convey to the client; its {@link Errors#code() code} is set on the
@@ -68,6 +71,9 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * the given message, either at the top level of the response (if the API for the response has a
      * global error code), or for all entities given in the request (if the API for the response has
      * only per-entity error codes).
+     * <p>If the request expects no response (e.g. a Produce with {@code acks=0}), no error can be
+     * conveyed to the client, so the request is dropped rather than forwarded. A subsequent
+     * {@link CloseOrTerminalStage#withCloseConnection()} still closes the connection.</p>
      * @param header the headers from the request
      * @param requestMessage the API request message to generate an error in response too.
      * @param error the error to convey to the client; its {@link Errors#code() code} is set on the

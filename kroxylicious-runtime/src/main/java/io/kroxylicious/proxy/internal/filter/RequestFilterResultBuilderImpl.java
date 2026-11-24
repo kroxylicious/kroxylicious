@@ -84,6 +84,12 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
                                                                                 @Nullable String message) {
         ApiKeys apiKey = ApiKeys.forId(requestMessage.apiKey());
         final ApiMessage errorResponseMessage = KafkaProxyExceptionMapper.errorResponseData(apiKey, requestMessage, header.requestApiVersion(), error, message);
+        if (errorResponseMessage == null) {
+            // The request expects no response (e.g. a Produce with acks=0), so the client isn't waiting for an
+            // error. Drop the request rather than forwarding it.
+            drop();
+            return this;
+        }
         validateShortCircuitResponse(errorResponseMessage);
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());
