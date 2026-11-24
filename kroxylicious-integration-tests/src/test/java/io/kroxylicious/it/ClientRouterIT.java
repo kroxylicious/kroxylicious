@@ -177,7 +177,14 @@ class ClientRouterIT {
                     .succeedsWithin(Duration.ofSeconds(10));
         }
 
-        // Then: only route-a's (alice's) traffic passed through the filter attached to route-a
+        // Then: alice's traffic reached cluster-a and passed through route-a's filter;
+        // carol's traffic reached cluster-b and bypassed it
+        assertThat(consumeFrom(clusterA, "t5-verify-a"))
+                .extracting(ConsumerRecord::key)
+                .containsExactly("t5-alice-key");
+        assertThat(consumeFrom(clusterB, "t5-verify-b"))
+                .extracting(ConsumerRecord::key)
+                .containsExactly("t5-carol-key");
         assertThat(ProduceCountingFilter.countFor(counterId)).isEqualTo(1);
     }
 
