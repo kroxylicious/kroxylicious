@@ -18,6 +18,19 @@
 name: "Setup Maven Offline Releases"
 description: "Configure Maven to trust cached release artifacts without network verification (updatePolicy=never)"
 
+# Downstream CI workflows (documentation-tests, integration-tests, system-tests, etc.) run in
+# parallel after maven.yaml has warmed the Maven package cache. Even with a warm cache, Maven
+# contacts Maven Central to verify that cached release artifacts are still current, which
+# triggers HTTP 429 rate-limit errors when many jobs run simultaneously.
+#
+# Setting updatePolicy=never for release repositories tells Maven to trust whatever is in the
+# local cache without re-verifying against the remote, eliminating the unnecessary network
+# traffic and the 429 errors it causes.
+#
+# The profile is written to Maven's global settings (MAVEN_HOME/conf/settings.xml) rather than
+# the user settings (~/.m2/settings.xml). Maven merges both, so this coexists safely with any
+# user settings.xml that setup-java may write for server credentials.
+
 runs:
   using: "composite"
   steps:
