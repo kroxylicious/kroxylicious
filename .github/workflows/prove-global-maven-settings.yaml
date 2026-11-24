@@ -1,0 +1,99 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: "Prove global Maven settings approach"
+on:
+  workflow_dispatch:
+
+jobs:
+  prove-global-settings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: 'Setup Java'
+        uses: ./.github/actions/common/setup-java
+
+      - name: 'Show Maven home and existing global settings'
+        run: |
+          MAVEN_HOME=$(mvn --version | grep 'Maven home' | sed 's/Maven home: //')
+          echo "Maven home: ${MAVEN_HOME}"
+          echo "--- Existing global settings ---"
+          cat "${MAVEN_HOME}/conf/settings.xml"
+
+      - name: 'Write updatePolicy=never to Maven global settings'
+        run: |
+          MAVEN_HOME=$(mvn --version | grep 'Maven home' | sed 's/Maven home: //')
+          GLOBAL_SETTINGS="${MAVEN_HOME}/conf/settings.xml"
+          cat > "${GLOBAL_SETTINGS}" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <profiles>
+              <profile>
+                <id>ci-offline-releases</id>
+                <repositories>
+                  <repository>
+                    <id>central</id>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                    <releases>
+                      <enabled>true</enabled>
+                      <updatePolicy>never</updatePolicy>
+                    </releases>
+                    <snapshots>
+                      <enabled>false</enabled>
+                    </snapshots>
+                  </repository>
+                </repositories>
+                <pluginRepositories>
+                  <pluginRepository>
+                    <id>central</id>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                    <releases>
+                      <enabled>true</enabled>
+                      <updatePolicy>never</updatePolicy>
+                    </releases>
+                    <snapshots>
+                      <enabled>false</enabled>
+                    </snapshots>
+                  </pluginRepository>
+                </pluginRepositories>
+              </profile>
+            </profiles>
+            <activeProfiles>
+              <activeProfile>ci-offline-releases</activeProfile>
+            </activeProfiles>
+          </settings>
+          EOF
+          echo "Written to: ${GLOBAL_SETTINGS}"
+
+      - name: 'Effective settings — no user settings.xml (test workflow case)'
+        run: mvn --batch-mode help:effective-settings | grep -A5 'ci-offline-releases\|updatePolicy'
+
+      - name: 'Setup Java with server credentials (simulates release workflow)'
+        uses: ./.github/actions/common/setup-java
+        with:
+          server-id: central
+          server-username: SONATYPE_TOKEN_USERNAME
+          server-password: SONATYPE_TOKEN_PASSWORD
+        env:
+          SONATYPE_TOKEN_USERNAME: test-user
+          SONATYPE_TOKEN_PASSWORD: test-password
+
+      - name: 'Effective settings — with user settings.xml (release workflow case)'
+        run: mvn --batch-mode help:effective-settings | grep -A5 'ci-offline-releases\|updatePolicy\|test-user'
