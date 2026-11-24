@@ -107,7 +107,7 @@ jobs:
         uses: ./.github/actions/common/cache-maven-packages
 
       - name: 'Configure Maven offline releases'
-        id: maven-settings
+        id: configure-maven-artifact-cache
         uses: ./.github/actions/common/setup-maven-offline-releases
 
       - name: 'Cache crc cache'
