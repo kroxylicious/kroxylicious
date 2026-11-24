@@ -125,15 +125,15 @@ public class NettyKeyProvider {
     }
 
     private void validateKeyStore(java.security.KeyStore keyStore, @Nullable char[] keyPassword, String storeFile) throws GeneralSecurityException {
+        if (keyPassword == null && "PKCS12".equalsIgnoreCase(keyStore.getType())) {
+            throw new UnrecoverableKeyException("Key entries in PKCS12 keystore cannot be recovered without a password");
+        }
         Enumeration<String> aliases = keyStore.aliases();
         boolean hasKeyEntry = false;
         while (aliases.hasMoreElements()) {
             String alias = aliases.nextElement();
             if (keyStore.isKeyEntry(alias)) {
                 hasKeyEntry = true;
-                if (keyPassword == null && "PKCS12".equalsIgnoreCase(keyStore.getType())) {
-                    throw new UnrecoverableKeyException("Key entry '" + alias + "' cannot be recovered without a password");
-                }
                 var key = keyStore.getKey(alias, keyPassword);
                 if (key == null) {
                     throw new UnrecoverableKeyException("Key for alias '" + alias + "' could not be recovered from keystore");
