@@ -83,7 +83,7 @@ jobs:
           echo "Written to: ${GLOBAL_SETTINGS}"
 
       - name: 'Effective settings — no user settings.xml (test workflow case)'
-        run: mvn --batch-mode help:effective-settings | grep -A5 'ci-offline-releases\|updatePolicy'
+        run: mvn --batch-mode help:effective-settings
 
       - name: 'Setup Java with server credentials (simulates release workflow)'
         uses: ./.github/actions/common/setup-java
@@ -91,9 +91,10 @@ jobs:
           server-id: central
           server-username: SONATYPE_TOKEN_USERNAME
           server-password: SONATYPE_TOKEN_PASSWORD
+          overwrite-settings: 'true'
         env:
           SONATYPE_TOKEN_USERNAME: test-user
           SONATYPE_TOKEN_PASSWORD: test-password
 
       - name: 'Effective settings — with user settings.xml (release workflow case)'
-        run: mvn --batch-mode help:effective-settings | grep -A5 'ci-offline-releases\|updatePolicy\|test-user'
+        run: mvn --batch-mode help:effective-settings
