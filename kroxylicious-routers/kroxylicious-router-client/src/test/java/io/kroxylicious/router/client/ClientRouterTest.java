@@ -99,6 +99,18 @@ class ClientRouterTest {
     }
 
     @Test
+    void initializeThrowsWhenRuleHasClientIdButNoRoute() {
+        // Given
+        Rule rule = new Rule("alice", null);
+        Config config = new Config(List.of(rule));
+
+        // When / Then
+        assertThatThrownBy(() -> router.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("routingRules entry needs useRoute");
+    }
+
+    @Test
     void initializeThrowsWhenTwoClientIdOnlyRulesHaveIdenticalPredicates() {
         // Given
         when(context.routeNames()).thenReturn(Set.of("team-a", "team-b"));
