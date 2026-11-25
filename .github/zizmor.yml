@@ -104,9 +104,6 @@ rules:
     ignore:
       - kubernetes-modules-maven.yaml
       - maven.yaml
-  ref-version-mismatch:
-    ignore:
-      - action.yml
   secrets-inherit:
     ignore:
       - robot-command-dispatcher.yaml
