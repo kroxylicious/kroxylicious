@@ -504,9 +504,12 @@ public class ClientConnectionStateMachine {
      * @param msg the message being written to the client
      */
     void onBeforeClientResponse(Object msg) {
-        if (!(msg instanceof InternalResponseFrame<?>)) {
-            decrementInFlightCount();
+        if (msg instanceof InternalResponseFrame<?>) {
+            throw new IllegalStateException(
+                    "onBeforeClientResponse received an unexpected response " + msg.getClass()
+                            + ". This is indicative of a problem with the delivery of responses to internally generated requests to their originator.");
         }
+        decrementInFlightCount();
     }
 
     private void decrementInFlightCount() {

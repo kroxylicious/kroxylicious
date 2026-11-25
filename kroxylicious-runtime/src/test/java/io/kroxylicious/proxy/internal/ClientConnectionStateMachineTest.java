@@ -1956,6 +1956,22 @@ class ClientConnectionStateMachineTest {
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }
 
+        @Test
+        void onBeforeClientResponseShouldThrowOnInternalResponseFrame() {
+            // Given
+            stateMachineInForwarding();
+            var irf = new InternalResponseFrame<>(
+                    ApiVersionsResponseData.HIGHEST_SUPPORTED_VERSION,
+                    1,
+                    new ResponseHeaderData(),
+                    new ApiVersionsResponseData());
+
+            // When / Then
+            assertThatThrownBy(() -> clientConnectionStateMachine.onBeforeClientResponse(irf))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("unexpected response");
+        }
+
         /**
          * Drives a request through {@code onClientRequest} while in Forwarding to bump
          * the internal client-in-flight counter by one. {@code admitToFilterChain} is

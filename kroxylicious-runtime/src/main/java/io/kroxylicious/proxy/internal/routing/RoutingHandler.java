@@ -596,6 +596,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                  short apiVersion,
                                  int correlationId,
                                  long sequence) {
+        // Branches that call deliverResponseFrame() write a response back to the client, where
+        // ClientConnectionStateMachine.onBeforeClientResponse() decrements the in-flight count.
+        // Terminal branches that send no frame to the client must call notifyRequestComplete() here
+        // so the in-flight count does not leak.
         switch (rri) {
             case RouterResponseImpl.RespondWith rw -> {
                 ResponseHeaderData header = rw.header() != null ? rw.header() : new ResponseHeaderData();
