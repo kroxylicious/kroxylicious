@@ -62,6 +62,7 @@ jobs:
         with:
           path: kroxylicious
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
+          persist-credentials: false
 
       - name: Setup Java
         uses: $/.github/actions/common/setup-java
@@ -80,6 +81,7 @@ jobs:
           path: kroxylicious.github.io
           repository: kroxylicious/kroxylicious.github.io
           ref: main
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069

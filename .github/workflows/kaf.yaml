@@ -40,6 +40,7 @@ jobs:
         with:
           repository:  ${{ github.event.inputs.repository }}
           ref: ${{ github.event.inputs.ref }}
+          persist-credentials: false
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
       - name: Set up Docker Buildx

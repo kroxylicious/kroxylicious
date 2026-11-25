@@ -35,6 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          persist-credentials: false
 
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
@@ -95,6 +96,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          persist-credentials: false
 
       - name: 'Send help'
         env:

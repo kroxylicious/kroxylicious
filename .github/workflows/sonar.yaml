@@ -80,6 +80,7 @@ jobs:
           ref: ${{env.SANITIZED_HEAD_REF}}
           fetch-depth: 0
           allow-unsafe-pr-checkout: true
+          persist-credentials: false
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         run: |

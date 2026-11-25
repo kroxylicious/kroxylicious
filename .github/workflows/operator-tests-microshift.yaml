@@ -99,6 +99,7 @@ jobs:
           # fork code carries risk. The mitigation here is requiring maintainer approval before
           # this workflow runs for contributions from new contributors.
           allow-unsafe-pr-checkout: true
+          persist-credentials: false
 
       - name: Setup Java
         uses: ./.github/actions/common/setup-java

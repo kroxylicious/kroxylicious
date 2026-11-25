@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.kroxylicious_ref }}
+          persist-credentials: false
 
       - name: Resolve OMB commit SHA
         id: omb
