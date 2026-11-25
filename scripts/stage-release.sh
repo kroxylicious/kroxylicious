@@ -17,7 +17,7 @@ BRANCH_FROM="main"
 WORK_BRANCH_NAME="release-work-$(openssl rand -hex 12)"
 RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
 CHANGELOG_LINK_PREFIX="https://github.com/kroxylicious/kroxylicious"
-while getopts ":l:v:b:k:r:n:w:c:h" opt; do
+while getopts ":l:v:b:r:n:w:c:h" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
@@ -27,8 +27,6 @@ while getopts ":l:v:b:k:r:n:w:c:h" opt; do
     ;;
     r) REPOSITORY="${OPTARG}"
     ;;
-    k) GPG_KEY="${OPTARG}"
-    ;;
     l) RELCAND_ID_LABEL="${OPTARG}"
     ;;
     w) WORK_BRANCH_NAME="${OPTARG}"
@@ -37,8 +35,7 @@ while getopts ":l:v:b:k:r:n:w:c:h" opt; do
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-c changelog-link-prefix] [-h]
- -k short key id used to sign the release
+usage: $0 -v version -l relcand-label [-b branch] [-r repository] [-c changelog-link-prefix] [-h]
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
  -n development version e.g. 0.4.0-SNAPSHOT
@@ -61,8 +58,10 @@ if [[ -z "${RELCAND_ID_LABEL}" ]]; then
     exit 1
 fi
 
+GPG_KEY=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}' | head -n 1)
+
 if [[ -z "${GPG_KEY}" ]]; then
-    echo "GPG_KEY not set unable to sign the release. Please specify -k <YOUR_GPG_KEY>" 1>&2
+    echo "No GPG signing key found in the keyring, unable to sign the release." 1>&2
     exit 1
 fi
 
