@@ -9,8 +9,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   Sonar:
+    permissions:
+      contents: read
+      actions: read        # download PR_NUMBER artifact from the triggering run
+      pull-requests: read  # look up PR metadata
+      checks: write        # report scan status as check runs
     runs-on: ubuntu-latest
     if: github.event.workflow_run && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'merge_group')
     steps:

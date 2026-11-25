@@ -36,8 +36,13 @@ on:
         description: 'Next development version (e.g. 0.25.1-SNAPSHOT). Patch version incremented automatically if omitted.'
         required: false
 
+permissions:
+  contents: read
+
 jobs:
   create-release-branch:
+    permissions:
+      contents: write  # push the release branch when falling back to github.token
     runs-on: ubuntu-latest
 
     steps:

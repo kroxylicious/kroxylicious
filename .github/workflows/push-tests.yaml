@@ -20,15 +20,24 @@ on:
   push:
     branches: [ main, 'release/**' ]
 
+permissions:
+  contents: read
+
 jobs:
   build_artifacts:
     uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
 
   integration_tests:
+    permissions:
+      contents: read
+      actions: read   # download artifacts / list jobs of this run
     needs: build_artifacts
     uses: ./.github/workflows/integration-tests.yaml
 
   documentation_tests:
+    permissions:
+      contents: read
+      actions: read   # download artifacts of this run
     needs: build_artifacts
     uses: ./.github/workflows/documentation-tests.yml
 
@@ -66,6 +75,10 @@ jobs:
               - '!kroxylicious-wire-fidelity-tests/**'
 
   system_tests:
+    permissions:
+      contents: read
+      actions: read   # download artifacts / list jobs of this run
+      checks: write   # dorny/test-reporter
     needs: [build_artifacts,changes_for_system_tests]
     if: ${{ needs.changes_for_system_tests.outputs.systemtest == 'true' }}
     uses: ./.github/workflows/system-tests-merge.yaml

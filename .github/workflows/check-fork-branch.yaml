@@ -27,6 +27,8 @@ on:
     types: [ opened, synchronize, reopened ]
   merge_group:
 
+permissions: {}
+
 jobs:
   build:
     runs-on: ubuntu-latest

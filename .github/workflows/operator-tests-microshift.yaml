@@ -47,8 +47,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   preflight:
+    permissions: {}
     name: Preflight checks
     runs-on: ubuntu-latest
     outputs:

@@ -28,22 +28,36 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build_artifacts:
     if: github.event_name != 'merge_group'
     uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
 
   integration_test_pr:
+    permissions:
+      contents: read
+      actions: read   # download artifacts / list jobs of this run
     if: github.event_name != 'merge_group'
     needs: build_artifacts
     uses: ./.github/workflows/integration-tests.yaml
 
   documentation_tests:
+    permissions:
+      contents: read
+      actions: read   # download artifacts of this run
     if: github.event_name != 'merge_group'
     needs: build_artifacts
     uses: ./.github/workflows/documentation-tests.yml
 
   system_tests_pr:
+    permissions:
+      contents: read
+      actions: read   # download artifacts / list jobs of this run
+      checks: write   # dorny/test-reporter
+      pull-requests: read  # dorny/paths-filter
     if: github.event_name != 'merge_group'
     needs: build_artifacts
     uses: ./.github/workflows/system-tests-pr.yaml

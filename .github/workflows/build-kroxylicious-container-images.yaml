@@ -94,6 +94,9 @@ on:
 env:
   ARCH_MATRIX_FILE: .github/workflows/config/arch-matrix.json
 
+permissions:
+  contents: read
+
 jobs:
   prepare:
     runs-on: ubuntu-latest

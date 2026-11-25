@@ -22,6 +22,8 @@ on:
     paths:
       - 'CHANGELOG.md'
 
+permissions: {}
+
 jobs:
   check-changelog:
     runs-on: ubuntu-latest
