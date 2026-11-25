@@ -138,10 +138,10 @@ public class NettyKeyProvider {
                 if (key == null) {
                     throw new UnrecoverableKeyException("Key for alias '" + alias + "' could not be recovered from keystore");
                 }
-                var cert = keyStore.getCertificate(alias);
-                if (cert == null) {
+                var chain = keyStore.getCertificateChain(alias);
+                if (chain == null || chain.length == 0) {
                     throw new UnrecoverableKeyException(
-                            "Certificate for alias '" + alias + "' could not be recovered from keystore. Check that storePassword is provided and correct.");
+                            "Certificate chain for alias '" + alias + "' could not be recovered from keystore. Check that storePassword is provided and correct.");
                 }
             }
         }

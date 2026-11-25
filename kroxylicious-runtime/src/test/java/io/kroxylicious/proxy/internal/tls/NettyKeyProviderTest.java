@@ -124,7 +124,7 @@ class NettyKeyProviderTest {
 
         assertThatCode(keyStore::forServer)
                 .rootCause()
-                .hasMessageContaining("Certificate for alias 'selfsigned' could not be recovered from keystore. Check that storePassword is provided and correct.")
+                .hasMessageContaining("Certificate chain for alias 'selfsigned' could not be recovered from keystore. Check that storePassword is provided and correct.")
                 .isInstanceOf(UnrecoverableKeyException.class);
     }
 
@@ -136,6 +136,22 @@ class NettyKeyProviderTest {
                 PKCS_12));
 
         assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+    }
+
+    @Test
+    void serverKeyStorePkcs12EmptyPassword() throws Exception {
+        // Given
+        var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem("server_empty_pass.p12"),
+                new InlinePassword(""),
+                new InlinePassword(""),
+                PKCS_12));
+
+        // When
+        var sslContext = keyStore.forServer().build();
+
+        // Then
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContext.isServer()).isTrue();
     }
 
     @Test
@@ -213,7 +229,7 @@ class NettyKeyProviderTest {
 
         assertThatCode(keyStore::forClient)
                 .rootCause()
-                .hasMessageContaining("Certificate for alias 'selfsigned' could not be recovered from keystore. Check that storePassword is provided and correct.")
+                .hasMessageContaining("Certificate chain for alias 'selfsigned' could not be recovered from keystore. Check that storePassword is provided and correct.")
                 .isInstanceOf(UnrecoverableKeyException.class);
     }
 

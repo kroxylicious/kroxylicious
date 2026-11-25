@@ -40,6 +40,12 @@ ${KEYTOOL}  -genkey -keyalg RSA -alias ${ALIAS} -storetype JKS -keystore server_
 # Note: Different store and key passwords not supported for PKCS12 KeyStores
 ${KEYTOOL}  -genkey -keyalg RSA -alias ${ALIAS} -storetype PKCS12 -keystore server.p12 -storepass ${STOREPASS} -validity ${VALIDITY} -keysize ${KEYSIZE} -dname ${DNAME}
 
+# PKCS12 with empty password (tests null password scenarios - created via OpenSSL)
+# OpenSSL allows creating PKCS12 with empty passwords, which Java can load with null
+${OPENSSL} req -x509 -newkey rsa:${KEYSIZE} -keyout temp.key -out temp.crt -days ${VALIDITY} -nodes -subj "/CN=localhost"
+${OPENSSL} pkcs12 -export -in temp.crt -inkey temp.key -out server_empty_pass.p12 -name "${ALIAS}" -passout pass:
+rm -f temp.key temp.crt
+
 # Extract crt (X.509) / key (PKCS8) as PEM from the PKCS12
 ${OPENSSL} pkcs12 -in server.p12  -nokeys -out server.crt -passin pass:${STOREPASS}
 ${OPENSSL} pkcs12 -in server.p12  -nodes -nocerts -out server.key -passin pass:${STOREPASS}
