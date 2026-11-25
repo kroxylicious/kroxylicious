@@ -79,7 +79,11 @@ jobs:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
           ref: ${{env.SANITIZED_HEAD_REF}}
           fetch-depth: 0
-          allow-unsafe-pr-checkout: true
+          # workflow_run triggers run with the base repo's token and secrets, so checking out
+          # fork code carries risk. Sonar has to analyse the PR code, so the risk is accepted;
+          # the mitigation is requiring maintainer approval before the triggering workflow
+          # runs for contributions from new contributors.
+          allow-unsafe-pr-checkout: true  # zizmor: ignore[unsafe-checkout] Sonar must analyse the PR code
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
         run: |

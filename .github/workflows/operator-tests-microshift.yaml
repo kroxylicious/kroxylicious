@@ -98,7 +98,7 @@ jobs:
           # workflow_run triggers run with the base repo's token and secrets, so checking out
           # fork code carries risk. The mitigation here is requiring maintainer approval before
           # this workflow runs for contributions from new contributors.
-          allow-unsafe-pr-checkout: true
+          allow-unsafe-pr-checkout: true  # zizmor: ignore[unsafe-checkout] tests need the PR code; runs only after maintainer approval for new contributors
 
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
