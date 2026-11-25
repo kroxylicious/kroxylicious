@@ -124,9 +124,12 @@ jobs:
             -DskipITs \
             -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }} \
             install
-      - name: Cache SonarCloud packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
+      # Restore and save are split so the cache is only written by trusted push-to-main runs,
+      # never by pull_request/merge_group runs (prevents cache poisoning).
+      - name: Restore SonarCloud packages cache
+        id: sonar-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
@@ -140,6 +143,12 @@ jobs:
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
             -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
+      - name: Save SonarCloud packages cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true' && steps.sonar-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
