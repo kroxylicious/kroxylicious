@@ -31,22 +31,22 @@ concurrency:
 jobs:
   build_artifacts:
     if: github.event_name != 'merge_group'
-    uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
+    uses: $/.github/workflows/build-kroxylicious-artifacts.yaml
 
   integration_test_pr:
     if: github.event_name != 'merge_group'
     needs: build_artifacts
-    uses: ./.github/workflows/integration-tests.yaml
+    uses: $/.github/workflows/integration-tests.yaml
 
   documentation_tests:
     if: github.event_name != 'merge_group'
     needs: build_artifacts
-    uses: ./.github/workflows/documentation-tests.yml
+    uses: $/.github/workflows/documentation-tests.yml
 
   system_tests_pr:
     if: github.event_name != 'merge_group'
     needs: build_artifacts
-    uses: ./.github/workflows/system-tests-pr.yaml
+    uses: $/.github/workflows/system-tests-pr.yaml
 
   pr_test_gate:
     runs-on: ubuntu-latest

@@ -53,10 +53,10 @@ jobs:
           ./scripts/update-latest-docs-release-test.sh
       - name: Setup Java
         if: github.event_name != 'merge_group'
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         if: github.event_name != 'merge_group'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Compile and lint the project'
         if: github.event_name != 'merge_group'
         env:

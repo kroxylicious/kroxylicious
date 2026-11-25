@@ -22,7 +22,7 @@ on:
 jobs:
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
-    uses: ./.github/workflows/run-system-tests.yaml
+    uses: $/.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
 
@@ -53,7 +53,7 @@ jobs:
   # Then we run the tests that with the KAFKA_CLIENT selected
   run_system_tests:
     needs: [discover_system_test_clients]
-    uses: ./.github/workflows/run-system-tests.yaml
+    uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
       KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
@@ -98,7 +98,7 @@ jobs:
           exit 1
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
-        uses: ./.github/actions/common/slack-notification
+        uses: $/.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'

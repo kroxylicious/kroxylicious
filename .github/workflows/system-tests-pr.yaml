@@ -91,7 +91,7 @@ jobs:
   run_system_tests:
     needs: [changes,set_variables]
     if: always()
-    uses: ./.github/workflows/run-system-tests.yaml
+    uses: $/.github/workflows/run-system-tests.yaml
     secrets:
       KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
       KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
