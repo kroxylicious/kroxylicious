@@ -33,6 +33,8 @@ When writing code, follow these prescriptive rules:
 - [Pull Requests](.claude/rules/pull-requests.md) - PR checklist requirements
 - [Testing](.claude/rules/testing.md) - Test structure conventions
 
+OpenCode loads every file in `.claude/rules/` automatically as instructions in each session, configured in [`.opencode/opencode.jsonc`](.opencode/opencode.jsonc).
+
 ## Commit Conventions
 
 When creating commits, follow these conventions:

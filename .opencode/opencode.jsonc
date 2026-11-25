@@ -1,0 +1,8 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Load the coding rules from .claude/rules as always-on instructions so every
+  // OpenCode session follows them by default, without being pointed at them.
+  "instructions": [
+    ".claude/rules/*.md"
+  ]
+}
