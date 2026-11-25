@@ -79,7 +79,10 @@ jobs:
     with:
       command: ${{ needs.process-command.outputs.command }}
       release-pr-issue-number: ${{ github.event.issue.number }}
-    secrets: inherit
+    secrets:
+      KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+      KROXYLICIOUS_RELEASE_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
   dispatch-help:
     runs-on: ubuntu-latest

@@ -85,6 +85,3 @@ rules:
   ref-version-mismatch:
     ignore:
       - action.yml
-  secrets-inherit:
-    ignore:
-      - robot-command-dispatcher.yaml
