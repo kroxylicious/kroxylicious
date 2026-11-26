@@ -72,10 +72,6 @@ rules:
       - stage_release.yaml
       - system-tests-merge.yaml
       - system-tests-pr.yaml
-  github-env:
-    ignore:
-      - operator-tests-microshift.yaml
-      - sonar.yaml
   dependabot-cooldown:
     ignore:
       - dependabot.yaml

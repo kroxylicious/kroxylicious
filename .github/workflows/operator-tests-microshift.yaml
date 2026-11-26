@@ -81,10 +81,11 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Slack secret'
+        id: slack_secret
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+          echo "set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
 
       - name: 'Install podman'
         run: |
@@ -135,6 +136,7 @@ jobs:
           kubectl version
 
       - name: 'Build Kroxylicious Operand Container Images'
+        id: build_operand
         run: |
           eval "$(crc podman-env --root)"
 
@@ -153,11 +155,12 @@ jobs:
               -Dio.kroxylicious.proxy.image.name=${KROXYLICIOUS_IMAGE} \
               install
 
-          # This ensures that the tests will use the built operand.
-          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
+          echo "image=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_OUTPUT}"
 
       - name: Run operator integration tests
         env:
+          # This ensures that the tests will use the built operand.
+          KROXYLICIOUS_IMAGE: ${{ steps.build_operand.outputs.image }}
           ADDITIONAL_MAVEN_ARGUMENTS: ${{ github.event.inputs.additionalMavenArguments }}
         run: |
           eval "$(crc podman-env --root)"
@@ -181,7 +184,7 @@ jobs:
           retention-days: 7
 
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
+        if: failure() && steps.slack_secret.outputs.set == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
