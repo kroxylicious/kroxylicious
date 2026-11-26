@@ -1,0 +1,7 @@
+title: "feat(router-client): add Client Router that routes based on client.id"
+type: added
+merge_requests:
+  - 5398
+links:
+  - name: "design proposal #140"
+    url: https://github.com/kroxylicious/design/pull/140
