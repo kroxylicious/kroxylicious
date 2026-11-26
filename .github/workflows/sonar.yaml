@@ -1,7 +1,12 @@
 name: Sonar Scan
 
 on:
-  workflow_run:
+  # workflow_run is needed so PRs from forks can use SONAR_TOKEN and post check
+  # runs. It runs the default branch's workflow definition, and only after
+  # "Lint Pull Request" succeeds, which requires maintainer approval for new
+  # contributors. Branch names are validated before use (see "Check for legal
+  # branch names").
+  workflow_run:  # zizmor: ignore[dangerous-triggers] needs secrets for fork PRs; see above
     workflows: [ "Lint Pull Request" ]
     types: [completed]
 
