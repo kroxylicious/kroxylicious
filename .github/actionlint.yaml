@@ -1,4 +1,9 @@
 # .github/actionlint.yaml
+self-hosted-runner:
+  # Runner labels that are valid but not yet in actionlint's built-in list of
+  # GitHub-hosted runners. Remove entries once actionlint recognises them.
+  labels:
+    - ubuntu-26.04
 paths:
   .github/workflows/**/*.{yml,yaml}:
     ignore:
