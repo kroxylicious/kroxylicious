@@ -71,14 +71,14 @@ jobs:
             echo "BRANCH '${HEAD_BRANCH}' contains potentially malicious characters as it matches BRANCH_REGEX '${BRANCH_REGEX}'"
             exit 1
           else
-            echo "head_ref=${HEAD_BRANCH}" >> "$GITHUB_OUTPUT"
+            echo "sanitized_head_ref=${HEAD_BRANCH}" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         if: steps.sonar_secret.outputs.set == 'true' && github.event.workflow_run.event != 'merge_group'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: ${{ steps.set_branch_name.outputs.head_ref }}
+          ref: ${{ steps.set_branch_name.outputs.sanitized_head_ref }}
           fetch-depth: 0
           allow-unsafe-pr-checkout: true
       - name: Checkout base branch
