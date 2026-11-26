@@ -26,7 +26,7 @@ jobs:
     # actor is the maintainer who applied the label, and the changelog/skip and
     # changelog/create overrides must still work for Dependabot PRs.
     if: github.event.pull_request.user.login == 'dependabot[bot]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:

@@ -22,7 +22,7 @@ on:
 jobs:
   # JOB to run change detection
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       pull-requests: read
     outputs:
@@ -51,7 +51,7 @@ jobs:
               - '!kroxylicious-wire-fidelity-tests/**'
 
   set_variables:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       kafka_client: ${{ steps.kafkaClient.outputs.kafka_client }}
     steps:

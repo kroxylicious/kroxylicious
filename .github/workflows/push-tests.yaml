@@ -34,7 +34,7 @@ jobs:
 
   # JOB to run change detection to decide whether run the system tests
   changes_for_system_tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       pull-requests: read
     outputs:

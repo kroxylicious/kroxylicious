@@ -49,7 +49,7 @@ jobs:
     uses: ./.github/workflows/system-tests-pr.yaml
 
   pr_test_gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     name: All Checks Passed
     needs: [ integration_test_pr, documentation_tests, system_tests_pr ]
     if: always()

@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   unittest_all:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: compute_pom_version
     strategy:
       matrix:
@@ -154,7 +154,7 @@ jobs:
           runId: ${{ github.run_id }}
 
   compute_pom_version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       version: ${{ steps.version.outputs.version }}
       reference_release_unpublished: ${{ steps.japicmp.outputs.reference_release_unpublished }}
@@ -187,7 +187,7 @@ jobs:
   # only the caller can see the pull request's labels.
 
   select_architectures:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       arches: ${{ steps.arches.outputs.arches }}
     steps:
@@ -270,7 +270,7 @@ jobs:
       REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
   container_images_slack_notification:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: build_container_images
     if: failure() && github.event_name == 'push'
     steps:

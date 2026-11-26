@@ -54,7 +54,7 @@ on:
 jobs:
   discover_system_test_chunks:
     if: ${{ inputs.skipSystemTestRun == false }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
     steps:
@@ -76,7 +76,7 @@ jobs:
   run_system_tests:
     needs: [discover_system_test_chunks]
     if: ${{ inputs.skipSystemTestRun == false }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -230,7 +230,7 @@ jobs:
           fail-on-empty: 'false'
 
   system_tests_proxy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: run_system_tests
     if: always()
     permissions:
