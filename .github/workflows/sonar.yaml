@@ -86,7 +86,7 @@ jobs:
         env:
           UPSTREAM_CLONE_URL: ${{ github.event.repository.clone_url }}
           PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
-          SANITIZED_HEAD_REF: ${{ steps.set_branch_name.outputs.head_ref }}
+          SANITIZED_HEAD_REF: ${{ steps.set_branch_name.outputs.sanitized_head_ref }}
         run: |
           git remote add upstream "${UPSTREAM_CLONE_URL}"
           git fetch upstream
