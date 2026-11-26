@@ -45,6 +45,8 @@ public class TestClientsJobTemplates {
     private static final String DELAY_MS_VAR = "DELAY_MS";
     private static final String OUTPUT_FORMAT_VAR = "OUTPUT_FORMAT";
     private static final String ADDITIONAL_CONFIG_VAR = "ADDITIONAL_CONFIG";
+    private static final String CLASSPATH_VAR = "CLASSPATH";
+    private static final String EXTRA_LIBS_VOLUME_NAME = "extra-libs";
 
     private TestClientsJobTemplates() {
     }
@@ -340,6 +342,49 @@ public class TestClientsJobTemplates {
                         .withArgs(args)
                         .withVolumeMounts(volumeMounts)
                         .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Adds a jar, held under {@code jarFileName} in the given ConfigMap, to the classpath of the
+     * (single) container of a test client job. The ConfigMap is mounted read-only at
+     * {@link Constants#TEST_CLIENTS_EXTRA_LIBS_DIR} and {@code CLASSPATH} is pointed at the jar;
+     * the Strimzi test-clients image passes {@code CLASSPATH} straight to {@code java -cp}.
+     *
+     * @param jobBuilder the test client job builder
+     * @param configMapName the name of the ConfigMap holding the jar as binary data
+     * @param jarFileName the ConfigMap key, also used as the file name of the mounted jar
+     * @return the job builder
+     */
+    public static JobBuilder withExtraClasspathJar(JobBuilder jobBuilder, String configMapName, String jarFileName) {
+        Volume volume = new VolumeBuilder()
+                .withName(EXTRA_LIBS_VOLUME_NAME)
+                .withConfigMap(new ConfigMapVolumeSourceBuilder()
+                        .withName(configMapName)
+                        .addNewItem()
+                        .withKey(jarFileName)
+                        .withPath(jarFileName)
+                        .endItem()
+                        .build())
+                .build();
+
+        VolumeMount volumeMount = new VolumeMountBuilder()
+                .withName(EXTRA_LIBS_VOLUME_NAME)
+                .withMountPath(Constants.TEST_CLIENTS_EXTRA_LIBS_DIR)
+                .withReadOnly(true)
+                .build();
+
+        return jobBuilder
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .addToVolumes(volume)
+                .editFirstContainer()
+                .addToVolumeMounts(volumeMount)
+                .addToEnv(envVar(CLASSPATH_VAR, Constants.TEST_CLIENTS_EXTRA_LIBS_DIR + "/" + jarFileName))
+                .endContainer()
                 .endSpec()
                 .endTemplate()
                 .endSpec();

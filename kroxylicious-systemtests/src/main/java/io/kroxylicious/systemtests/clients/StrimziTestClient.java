@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
@@ -55,7 +56,11 @@ public class StrimziTestClient implements KafkaClient {
     private static final String DISPLAY_NAME = "Strimzi-" + Environment.KAFKA_VERSION;
     private String deployNamespace;
     private String marker;
-    private String image;
+    private final String image;
+    @Nullable
+    private String extraClasspathConfigMap;
+    @Nullable
+    private String extraClasspathJarFileName;
 
     @Override
     public String toString() {
@@ -83,14 +88,25 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     /**
-     * Overrides the container image used for this client instance.
+     * Adds a jar held in a ConfigMap to the classpath of the client containers started by this instance.
+     * See {@link TestClientsJobTemplates#withExtraClasspathJar} and
+     * {@link io.kroxylicious.systemtests.templates.testclients.TestClientsConfigMapTemplates#jarConfigMap}.
      *
-     * @param image the image
+     * @param configMapName the name of the ConfigMap, which must exist in the namespace the client is deployed to
+     * @param jarFileName the ConfigMap key holding the jar
      * @return  this client
      */
-    public StrimziTestClient withImage(String image) {
-        this.image = image;
+    public StrimziTestClient withExtraClasspathJar(String configMapName, String jarFileName) {
+        this.extraClasspathConfigMap = Objects.requireNonNull(configMapName);
+        this.extraClasspathJarFileName = Objects.requireNonNull(jarFileName);
         return this;
+    }
+
+    private JobBuilder withExtraClasspath(JobBuilder jobBuilder) {
+        if (extraClasspathConfigMap == null || extraClasspathJarFileName == null) {
+            return jobBuilder;
+        }
+        return TestClientsJobTemplates.withExtraClasspathJar(jobBuilder, extraClasspathConfigMap, extraClasspathJarFileName);
     }
 
     @Override
@@ -131,8 +147,8 @@ public class StrimziTestClient implements KafkaClient {
                                       Map<String, String> additionalConfig, Map<String, String> javaSystemProperties, List<EnvVar> extraEnvVars) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey,
-                additionalConfig, image, javaSystemProperties, extraEnvVars).build();
+        Job testClientJob = withExtraClasspath(TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey,
+                additionalConfig, image, javaSystemProperties, extraEnvVars)).build();
         KafkaUtils.produceMessages(deployNamespace, topicName, name, testClientJob);
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         String log = waitForProducer(deployNamespace, podName, this.marker, Duration.ofSeconds(60));
@@ -195,8 +211,8 @@ public class StrimziTestClient implements KafkaClient {
                                                 String consumerGroup, Map<String, String> javaSystemProperties, List<EnvVar> extraEnvVars) {
         LOGGER.atInfo().log("Consuming records using Strimzi Test Client");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig, consumerGroup,
-                image, javaSystemProperties, extraEnvVars).build();
+        Job testClientJob = withExtraClasspath(TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages, additionalConfig,
+                consumerGroup, image, javaSystemProperties, extraEnvVars)).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
         KafkaUtils.deleteJob(testClientJob);

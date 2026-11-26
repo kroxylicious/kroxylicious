@@ -199,8 +199,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/",
-        "/kroxylicious-test-images/pom.xml/"
+        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/"
       ],
       "matchStrings": [
         // For strimzi test clients we cannot add the digest because it depends on kafka version and it is calculated on runtime

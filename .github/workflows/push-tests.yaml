@@ -62,7 +62,6 @@ jobs:
               - '!kroxylicious-docs**/**'
               - '!kroxylicious-integration-test**/**'
               - '!kroxylicious-*benchmarks/**'
-              - '!kroxylicious-test-images/**'
               - '!kroxylicious-wire-fidelity-tests/**'
 
   system_tests:
