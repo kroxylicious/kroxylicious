@@ -142,7 +142,9 @@ public abstract class FilterHarness {
         var frontendAdapter = new ChannelDuplexHandler() {
             @Override
             public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-                clientConnectionStateMachine.onBeforeClientResponse(msg);
+                if (!(msg instanceof InternalResponseFrame<?>)) {
+                    clientConnectionStateMachine.onBeforeClientResponse(msg);
+                }
                 super.write(ctx, msg, promise);
             }
         };
