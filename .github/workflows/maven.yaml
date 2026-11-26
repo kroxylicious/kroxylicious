@@ -108,6 +108,8 @@ jobs:
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QA_OPTS: ${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}
+          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
           IMAGE_TAG="dev-git-${GIT_HASH}"
@@ -117,12 +119,11 @@ jobs:
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
           # On PRs, skip QA checks (already run in lint.yaml). On push to main, run QA checks.
-          QA_OPTS="${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}"
           mvn --batch-mode \
             --activate-profiles ci \
             ${QA_OPTS} \
             -DskipITs \
-            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }} \
+            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}" \
             install
       # Restore and save are split so the cache is only written by trusted push-to-main runs,
       # never by pull_request/merge_group runs (prevents cache poisoning).
@@ -139,10 +140,11 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
-            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
+            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}"
       - name: Save SonarCloud packages cache
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true' && steps.sonar-cache.outputs.cache-hit != 'true'
