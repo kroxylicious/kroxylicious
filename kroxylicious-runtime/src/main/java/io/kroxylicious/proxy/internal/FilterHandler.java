@@ -447,6 +447,10 @@ public class FilterHandler extends ChannelDuplexHandler {
             releaseDiscarded(decodedFrame);
             // When a request is dropped, trigger reading the next request to keep the channel active
             inboundChannel.read();
+            // errorResponse() drops a request that expects no response, after which the filter may still ask to close
+            if (requestFilterResult.closeConnection()) {
+                closeConnection(CloseReason.filterCloseConnection());
+            }
             return requestFilterResult;
         }
 

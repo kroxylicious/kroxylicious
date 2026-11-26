@@ -62,6 +62,7 @@ import io.kroxylicious.kafka.common.message.SaslAuthenticateRequestData;
 import io.kroxylicious.kafka.common.message.SaslAuthenticateResponseData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
+import io.kroxylicious.kafka.common.protocol.Errors;
 import io.kroxylicious.kafka.common.protocol.types.RawTaggedField;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -217,6 +218,47 @@ class FilterHandlerTest extends FilterHarness {
         writeRequest(new ProduceRequestData().setAcks((short) 1));
         DecodedResponseFrame<?> propagated = channel.readOutbound();
         assertEquals(responseData, propagated.body(), "expected ProduceResponseData to be forwarded");
+    }
+
+    @Test
+    void errorResponseToZeroAcksProduceDropsRequestAndKeepsConnectionOpen() {
+        // Given
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder()
+                .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED)
+                .completed();
+        buildChannel(filter);
+
+        // When
+        writeRequest(new ProduceRequestData().setAcks((short) 0));
+        runAllPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isTrue();
+        var forwardedRequestFrame = channel.readInbound();
+        assertThat(forwardedRequestFrame).isNull();
+        var forwardedResponseFrame = channel.readOutbound();
+        assertThat(forwardedResponseFrame).isNull();
+    }
+
+    @Test
+    void errorResponseToZeroAcksProduceWithCloseConnectionClosesChannel() {
+        // Given
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder()
+                .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED)
+                .withCloseConnection()
+                .completed();
+        buildChannel(filter);
+
+        // When
+        writeRequest(new ProduceRequestData().setAcks((short) 0));
+        runAllPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        var forwardedRequestFrame = channel.readInbound();
+        assertThat(forwardedRequestFrame).isNull();
+        var forwardedResponseFrame = channel.readOutbound();
+        assertThat(forwardedResponseFrame).isNull();
     }
 
     @Test

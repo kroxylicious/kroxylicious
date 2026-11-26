@@ -1,0 +1,6 @@
+title: "fix(runtime): make errorResponse drop a zero-acks Produce instead of throwing"
+type: fixed
+merge_requests:
+  - 5410
+important_notes:
+  - "`RequestFilterResultBuilder.errorResponse(...)` on a request that expects no response (a Produce with `acks=0`) now drops the request. Previously it threw `IllegalArgumentException` (\"message may not be null\"), so the filter failed and the proxy closed the client connection. Chain `withCloseConnection()` to also close the connection."

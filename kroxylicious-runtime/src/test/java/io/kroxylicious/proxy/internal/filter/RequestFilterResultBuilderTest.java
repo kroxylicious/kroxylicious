@@ -21,6 +21,7 @@ import io.kroxylicious.kafka.common.message.ApiVersionsResponseData;
 import io.kroxylicious.kafka.common.message.FetchRequestData;
 import io.kroxylicious.kafka.common.message.FetchResponseData;
 import io.kroxylicious.kafka.common.message.LeaveGroupRequestData;
+import io.kroxylicious.kafka.common.message.ProduceRequestData;
 import io.kroxylicious.kafka.common.message.RequestHeaderData;
 import io.kroxylicious.kafka.common.message.ResponseHeaderData;
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
@@ -318,10 +319,67 @@ class RequestFilterResultBuilderTest {
                 .isInstanceOf(NullPointerException.class);
     }
 
+    @Test
+    void errorResponseFromErrorsDropsZeroAcksProduce() {
+        // Given
+        var header = produceHeader();
+        var request = new ProduceRequestData().setAcks((short) 0);
+
+        // When
+        var result = builder.errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR).build();
+
+        // Then
+        assertThat(result.drop()).isTrue();
+        assertThat(result.shortCircuitResponse()).isFalse();
+        assertThat(result.message()).isNull();
+        assertThat(result.header()).isNull();
+        assertThat(result.closeConnection()).isFalse();
+    }
+
+    @Test
+    void errorResponseFromErrorsWithMessageDropsZeroAcksProduce() {
+        // Given
+        var header = produceHeader();
+        var request = new ProduceRequestData().setAcks((short) 0);
+
+        // When
+        var result = builder.errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR, "denied").build();
+
+        // Then
+        assertThat(result.drop()).isTrue();
+        assertThat(result.shortCircuitResponse()).isFalse();
+        assertThat(result.message()).isNull();
+        assertThat(result.header()).isNull();
+        assertThat(result.closeConnection()).isFalse();
+    }
+
+    @Test
+    void errorResponseFromErrorsDropsZeroAcksProduceAndRetainsCloseConnection() {
+        // Given
+        var header = produceHeader();
+        var request = new ProduceRequestData().setAcks((short) 0);
+
+        // When
+        var result = builder.errorResponse(header, request, Errors.UNKNOWN_SERVER_ERROR).withCloseConnection().build();
+
+        // Then
+        assertThat(result.drop()).isTrue();
+        assertThat(result.shortCircuitResponse()).isFalse();
+        assertThat(result.closeConnection()).isTrue();
+    }
+
     private static RequestHeaderData apiVersionsHeader() {
         var header = new RequestHeaderData();
         header.setRequestApiKey(ApiKeys.API_VERSIONS.id);
         header.setRequestApiVersion(ApiKeys.API_VERSIONS.latestVersion());
+        header.setCorrelationId(23456);
+        return header;
+    }
+
+    private static RequestHeaderData produceHeader() {
+        var header = new RequestHeaderData();
+        header.setRequestApiKey(ApiKeys.PRODUCE.id);
+        header.setRequestApiVersion(ApiKeys.PRODUCE.latestVersion());
         header.setCorrelationId(23456);
         return header;
     }
