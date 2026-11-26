@@ -40,7 +40,8 @@ allowRule: ALLOW allowOrDenyRule SEMI
 allowOrDenyRule: userPattern TO operationPattern
     ;
 
-userPattern: principalType WITH NAME userNamePred
+userPattern: ANONYMOUS
+    | principalType WITH NAME userNamePred
     ;
 principalType: ident
     ;
@@ -97,6 +98,7 @@ RBRA: '}';
 DENY: 'deny';
 ALLOW: 'allow';
 OTHERWISE: 'otherwise';
+ANONYMOUS: 'anonymous';
 IN: 'in';
 TO: 'to';
 AS: 'as';
