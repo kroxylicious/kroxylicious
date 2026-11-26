@@ -15,7 +15,7 @@ jobs:
     if: github.event.workflow_run && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'merge_group')
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -82,11 +82,14 @@ jobs:
           allow-unsafe-pr-checkout: true
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
+        env:
+          UPSTREAM_CLONE_URL: ${{ github.event.repository.clone_url }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
         run: |
-          git remote add upstream ${{ github.event.repository.clone_url }}
+          git remote add upstream "${UPSTREAM_CLONE_URL}"
           git fetch upstream
-          git checkout -B ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} upstream/${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
-          git checkout "origin/${{env.SANITIZED_HEAD_REF}}"
+          git checkout -B "${PR_BASE_REF}" "upstream/${PR_BASE_REF}"
+          git checkout "origin/${SANITIZED_HEAD_REF}"
           git clean -ffdx && git reset --hard HEAD
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
@@ -97,6 +100,10 @@ jobs:
       - name: 'Cache Maven packages'
         if: github.event.workflow_run.event != 'merge_group'
         uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Configure Maven offline releases'
+        if: github.event.workflow_run.event != 'merge_group'
+        id: configure-maven-artifact-cache
+        uses: ./.github/actions/common/configure-maven-artifact-cache
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: env.SONAR_TOKEN_SET == 'true' && github.event.workflow_run.event != 'merge_group'
@@ -123,13 +130,17 @@ jobs:
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
             -Djapicmp.skip=true \
-            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
+            -Dsonar.scm.revision="${PR_HEAD_SHA}" \
+            -Dsonar.pullrequest.key="${PR_NUMBER}" \
+            -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+            -Dsonar.pullrequest.base="${PR_BASE_REF}"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: SonarCloud scan on PR for the Proxy Core (legacy release branches)
         id: proxy_scan_legacy
         continue-on-error: true
@@ -142,15 +153,19 @@ jobs:
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \
-            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+            -Dsonar.scm.revision="${PR_HEAD_SHA}" \
+            -Dsonar.pullrequest.key="${PR_NUMBER}" \
+            -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+            -Dsonar.pullrequest.base="${PR_BASE_REF}" \
             verify \
             org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: SonarCloud scan on PR for the Operator
         id: operator_scan
         continue-on-error: true
@@ -160,10 +175,10 @@ jobs:
           if [ -f "kroxylicious-kubernetes/pom.xml" ]; then
             run_sonar "${KUBERNETES_PROFILES}" 'Kroxylicious Operator' 'kroxylicious_operator' \
               -Djapicmp.skip=true \
-              -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-              -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-              -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-              -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
+              -Dsonar.scm.revision="${PR_HEAD_SHA}" \
+              -Dsonar.pullrequest.key="${PR_NUMBER}" \
+              -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+              -Dsonar.pullrequest.base="${PR_BASE_REF}"
           else
             # Old release branches: operator was not under kroxylicious-kubernetes/
             mvn --batch-mode \
@@ -174,16 +189,20 @@ jobs:
               -Djapicmp.skip=true \
               -Dsonar.projectName='Kroxylicious Operator' \
               -Dsonar.projectKey='kroxylicious_operator' \
-              -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-              -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-              -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-              -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+              -Dsonar.scm.revision="${PR_HEAD_SHA}" \
+              -Dsonar.pullrequest.key="${PR_NUMBER}" \
+              -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+              -Dsonar.pullrequest.base="${PR_BASE_REF}" \
               verify \
               org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           fi
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: SonarCloud scan on PR for the Operator (legacy release branches)
         id: operator_scan_legacy
         continue-on-error: true
@@ -202,15 +221,19 @@ jobs:
             -Djapicmp.skip=true \
             -Dsonar.projectName='Kroxylicious Operator' \
             -Dsonar.projectKey='kroxylicious_operator' \
-            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
-            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
-            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+            -Dsonar.scm.revision="${PR_HEAD_SHA}" \
+            -Dsonar.pullrequest.key="${PR_NUMBER}" \
+            -Dsonar.pullrequest.branch="${PR_HEAD_REF}" \
+            -Dsonar.pullrequest.base="${PR_BASE_REF}" \
             verify \
             org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ fromJson(steps.get_pr_data.outputs.data).number }}
+          PR_HEAD_REF: ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+          PR_BASE_REF: ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
       - name: Post failed Proxy Core SonarCloud check
         if: steps.proxy_scan.outcome == 'failure' || steps.proxy_scan_legacy.outcome == 'failure'
         env:

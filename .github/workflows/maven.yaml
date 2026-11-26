@@ -40,7 +40,7 @@ jobs:
             version: '25'
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -86,7 +86,7 @@ jobs:
         # profiles (proxy-core, runtime-plugins, supplementary, kubernetes-management) are omitted: they're
         # redundant with build-the-world, which is already active by default here.
         run: >
-          mvn dependency:go-offline -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q
+          mvn dependency:go-offline dependency:resolve-plugins -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q
           -P ci
           -P debug
           -P dist
@@ -108,6 +108,8 @@ jobs:
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QA_OPTS: ${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}
+          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
           IMAGE_TAG="dev-git-${GIT_HASH}"
@@ -117,12 +119,11 @@ jobs:
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
           # On PRs, skip QA checks (already run in lint.yaml). On push to main, run QA checks.
-          QA_OPTS="${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}"
           mvn --batch-mode \
             --activate-profiles ci \
             ${QA_OPTS} \
             -DskipITs \
-            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }} \
+            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}" \
             install
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -136,10 +137,11 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
-            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
+            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}"
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
@@ -158,7 +160,7 @@ jobs:
       reference_release_unpublished: ${{ steps.japicmp.outputs.reference_release_unpublished }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - name: 'Check out repository'
@@ -181,12 +183,88 @@ jobs:
             && echo "reference_release_unpublished=false" >> "$GITHUB_OUTPUT" \
             || echo "reference_release_unpublished=true" >> "$GITHUB_OUTPUT"
 
+  # Architecture selection lives here rather than in the reusable workflow because
+  # only the caller can see the pull request's labels.
+
+  select_architectures:
+    runs-on: ubuntu-latest
+    outputs:
+      arches: ${{ steps.arches.outputs.arches }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+      - name: 'Check out repository'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: 'Select architectures'
+        id: arches
+        env:
+          ARCH_MATRIX_FILE: .github/workflows/config/arch-matrix.json
+          EVENT_NAME: ${{ github.event_name }}
+          # Via env, not inline interpolation: label text is user-supplied.
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          DEFAULTS=$(jq -c '[to_entries[] | select(.value.enabled and .value.default) | .key]' "${ARCH_MATRIX_FILE}")
+
+          if [[ "${EVENT_NAME}" == "push" ]]; then
+            # Pushes publish the images users consume, so they cover everything.
+            ARCHES=$(jq -c '[to_entries[] | select(.value.enabled) | .key]' "${ARCH_MATRIX_FILE}")
+          elif [[ "${EVENT_NAME}" != "pull_request" ]]; then
+            # Merge queue runs check that the queued changes build together; they
+            # publish nothing, so they stay as cheap as a default pull request.
+            ARCHES="${DEFAULTS}"
+          else
+            # What a label is allowed to ask for: gated architectures are in the
+            # registry so the shape is ready for them, but cannot be built yet.
+            ENABLED_ARCHES=$(jq -r '[to_entries[] | select(.value.enabled) | .key] | join(", ")' "${ARCH_MATRIX_FILE}")
+
+            UNKNOWN=$(jq -r --argjson labels "${LABELS}" '
+              . as $registry
+              | [$labels[] | select(startswith("platform/")) | ltrimstr("platform/")]
+              | [.[] | select(. as $a | $registry | has($a) | not)]
+              | join(", ")
+            ' "${ARCH_MATRIX_FILE}")
+            if [[ -n "${UNKNOWN}" ]]; then
+              echo "::error::Unknown platform label(s): ${UNKNOWN}. Enabled architectures: ${ENABLED_ARCHES}"
+              exit 1
+            fi
+
+            # Rejected here rather than left to prepare, so that one mistake is
+            # reported once, in the job the reader is already looking at.
+            GATED=$(jq -r --argjson labels "${LABELS}" '
+              [ to_entries[]
+                | select(.value.enabled | not)
+                | select(.key as $k | $labels | index("platform/" + $k))
+                | .key ]
+              | join(", ")
+            ' "${ARCH_MATRIX_FILE}")
+            if [[ -n "${GATED}" ]]; then
+              echo "::error::Platform label(s) for architectures that are not yet buildable: ${GATED}. Enabled architectures: ${ENABLED_ARCHES}"
+              exit 1
+            fi
+
+            # Labels combine with each other, but replace the defaults rather than
+            # extending them: platform/s390x alone means s390x alone.
+            REQUESTED=$(jq -c --argjson labels "${LABELS}" '
+              [to_entries[] | select(.key as $k | $labels | index("platform/" + $k)) | .key]
+            ' "${ARCH_MATRIX_FILE}")
+            if [[ "${REQUESTED}" == "[]" ]]; then
+              ARCHES="${DEFAULTS}"
+            else
+              ARCHES="${REQUESTED}"
+            fi
+          fi
+
+          echo "Selected architectures: ${ARCHES}"
+          echo "arches=${ARCHES}" >> "$GITHUB_OUTPUT"
+
   build_container_images:
-    needs: compute_pom_version
+    needs: [ compute_pom_version, select_architectures ]
     uses: ./.github/workflows/build-kroxylicious-container-images.yaml
     with:
       push-images: ${{ github.event_name == 'push' }}
-      multi-arch: ${{ github.event_name == 'push' }}
+      arches: ${{ needs.select_architectures.outputs.arches }}
       additional-tags: ${{ github.event_name == 'push' && needs.compute_pom_version.outputs.version || '' }}
     secrets:
       REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
@@ -197,7 +275,7 @@ jobs:
     if: failure() && github.event_name == 'push'
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - name: 'Test for Slack secret'

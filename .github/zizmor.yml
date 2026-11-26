@@ -1,0 +1,96 @@
+# zizmor configuration: https://docs.zizmor.sh/configuration/
+#
+# The ignores below baseline the findings that existed when zizmor was
+# introduced. They should be removed as the underlying issues are fixed.
+rules:
+  self-repository:
+    ignore:
+      - build-kroxylicious-artifacts.yaml
+      - build-kroxylicious-container-images.yaml
+      - create-release-branch.yaml
+      - documentation-tests.yml
+      - integration-tests.yaml
+      - kubernetes-modules-maven.yaml
+      - lint.yaml
+      - maven.yaml
+      - operator-tests-microshift.yaml
+      - pr-tests.yaml
+      - promote_release.yaml
+      - publish-snapshot-docs-to-website.yaml
+      - publish-snapshot.yaml
+      - push-tests.yaml
+      - robot-command-dispatcher.yaml
+      - run-system-tests.yaml
+      - sonar.yaml
+      - stage_release.yaml
+      - system-tests-merge.yaml
+      - system-tests-pr.yaml
+  excessive-permissions:
+    ignore:
+      - build-kroxylicious-artifacts.yaml
+      - build-kroxylicious-container-images.yaml
+      - check-changelog.yaml
+      - check-fork-branch.yaml
+      - create-release-branch.yaml
+      - kubernetes-modules-maven.yaml
+      - lint.yaml
+      - maven.yaml
+      - operator-tests-microshift.yaml
+      - pr-tests.yaml
+      - publish-snapshot-docs-to-website.yaml
+      - publish-snapshot.yaml
+      - push-tests.yaml
+      - renovate.yaml
+      - robot-command-dispatcher.yaml
+      - run-system-tests.yaml
+      - sonar.yaml
+      - stage_release.yaml
+      - system-tests-merge.yaml
+      - system-tests-pr.yaml
+  artipacked:
+    ignore:
+      - add-changelog-entry-for-dependency-updates.yaml
+      - build-kroxylicious-artifacts.yaml
+      - build-kroxylicious-container-images.yaml
+      - build-omb-image.yml
+      - create-release-branch.yaml
+      - documentation-tests.yml
+      - integration-tests.yaml
+      - kaf.yaml
+      - kubernetes-modules-maven.yaml
+      - lint.yaml
+      - maven.yaml
+      - operator-tests-microshift.yaml
+      - promote_release.yaml
+      - publish-snapshot-docs-to-website.yaml
+      - publish-snapshot.yaml
+      - push-tests.yaml
+      - renovate.yaml
+      - robot-command-dispatcher.yaml
+      - run-system-tests.yaml
+      - sonar.yaml
+      - stage_release.yaml
+      - system-tests-merge.yaml
+      - system-tests-pr.yaml
+  github-env:
+    ignore:
+      - operator-tests-microshift.yaml
+      - sonar.yaml
+  dependabot-cooldown:
+    ignore:
+      - dependabot.yaml
+  dangerous-triggers:
+    ignore:
+      - operator-tests-microshift.yaml
+      - robot-command-dispatcher.yaml
+      - sonar.yaml
+  cache-poisoning:
+    ignore:
+      - kubernetes-modules-maven.yaml
+      - maven.yaml
+  ref-version-mismatch:
+    ignore:
+      - action.yml
+  secrets-inherit:
+    ignore:
+      - robot-command-dispatcher.yaml

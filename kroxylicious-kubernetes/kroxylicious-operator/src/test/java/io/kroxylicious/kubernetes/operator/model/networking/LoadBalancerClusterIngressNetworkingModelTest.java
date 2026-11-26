@@ -38,6 +38,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class LoadBalancerClusterIngressNetworkingModelTest {
+    private static final SharedSniContainerPort TEST_SNI_PORT = new SharedSniContainerPort(9093, "test-sni-port");
+
     private static final String INGRESS_NAME = "my-ingress";
     private static final String CLUSTER_NAME = "my-cluster";
     private static final String NAMESPACE = "my-namespace";
@@ -83,7 +85,8 @@ class LoadBalancerClusterIngressNetworkingModelTest {
     void createInstancesWithExpectedSniPort() {
         // given
         // when
-        LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS, 1);
+        LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
+                new SharedSniContainerPort(1, "test-sni-port"));
         // then
         // expect to be allocated an SNI port
         assertThat(model).isNotNull();
@@ -92,7 +95,7 @@ class LoadBalancerClusterIngressNetworkingModelTest {
     @Test
     void gatewayConfig() {
         // given
-        int sharedSniPort = 1;
+        SharedSniContainerPort sharedSniPort = new SharedSniContainerPort(1, "test-sni-port");
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
                 sharedSniPort);
 
@@ -105,7 +108,7 @@ class LoadBalancerClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isNotNull();
         assertThat(gateway.portIdentifiesNode()).isNull();
         assertThat(gateway.sniHostIdentifiesNode()).isNotNull().satisfies(sniStrategy -> {
-            assertThat(sniStrategy.getBootstrapAddress()).isEqualTo(new HostPort(BOOTSTRAP_ADDRESS, sharedSniPort).toString());
+            assertThat(sniStrategy.getBootstrapAddress()).isEqualTo(new HostPort(BOOTSTRAP_ADDRESS, sharedSniPort.containerPort()).toString());
             assertThat(sniStrategy.getAdvertisedBrokerAddressPattern()).isEqualTo(new HostPort(ADVERTISED_BROKER_ADDRESS_PATTERN, 9083).toString());
         });
     }
@@ -114,7 +117,7 @@ class LoadBalancerClusterIngressNetworkingModelTest {
     void doesNotSupplyAnyServices() {
         // given
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
-                9093);
+                TEST_SNI_PORT);
         assertThat(model).isNotNull();
 
         // when
@@ -128,7 +131,7 @@ class LoadBalancerClusterIngressNetworkingModelTest {
     void requestsLoadBalancerServicePorts() {
         // given
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
-                9093);
+                TEST_SNI_PORT);
         assertThat(model).isNotNull();
 
         // when
@@ -141,22 +144,19 @@ class LoadBalancerClusterIngressNetworkingModelTest {
 
     @Test
     void requestsSharedSniPort() {
-        // given
+        // Given
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
-                9093);
+                TEST_SNI_PORT);
 
-        // when
-        boolean requiresSharedSniPort = model.requiresSharedSniContainerPort();
-
-        // then
-        assertThat(requiresSharedSniPort).isTrue();
+        // When / Then
+        assertThat(model.sharedSniContainerPort()).contains(TEST_SNI_PORT);
     }
 
     @Test
     void sharedLoadBalancerServiceBootstrapServers() {
         // given
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
-                9093);
+                TEST_SNI_PORT);
 
         // when
         Optional<SharedLoadBalancerServiceRequirements> requirements = model.sharedLoadBalancerServiceRequirements();
@@ -183,7 +183,7 @@ class LoadBalancerClusterIngressNetworkingModelTest {
                 .build();
         // @formatter:on
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, ingressWithAnnotations, LOAD_BALANCER,
-                TLS, 9093);
+                TLS, TEST_SNI_PORT);
         ObjectMetaBuilder builder = new ObjectMetaBuilder();
 
         // when
@@ -206,7 +206,7 @@ class LoadBalancerClusterIngressNetworkingModelTest {
                 .build();
         // @formatter:on
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, ingressWithReservedAnnotation,
-                LOAD_BALANCER, TLS, 9093);
+                LOAD_BALANCER, TLS, TEST_SNI_PORT);
         ObjectMetaBuilder builder = new ObjectMetaBuilder();
 
         // when
@@ -233,7 +233,7 @@ class LoadBalancerClusterIngressNetworkingModelTest {
                 .build();
         // @formatter:on
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, ingressWithReservedAnnotation,
-                LOAD_BALANCER, TLS, 9093);
+                LOAD_BALANCER, TLS, TEST_SNI_PORT);
         ObjectMetaBuilder builder = new ObjectMetaBuilder();
         Set<Annotations.ClusterIngressBootstrapServers> bootstraps = Set.of(model.bootstrapServersToAnnotate());
 
@@ -251,10 +251,14 @@ class LoadBalancerClusterIngressNetworkingModelTest {
     }
 
     public static Stream<Arguments> constructorArgsMustBeNonNull() {
-        ThrowableAssert.ThrowingCallable nullIngress = () -> new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, null, LOAD_BALANCER, TLS, 1);
-        ThrowableAssert.ThrowingCallable nullCluster = () -> new LoadBalancerClusterIngressNetworkingModel(null, INGRESS, LOAD_BALANCER, TLS, 1);
-        ThrowableAssert.ThrowingCallable nullLoadBalancer = () -> new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, null, TLS, 1);
-        ThrowableAssert.ThrowingCallable nullTls = () -> new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, null, 1);
+        ThrowableAssert.ThrowingCallable nullIngress = () -> new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, null, LOAD_BALANCER, TLS,
+                new SharedSniContainerPort(1, "test-sni-port"));
+        ThrowableAssert.ThrowingCallable nullCluster = () -> new LoadBalancerClusterIngressNetworkingModel(null, INGRESS, LOAD_BALANCER, TLS,
+                new SharedSniContainerPort(1, "test-sni-port"));
+        ThrowableAssert.ThrowingCallable nullLoadBalancer = () -> new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, null, TLS,
+                new SharedSniContainerPort(1, "test-sni-port"));
+        ThrowableAssert.ThrowingCallable nullTls = () -> new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, null,
+                new SharedSniContainerPort(1, "test-sni-port"));
         return Stream.of(argumentSet("ingress", nullIngress),
                 argumentSet("cluster", nullCluster),
                 argumentSet("loadBalancer", nullLoadBalancer),

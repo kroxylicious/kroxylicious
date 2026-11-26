@@ -33,6 +33,8 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
 
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
+        // tests use this router with several routes targeting the same cluster
+        context.allowSharedClusterTargets();
         allStatic = Arrays.stream(ApiKeys.values())
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> config.route()));
         return config;

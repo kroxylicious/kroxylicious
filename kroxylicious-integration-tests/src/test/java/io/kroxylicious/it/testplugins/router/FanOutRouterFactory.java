@@ -44,6 +44,8 @@ public class FanOutRouterFactory implements RouterFactory<FanOutRouterFactory.Co
 
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
+        // tests use this router with several routes targeting the same cluster
+        context.allowSharedClusterTargets();
         return config;
     }
 

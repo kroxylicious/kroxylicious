@@ -27,7 +27,7 @@ jobs:
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@kroxylicious-robot')  && !contains(github.event.comment.body, '@kroxylicious-robot run')}}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -49,9 +49,10 @@ jobs:
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
-          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
+          gh issue comment "${ISSUE_NUMBER}" --body "${GITHUB_ACTOR} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
+          echo "${GITHUB_ACTOR} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
           exit 1
 
       - name: 'Extract command from comment'
@@ -87,7 +88,7 @@ jobs:
     if: ${{ needs.process-command.outputs.unrecognized == 'true' }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -99,7 +100,9 @@ jobs:
       - name: 'Send help'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMAND: ${{ needs.process-command.outputs.command }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "Sorry, I don't understand the command '${{ needs.process-command.outputs.command }}'."
+          gh issue comment "${ISSUE_NUMBER}" --body "Sorry, I don't understand the command '${COMMAND}'."
 
 

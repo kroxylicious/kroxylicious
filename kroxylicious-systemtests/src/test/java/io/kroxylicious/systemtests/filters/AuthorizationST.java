@@ -156,7 +156,8 @@ class AuthorizationST extends AbstractSystemTests {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, additionalKafkaProps);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), additionalKafkaProps);
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), additionalKafkaProps,
+                consumerGroupFor(namespace));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
@@ -201,7 +202,8 @@ class AuthorizationST extends AbstractSystemTests {
 
         LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
         Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps);
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps,
+                consumerGroupFor(namespace));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
@@ -235,7 +237,8 @@ class AuthorizationST extends AbstractSystemTests {
 
         LOGGER.atInfo().setMessage("Then aren't any messages to be consumed").log();
         Map<String, String> aliceKafkaProps = KroxyliciousSteps.getAdditionalSaslProps(namespace, userAlice, usernamePasswords.get(userAlice));
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps);
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofSeconds(10), aliceKafkaProps,
+                consumerGroupFor(namespace));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         String log = KroxyliciousSteps.getConsumerLog(namespace);
@@ -275,7 +278,9 @@ class AuthorizationST extends AbstractSystemTests {
 
         // Then
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2), aliceTlsVars);
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, consumerGroupFor(namespace), topicName, bootstrap, numberOfMessages,
+                Duration.ofMinutes(2), Map.of(),
+                aliceTlsVars);
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
@@ -381,6 +386,16 @@ class AuthorizationST extends AbstractSystemTests {
         return KafkaUtils.getKafkaListenerStatus(Constants.ANONYMOUS_LISTENER_NAME)
                 .map(ListenerStatus::getBootstrapServers)
                 .orElseThrow(() -> new IllegalStateException("No anonymous listener found on " + clusterName));
+    }
+
+    /**
+     * Returns a consumer group unique to the test. All tests share the class-scoped Kafka cluster, so a
+     * shared group lets a member left behind by an earlier test add its (now unauthorized) topic to this
+     * test's group subscription. The group leader fetches metadata for every topic in that subscription,
+     * and this test's proxy only allows the current test's topic, so the rebalance would fail.
+     */
+    private static String consumerGroupFor(String namespace) {
+        return Constants.CONSUMER_GROUP_NAME + "-" + namespace;
     }
 
     private String generateAllowAclRule(String userName, String topicName) {

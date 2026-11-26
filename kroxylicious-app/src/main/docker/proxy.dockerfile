@@ -7,12 +7,12 @@
 #####
 # Stage 1: Establish clean ubi9-micro rootfs with its own RPM database
 #####
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6 AS base
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.9-1794478307@sha256:dbd325b96bcd432dd42816d31412bdf1dc0fb973b79ed310344bc23c76c068db AS base
 
 #####
 # Stage 2: Install runtime dependencies into the ubi9-micro rootfs using dnf --installroot
 #####
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.8-1788166357@sha256:7fbeae18dc9476399f565e68255f602a3374ea8614ba3d14843565131a13ff93 AS builder
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.9-1795198179@sha256:08d4c70f1baf6537a0728656cf7942d561e74a35916509d205b6519861266352 AS builder
 
 ARG JAVA_VERSION=21
 ARG CONTAINER_USER=kroxylicious
@@ -50,7 +50,8 @@ RUN microdnf install \
         --setopt=varsdir=/etc/dnf \
         clean all
 
-# Download Tini directly into the rootfs
+# Copy Tini into the rootfs from our own image, which is a manifest list, so the
+# binary matches whichever platform this image is being built for.
 ARG TINI_DEST=${ROOTFS}/usr/bin/tini
 
 COPY --from=quay.io/kroxylicious/tini:0.19.0@sha256:c4558590888cde324d905711c82009c8b5d76cf33f0f39a2435c43cf3dcd2e13 /usr/bin/tini ${TINI_DEST}
@@ -61,7 +62,7 @@ RUN chmod +x ${TINI_DEST} \
 #####
 # Stage 3: Build the final container image on ubi9-micro base
 #####
-FROM registry.access.redhat.com/ubi9/ubi-micro:9.8-1791895366@sha256:5be877a2a280ae36eb9ab80ca4efb28bbf77c57abbba38137cdc37a03b8465e6
+FROM registry.access.redhat.com/ubi9/ubi-micro:9.9-1794478307@sha256:dbd325b96bcd432dd42816d31412bdf1dc0fb973b79ed310344bc23c76c068db
 
 ARG KROXYLICIOUS_VERSION
 ARG CONTAINER_USER_UID=185

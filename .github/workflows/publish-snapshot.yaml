@@ -51,7 +51,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -60,6 +60,10 @@ jobs:
 
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
+
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: ./.github/actions/common/configure-maven-artifact-cache
 
       - name: 'Set up Java'
         uses: ./.github/actions/common/setup-java
@@ -100,12 +104,16 @@ jobs:
 
       - name: 'Summary'
         if: steps.version.outputs.is_snapshot == 'true'
+        env:
+          PROJECT_VERSION: ${{ steps.version.outputs.PROJECT_VERSION }}
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" << 'SUMMARY'
+          # Quoted heredoc keeps the markdown backticks literal; envsubst expands only the listed variables.
+          # shellcheck disable=SC2016
+          envsubst '${PROJECT_VERSION} ${GITHUB_SHA}' >> "$GITHUB_STEP_SUMMARY" << 'SUMMARY'
           ## SNAPSHOT Published
 
-          **Version:** `${{ steps.version.outputs.PROJECT_VERSION }}`
-          **Commit:** `${{ github.sha }}`
+          **Version:** `${PROJECT_VERSION}`
+          **Commit:** `${GITHUB_SHA}`
 
           ### Consumer configuration
 
@@ -126,9 +134,11 @@ jobs:
 
       - name: 'Summary (skipped)'
         if: steps.version.outputs.is_snapshot != 'true'
+        env:
+          PROJECT_VERSION: ${{ steps.version.outputs.PROJECT_VERSION }}
         run: |
           {
             echo "## SNAPSHOT Publish Skipped"
             echo ""
-            echo "Version \`${{ steps.version.outputs.PROJECT_VERSION }}\` does not end with \`-SNAPSHOT\`, nothing to publish."
+            echo "Version \`${PROJECT_VERSION}\` does not end with \`-SNAPSHOT\`, nothing to publish."
           } >> "$GITHUB_STEP_SUMMARY"

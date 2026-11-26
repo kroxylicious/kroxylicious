@@ -11,7 +11,7 @@
     <parent>
         <artifactId>kroxylicious-filter-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.26.0-SNAPSHOT</version>
+        <version>0.27.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-entity-isolation</artifactId>
@@ -122,6 +122,11 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

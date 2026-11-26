@@ -1,0 +1,80 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- description: Translate topic names and preserve partition offsets and errors
+  apiMessageType: DELETE_RECORDS
+  version: 2
+  disabled: false
+  request:
+    payload:
+      timeoutMs: 2000
+      topics:
+        - name: orders
+          partitions:
+            - partitionIndex: 0
+              offset: 42
+            - partitionIndex: 1
+              offset: -1
+        - name: tenant2-orders
+          partitions:
+            - partitionIndex: 0
+              offset: 123
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: tenant1-orders
+      - op: replace
+        path: "/topics/1/name"
+        value: tenant1-tenant2-orders
+  response:
+    payload:
+      throttleTimeMs: 20
+      topics:
+        - name: tenant1-orders
+          partitions:
+            - partitionIndex: 0
+              lowWatermark: 42
+              errorCode: 0
+            - partitionIndex: 1
+              lowWatermark: -1
+              errorCode: 29
+        - name: tenant1-tenant2-orders
+          partitions:
+            - partitionIndex: 0
+              lowWatermark: 123
+              errorCode: 0
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: orders
+      - op: replace
+        path: "/topics/1/name"
+        value: tenant2-orders
+
+- description: Drop another tenant's result without dropping the current tenant's result
+  apiMessageType: DELETE_RECORDS
+  version: 0
+  disabled: false
+  response:
+    payload:
+      throttleTimeMs: 0
+      topics:
+        - name: tenant1-orders
+          partitions:
+            - partitionIndex: 0
+              lowWatermark: 5
+              errorCode: 0
+        - name: tenant10-orders
+          partitions:
+            - partitionIndex: 1
+              lowWatermark: 100
+              errorCode: 0
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: orders
+      - op: remove
+        path: "/topics/1"

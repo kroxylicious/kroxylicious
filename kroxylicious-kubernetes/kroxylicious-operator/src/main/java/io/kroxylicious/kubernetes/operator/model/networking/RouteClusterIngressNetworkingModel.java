@@ -56,7 +56,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                                                  OpenShiftRoute openShiftRoute,
                                                  List<NodeIdRanges> nodeIdRanges,
                                                  Tls tls,
-                                                 int sharedSniPort,
+                                                 SharedSniContainerPort sharedSniPort,
                                                  List<RouteHostDetails> routeHostDetails)
         implements ClusterIngressNetworkingModel {
 
@@ -73,6 +73,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
             throw new IllegalArgumentException("nodeIdRanges cannot be empty");
         }
         Objects.requireNonNull(tls);
+        Objects.requireNonNull(sharedSniPort);
         Objects.requireNonNull(routeHostDetails);
     }
 
@@ -108,8 +109,8 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                 .withMetadata(metadataBuilder.build())
                 .withNewSpec()
                 .withSelector(standardLabels(proxy))
-                .withPorts(new ServicePortBuilder().withName(ResourcesUtil.name(cluster) + "-" + sharedSniPort).withProtocol("TCP").withPort(sharedSniPort)
-                        .withTargetPort(new IntOrString(sharedSniPort)).build())
+                .withPorts(new ServicePortBuilder().withName(ResourcesUtil.name(cluster) + "-" + sharedSniPort.containerPort()).withProtocol("TCP")
+                        .withPort(sharedSniPort.containerPort()).withTargetPort(new IntOrString(sharedSniPort.containerPort())).build())
                 .endSpec();
     }
 
@@ -124,7 +125,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
                 .withNewSpec()
                     .withSubdomain(subdomain)
                     .withNewPort()
-                    .withNewTargetPort(sharedSniPort)
+                    .withNewTargetPort(sharedSniPort.containerPort())
                 .endPort()
                 .withNewTls()
                     .withTermination("passthrough")
@@ -167,7 +168,7 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
         // The domain a generated route cannot be determined up-front because of Ingress Controller sharding. Instead, we initially use a temporary placeholder token.
         // Once the route is created and assigned a hostname, we extract the domain from it and use that instead of the token upon reconciliation.
         HostPort bootstrapAddress = new HostPort("$(virtualClusterName)-bootstrap." + getDomain(RouteHostDetails.RouteFor.BOOTSTRAP).orElse(UNRESOLVED_ROUTE_HOST_TOKEN),
-                sharedSniPort);
+                sharedSniPort.containerPort());
         HostPort advertisedBrokerAddressPattern = new HostPort("$(virtualClusterName)-$(nodeId)." + getDomain(RouteHostDetails.RouteFor.NODE).orElse(
                 UNRESOLVED_ROUTE_HOST_TOKEN),
                 CLIENT_FACING_ROUTE_PORT);
@@ -181,8 +182,8 @@ public record RouteClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
-    public boolean requiresSharedSniContainerPort() {
-        return true;
+    public Optional<SharedSniContainerPort> sharedSniContainerPort() {
+        return Optional.of(sharedSniPort);
     }
 
     /**

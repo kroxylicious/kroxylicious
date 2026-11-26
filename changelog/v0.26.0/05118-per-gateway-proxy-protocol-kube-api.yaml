@@ -1,0 +1,4 @@
+title: "feat(operator): add per-gateway PROXY protocol configuration to KafkaProxyIngress"
+type: added
+issues:
+  - 5118

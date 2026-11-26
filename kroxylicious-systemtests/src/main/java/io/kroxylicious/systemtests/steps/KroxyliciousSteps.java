@@ -10,12 +10,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.kafka.common.record.CompressionType;
-
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 
+import io.kroxylicious.kafka.common.record.internal.CompressionType;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.StrimziTestClient;
@@ -253,8 +252,27 @@ public class KroxyliciousSteps {
      */
     public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout,
                                                        List<EnvVar> extraEnvVars) {
+        return consumeMessages(namespace, Constants.CONSUMER_GROUP_NAME, topicName, bootstrap, numberOfMessages, timeout, Map.of(), extraEnvVars);
+    }
+
+    /**
+     * Consume messages via the Strimzi test client with TLS client certificate env vars and an explicit consumer group.
+     *
+     * @param namespace the namespace
+     * @param consumerGroup the consumer group
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numberOfMessages the number of messages
+     * @param timeout the timeout
+     * @param additionalConfig the additional config
+     * @param extraEnvVars additional env vars injected into the Job (e.g. from {@link #clientTlsEnvVars})
+     * @return the list of ConsumerRecords
+     */
+    public static List<ConsumerRecord> consumeMessages(String namespace, @NonNull String consumerGroup, String topicName, String bootstrap, int numberOfMessages,
+                                                       Duration timeout,
+                                                       Map<String, String> additionalConfig, List<EnvVar> extraEnvVars) {
         return ((StrimziTestClient) KafkaClients.strimziTestClient().inNamespace(namespace))
-                .consumeMessages(topicName, bootstrap, numberOfMessages, timeout, Map.of(), Constants.CONSUMER_GROUP_NAME, Map.of(), extraEnvVars);
+                .consumeMessages(topicName, bootstrap, numberOfMessages, timeout, additionalConfig, consumerGroup, Map.of(), extraEnvVars);
     }
 
     /**

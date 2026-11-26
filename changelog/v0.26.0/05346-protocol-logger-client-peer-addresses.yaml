@@ -1,0 +1,10 @@
+title: "feat(filters): add client and peer addresses to protocol logger"
+type: added
+merge_requests:
+  - 5346
+important_notes:
+  - |
+    The protocol logger filter now includes `clientAddress` and `peerAddress` in both the JSON
+    message body and structured logging output. IPv6 addresses are formatted with brackets per
+    RFC 3986 (e.g., `[2001:db8::1]:9092`), while IPv4 addresses use standard notation (e.g.,
+    `192.168.1.100:9092`).

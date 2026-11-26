@@ -121,8 +121,8 @@ filter.
 
 [source]
 ----
-token              hvs.CAESIFJ_HHo0VnnW6DSbioJ80NqmuYm2WlON-QxAPmiJScZUGh4KHGh2cy5KdkdFZUJMZmhDY0JCSVhnY2JrbUNEWnE
-token_accessor     4uQZJbEnxW4YtbDBaW6yVzwP
+token              hvs.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+token_accessor     XXXXXXXXXXXXXXXXXXXXXXXX
 token_policies     [kroxylicious_encryption_filter_policy]
 ----
 

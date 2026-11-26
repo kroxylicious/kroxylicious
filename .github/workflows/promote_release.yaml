@@ -59,7 +59,7 @@ jobs:
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -88,9 +88,10 @@ jobs:
       - name: 'Stop workflow if user is not a release-engineer'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          gh issue comment "${ISSUE_NUMBER}" --body "${GITHUB_ACTOR} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
           exit 1
 
       - name: 'Get run id of stage release workflow'
@@ -220,7 +221,7 @@ jobs:
 
       - name: Login to container registry
         if: ${{ vars.REGISTRY_SERVER != '' }}
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}
@@ -255,9 +256,10 @@ jobs:
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+          STAGING_TRANSITION: ${{ inputs.command == 'promote-release' && 'release' || 'drop' }}
         run: |
-          ./scripts/transition-staging-repository-state.sh -d "${{ env.DEPLOYMENT_ID}}" \
-                                                           -s "${{ inputs.command == 'promote-release' && 'release' || 'drop' }}"
+          ./scripts/transition-staging-repository-state.sh -d "${DEPLOYMENT_ID}" \
+                                                           -s "${STAGING_TRANSITION}"
 
       - name: 'Unblock the merge'
         if: ${{ inputs.command == 'promote-release' }}
@@ -277,9 +279,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh pr merge --delete-branch --merge ${{ inputs.release-pr-issue-number }}
-          # --merge (not --rebase) so the commit SHA the published images are tagged with
-          # is reachable on main.
+          # Use --merge to create a true merge commit (not squash).
+          # This is necessary because:
+          # 1. Release tag must point to exact commit artifacts were built from
+          # 2. Squash would create a new commit, breaking the tag reference
+          # The kroxylicious-robot account is a member of the release-automation
+          # team, which has a "Always Allow" ruleset bypass that allows
+          # merge commits despite the repository's squash-only restriction.
+          gh pr merge --merge ${{ inputs.release-pr-issue-number }}
+          
+          # Tag the release commit
           git tag "v${RELEASE_VERSION}" "${RELEASE_COMMIT_SHA}"
           git push origin "v${RELEASE_VERSION}"
 
@@ -293,12 +302,18 @@ jobs:
             --notes-file .releaseNotes/release-notes_01 \
             release-assets/*
 
-      - name: 'Delete release branch'
+      - name: 'Delete release and PR branches'
         if: ${{ inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
+          # Delete the temporary release branch (e.g., release-work-0.27.0-12345-rel)
+          # This branch contains only the release commit and was used for building artifacts
           git push origin --delete "${WORK_BRANCH}-rel" || echo "Branch ${WORK_BRANCH}-rel not found (already deleted?)"
+          
+          # Delete the PR branch (e.g., release-work-0.27.0-12345)
+          # This branch contains both the release commit and the development version commit
+          git push origin --delete "${PR_BRANCH}" || echo "Branch ${PR_BRANCH} not found (already deleted?)"
 
       - name: 'Tag release container images'
         if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
@@ -308,12 +323,12 @@ jobs:
           # The staging tag is stripped from the manifest ref to derive the image name.
           tag_release() {
             local manifest="$1" image="$2"
-            skopeo copy --all "docker://${manifest}" "docker://${image}:${{ env.RELEASE_VERSION }}"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:${RELEASE_VERSION}"
             skopeo copy --all "docker://${manifest}" "docker://${image}:latest"
           }
 
           # .manifestImage.ref selects only the multi-arch manifest list for each entity.
-          # Per-arch intermediate images (proxy amd64/arm64) are staging artifacts only
+          # The per-architecture proxy images it references are staging artifacts only
           # and are not published with a release tag.
           MANIFEST_IMAGE_SELECTOR='.stagedArtifacts[].images.manifestImage.ref'
           while IFS= read -r manifest; do
