@@ -63,6 +63,12 @@ public class OperatorMain {
      * operator relies on event-driven reconciliation.
      */
     static final String KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME = "KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS";
+    /**
+     * Name of an environment variable controlling what happens when a {@code KafkaProxy} has no
+     * companion {@code KafkaProxyNetworkPolicy}. One of {@code allow-all}, {@code deny-all} or
+     * {@code no-np}.
+     */
+    static final String KROXYLICIOUS_KPNP_ABSENT_VAR_NAME = "KROXYLICIOUS_KPNP_ABSENT";
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
     static final String HTTP_PATH_LIVEZ = "/livez";
     static final String HTTP_PATH_METRICS = "/metrics";

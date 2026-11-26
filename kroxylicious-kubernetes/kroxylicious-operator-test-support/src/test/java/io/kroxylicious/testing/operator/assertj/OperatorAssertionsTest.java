@@ -17,8 +17,10 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicyStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatusBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxynetworkpolicystatus.KafkaProxyIngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
@@ -57,6 +59,30 @@ class OperatorAssertionsTest {
 
         // Then
         then(actualAssertion).isInstanceOf(KafkaServiceStatusAssert.class);
+    }
+
+    @Test
+    void shouldReturnKafkaProxyNetworkPolicyStatusAssert() {
+        // Given
+        var status = new KafkaProxyNetworkPolicyStatusBuilder().withObservedGeneration(OBSERVED_GENERATION).build();
+
+        // When
+        Assert<?, ?> actualAssertion = OperatorAssertions.assertThat(status);
+
+        // Then
+        then(actualAssertion).isInstanceOf(KafkaProxyNetworkPolicyStatusAssert.class);
+    }
+
+    @Test
+    void shouldReturnKafkaProxyNetworkPolicyIngressAssert() {
+        // Given
+        var entry = new KafkaProxyIngressesBuilder().withNewIngressRef().withName("wibble").endIngressRef().build();
+
+        // When
+        Assert<?, ?> actualAssertion = OperatorAssertions.assertThat(entry);
+
+        // Then
+        then(actualAssertion).isInstanceOf(KafkaProxyNetworkPolicyIngressAssert.class);
     }
 
     @Test

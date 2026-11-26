@@ -38,6 +38,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
@@ -68,6 +69,7 @@ class OperatorMainIT {
         LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClient());
         LocallyRunOperatorExtension.applyCrd(KafkaService.class, OperatorTestUtils.kubeClient());
         LocallyRunOperatorExtension.applyCrd(KafkaProxyIngress.class, OperatorTestUtils.kubeClient());
+        LocallyRunOperatorExtension.applyCrd(KafkaProxyNetworkPolicy.class, OperatorTestUtils.kubeClient());
     }
 
     @AfterAll
@@ -78,6 +80,7 @@ class OperatorMainIT {
             kubernetesClient.resources(KafkaProxy.class).delete();
             kubernetesClient.resources(VirtualKafkaCluster.class).delete();
             kubernetesClient.resources(KafkaService.class).delete();
+            kubernetesClient.resources(KafkaProxyNetworkPolicy.class).delete();
         }
     }
 

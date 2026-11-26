@@ -6,6 +6,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -21,7 +22,6 @@ import io.javaoperatorsdk.operator.api.config.ControllerConfigurationOverrider;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -37,14 +37,17 @@ class ControllerConfigurer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ControllerConfigurer.class);
     private static final Pattern WATCHED_NAMESPACE_SPLITTER = Pattern.compile(" *, *");
+    private static final String LOGGING_KEY_ENV_VAR = "envVar";
+    private static final String LOGGING_KEY_VALUE = "value";
 
     @Nullable
     private final Duration maxReconciliationInterval;
     @Nullable
     private final Set<String> watchedNamespaces;
+    private final KpnpAbsent kpnpAbsent;
 
     ControllerConfigurer() {
-        this(getWatchedNamespacesFromEnvironment(), getMaxReconciliationIntervalFromEnvironment());
+        this(getWatchedNamespacesFromEnvironment(), getMaxReconciliationIntervalFromEnvironment(), getKpnpAbsentFromEnvironment());
     }
 
     /**
@@ -54,8 +57,20 @@ class ControllerConfigurer {
      */
     @VisibleForTesting
     ControllerConfigurer(@Nullable Set<String> watchedNamespaces, @Nullable Duration maxReconciliationInterval) {
+        this(watchedNamespaces, maxReconciliationInterval, KpnpAbsent.NO_NP);
+    }
+
+    /**
+     * @param watchedNamespaces namespaces to watch, or {@code null} to watch all namespaces
+     * @param maxReconciliationInterval maximum reconciliation interval to configure on every controller,
+     *                                  or {@code null} to leave the JOSDK default in place
+     * @param kpnpAbsent the policy to apply when a proxy has no {@code KafkaProxyNetworkPolicy}
+     */
+    @VisibleForTesting
+    ControllerConfigurer(@Nullable Set<String> watchedNamespaces, @Nullable Duration maxReconciliationInterval, KpnpAbsent kpnpAbsent) {
         this.watchedNamespaces = watchedNamespaces;
         this.maxReconciliationInterval = maxReconciliationInterval;
+        this.kpnpAbsent = Objects.requireNonNull(kpnpAbsent);
         logConfiguration();
     }
 
@@ -69,9 +84,13 @@ class ControllerConfigurer {
                 .ifPresentOrElse(
                         ns -> LOGGER.atInfo().addKeyValue("namespaces", ns).log("Watching namespaces"),
                         () -> LOGGER.atInfo().log("Watching all namespaces"));
+
+        LOGGER.atInfo()
+                .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
+                .addKeyValue(LOGGING_KEY_VALUE, kpnpAbsent.value())
+                .log("Configuring handling of proxies with no KafkaProxyNetworkPolicy");
     }
 
-    @NonNull
     <T extends HasMetadata> Consumer<ControllerConfigurationOverrider<T>> configurationOverrider() {
         return configOverrider -> {
             Optional.ofNullable(maxReconciliationInterval)
@@ -90,9 +109,15 @@ class ControllerConfigurer {
     /**
      * @return the configured maximum reconciliation interval, or empty if the JOSDK default is used
      */
-    @NonNull
     Optional<Duration> getMaxReconciliationInterval() {
         return Optional.ofNullable(maxReconciliationInterval);
+    }
+
+    /**
+     * @return the policy to apply when a proxy has no {@code KafkaProxyNetworkPolicy}
+     */
+    KpnpAbsent getKpnpAbsent() {
+        return kpnpAbsent;
     }
 
     @Nullable
@@ -105,8 +130,8 @@ class ControllerConfigurer {
             long seconds = Long.parseLong(envValue);
             if (seconds <= 0) {
                 LOGGER.atWarn()
-                        .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
-                        .addKeyValue("value", envValue)
+                        .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
+                        .addKeyValue(LOGGING_KEY_VALUE, envValue)
                         .log("Invalid value (must be positive), using JOSDK default max reconciliation interval");
                 return null;
             }
@@ -114,8 +139,8 @@ class ControllerConfigurer {
         }
         catch (NumberFormatException e) {
             LOGGER.atWarn()
-                    .addKeyValue("envVar", OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
-                    .addKeyValue("value", envValue)
+                    .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME)
+                    .addKeyValue(LOGGING_KEY_VALUE, envValue)
                     .log("Invalid value (not a number), using JOSDK default max reconciliation interval");
             return null;
         }
@@ -136,5 +161,24 @@ class ControllerConfigurer {
                 .map(String::trim)
                 .filter(Predicate.not(String::isEmpty))
                 .collect(Collectors.toSet());
+    }
+
+    private static KpnpAbsent getKpnpAbsentFromEnvironment() {
+        String envValue = System.getenv(OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME);
+        if (envValue == null) {
+            // TODO(pr-10): default to ALLOW_ALL once NetworkPolicy generation is enabled by default
+            return KpnpAbsent.NO_NP;
+        }
+        try {
+            return KpnpAbsent.fromValue(envValue);
+        }
+        catch (IllegalArgumentException e) {
+            LOGGER.atError()
+                    .addKeyValue(LOGGING_KEY_ENV_VAR, OperatorMain.KROXYLICIOUS_KPNP_ABSENT_VAR_NAME)
+                    .addKeyValue(LOGGING_KEY_VALUE, envValue)
+                    .setCause(e)
+                    .log("Invalid value for environment variable, refusing to start");
+            throw e;
+        }
     }
 }

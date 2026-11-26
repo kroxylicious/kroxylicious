@@ -10,12 +10,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -39,11 +41,15 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyNetworkPolicySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.testing.operator.OperatorTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 @EnabledIf(value = "io.kroxylicious.testing.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
@@ -61,6 +67,7 @@ class CustomResourceValidationIT {
         LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, client);
         LocallyRunOperatorExtension.applyCrd(KafkaService.class, client);
         LocallyRunOperatorExtension.applyCrd(KafkaProxyIngress.class, client);
+        LocallyRunOperatorExtension.applyCrd(KafkaProxyNetworkPolicy.class, client);
         client.namespaces().resource(NAMESPACE).createOr(NonDeletingOperation::update);
 
         isOpenShiftRouteApiAvailable = client.supports(Route.class);
@@ -75,6 +82,7 @@ class CustomResourceValidationIT {
             kubernetesClient.resources(KafkaProxy.class).delete();
             kubernetesClient.resources(VirtualKafkaCluster.class).delete();
             kubernetesClient.resources(KafkaService.class).delete();
+            kubernetesClient.resources(KafkaProxyNetworkPolicy.class).delete();
         }
     }
 
@@ -108,6 +116,52 @@ class CustomResourceValidationIT {
     @ParameterizedTest
     void testDerivedResourceInputsValid(Path validYaml) {
         testValid(validYaml);
+    }
+
+    @Test
+    void kafkaProxyNetworkPolicyProxyRefShouldBeImmutable() {
+        // Given
+        KubernetesClient client = OperatorTestUtils.kubeClient();
+        // Pass explicit empty lists: the zero-argument varargs overloads of the generated
+        // builders leave the field null, which would omit these required arrays from the JSON.
+        var policy = new KafkaProxyNetworkPolicyBuilder()
+                .withNewMetadata()
+                .withName("immutable-proxy-ref")
+                .withNamespace(NAMESPACE.getMetadata().getName())
+                .endMetadata()
+                .withNewSpec()
+                .withDefaultIngress(KafkaProxyNetworkPolicySpec.DefaultIngress.ALLOWALL)
+                .withDefaultEgress(KafkaProxyNetworkPolicySpec.DefaultEgress.DENYALL)
+                .withNewKafkaProxy()
+                .withNewProxyRef()
+                .withName("my-proxy")
+                .endProxyRef()
+                .withAllowEgressToClusterDns(true)
+                .withAllowIngressForMetrics(List.of())
+                .endKafkaProxy()
+                .withKafkaProxyIngresses(List.of())
+                .withKafkaServices(List.of())
+                .withKafkaProtocolFilters(List.of())
+                .endSpec()
+                .build();
+        var created = client.resource(policy).create();
+
+        try {
+            // When
+            created.getSpec().getKafkaProxy().getProxyRef().setName("another-proxy");
+
+            // Then
+            assertThatThrownBy(() -> client.resource(created).update())
+                    .isInstanceOfSatisfying(KubernetesClientException.class, e -> {
+                        Status status = e.getStatus();
+                        assertThat(status).isNotNull();
+                        assertThat(status.getCode()).isEqualTo(422);
+                        assertThat(status.getMessage()).contains("spec.kafkaProxy.proxyRef is immutable");
+                    });
+        }
+        finally {
+            client.resource(created).delete();
+        }
     }
 
     public static Stream<Path> testResourceValid() {
