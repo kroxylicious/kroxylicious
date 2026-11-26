@@ -163,8 +163,7 @@ jobs:
         if: steps.cache-base-image.outputs.cache-hit == 'true'
         run: docker load -i /tmp/base-images/strimzi-test-clients.tar
       - name: 'Build OAuth test-clients image'
-        working-directory: kroxylicious-test-images
-        run: mvn --batch-mode --quiet --activate-profiles dist -DskipTests package
+        run: mvn --batch-mode --quiet -pl kroxylicious-test-images --activate-profiles dist -DskipTests package
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-proxy.img.tar.gz
