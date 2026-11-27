@@ -52,6 +52,10 @@ public abstract class ConsumerRecord {
         return recordHeaders;
     }
 
+    public int getPartition() {
+        return partition;
+    }
+
     public long getOffset() {
         return offset;
     }
