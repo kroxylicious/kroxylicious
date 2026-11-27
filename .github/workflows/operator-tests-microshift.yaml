@@ -157,8 +157,6 @@ jobs:
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
 
       - name: Run operator integration tests
-        env:
-          ADDITIONAL_MAVEN_ARGUMENTS: ${{ github.event.inputs.additionalMavenArguments }}
         run: |
           eval "$(crc podman-env --root)"
 
@@ -167,7 +165,7 @@ jobs:
             --activate-profiles '!qa' \
             -Derrorprone.skip=true \
             -Dmaven.javadoc.skip=true \
-            ${ADDITIONAL_MAVEN_ARGUMENTS} \
+            ${{ github.event.inputs.additionalMavenArguments }} \
             verify
 
       - name: Upload Maven surefire / failsafe reports
