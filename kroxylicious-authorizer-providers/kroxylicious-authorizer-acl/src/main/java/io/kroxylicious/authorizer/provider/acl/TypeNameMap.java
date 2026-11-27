@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
 
 class TypeNameMap<T, V> {
@@ -62,6 +63,11 @@ class TypeNameMap<T, V> {
             return result;
         }
         throw new IllegalArgumentException("Unknown lookupable: " + lookupable);
+    }
+
+    /** Calls the action for every key and value, in key order. */
+    public void forEach(BiConsumer<OrderedKey<T>, V> action) {
+        map.forEach(action);
     }
 
 }
