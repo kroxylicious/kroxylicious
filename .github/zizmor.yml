@@ -84,9 +84,6 @@ rules:
       - operator-tests-microshift.yaml
       - robot-command-dispatcher.yaml
       - sonar.yaml
-  ref-version-mismatch:
-    ignore:
-      - action.yml
   secrets-inherit:
     ignore:
       - robot-command-dispatcher.yaml
