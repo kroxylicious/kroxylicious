@@ -120,14 +120,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: 'Configure Maven offline releases'
         id: configure-maven-artifact-cache
-        uses: ./.github/actions/common/configure-maven-artifact-cache
+        uses: $/.github/actions/common/configure-maven-artifact-cache
 
       # Matrix object keys use underscores: GitHub expressions parse `matrix.runs-on`
       # as a subtraction, so hyphenated keys cannot be read in `${{ }}`. The
@@ -315,12 +315,12 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
         with:
           architecture: ${{ matrix.architecture_override }}
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: Restore installed Kroxylicious modules
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -598,10 +598,10 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
 
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
 
       - name: Restore installed Kroxylicious modules
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333

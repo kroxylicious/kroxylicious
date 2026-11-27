@@ -31,16 +31,16 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: ./.github/actions/common/setup-java
+        uses: $/.github/actions/common/setup-java
       - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
+        uses: $/.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
+        uses: $/.github/actions/common/cache-maven-packages
       - name: 'Configure Maven cached artifact policy'
         id: configure-maven-artifact-cache
-        uses: ./.github/actions/common/configure-maven-artifact-cache
+        uses: $/.github/actions/common/configure-maven-artifact-cache
       - name: 'Download Kroxylicious Maven artifacts'
         uses: dawidd6/action-download-artifact@a92c7ae74cf1df8810783758581e485ac3aaa309
         with:
