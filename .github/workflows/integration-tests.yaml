@@ -101,10 +101,8 @@ jobs:
 
       - name: Parse test specifications
         id: parse
-        env:
-          TESTS: ${{ matrix.tests }}
         run: |
-          CHUNK="${TESTS}"
+          CHUNK="${{ matrix.tests }}"
           echo "Processing chunk: $CHUNK"
 
           # Extract module from first test (all tests in chunk are from same module)
@@ -118,10 +116,7 @@ jobs:
           echo "tests=$TEST_LIST" >> "$GITHUB_OUTPUT"
 
       - name: Log tests to run
-        env:
-          TESTS: ${{ steps.parse.outputs.tests }}
-          MODULE: ${{ steps.parse.outputs.module }}
-        run: echo "Running tests '${TESTS}' in module '${MODULE}'"
+        run: echo "Running tests '${{ steps.parse.outputs.tests }}' in module '${{ steps.parse.outputs.module }}'"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -194,20 +189,18 @@ jobs:
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
       - name: 'Extract dist artifacts for KT tests'
         if: steps.check_k8s.outputs.needs_minikube == 'true'
-        env:
-          MODULE: ${{ steps.parse.outputs.module }}
         run: |
           KROXYLICIOUS_VERSION="$(mvn help:evaluate -Dexpression=project.version --quiet -DforceStdout)"
 
           # Extract operator dist ZIP if this is an operator test
-          if [ "${MODULE}" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
+          if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-operator/target/packaged
             unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator/${KROXYLICIOUS_VERSION}/kroxylicious-operator-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-operator/target/packaged/
           fi
 
           # Extract admission dist ZIP if this is an admission test
-          if [ "${MODULE}" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
+          if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
             mkdir -p kroxylicious-kubernetes/kroxylicious-admission/target/packaged
             unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission/${KROXYLICIOUS_VERSION}/kroxylicious-admission-${KROXYLICIOUS_VERSION}.zip" \
               -d kroxylicious-kubernetes/kroxylicious-admission/target/packaged/
@@ -220,12 +213,10 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
-          HAS_KT_TESTS: ${{ steps.check_k8s.outputs.has_kt_tests }}
-          TESTS: ${{ steps.parse.outputs.tests }}
         working-directory: ${{ steps.parse.outputs.module }}
         run: |
           # Activate dist profile and skip flags for KT tests
-          if [ "${HAS_KT_TESTS}" = "true" ]; then
+          if [ "${{ steps.check_k8s.outputs.has_kt_tests }}" = "true" ]; then
             PROFILES="dist,!qa"
             # Skip default integration-test execution, enable kube-integration-test execution
             EXTRA_PROPS="-DskipITs=true -DskipKTs=false"
@@ -238,7 +229,7 @@ jobs:
             --activate-profiles "${PROFILES}" \
             -DskipUTs \
             -Derrorprone.skip=true \
-            -Dit.test="${TESTS}" \
+            -Dit.test="${{ steps.parse.outputs.tests }}" \
             ${EXTRA_PROPS} \
             verify
   integration_test_filter_archetype:

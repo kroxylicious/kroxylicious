@@ -108,8 +108,6 @@ jobs:
       - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          QA_OPTS: ${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}
-          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
           IMAGE_TAG="dev-git-${GIT_HASH}"
@@ -119,11 +117,12 @@ jobs:
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
           # On PRs, skip QA checks (already run in lint.yaml). On push to main, run QA checks.
+          QA_OPTS="${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}"
           mvn --batch-mode \
             --activate-profiles ci \
             ${QA_OPTS} \
             -DskipITs \
-            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}" \
+            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }} \
             install
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -137,11 +136,10 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REFERENCE_RELEASE_UNPUBLISHED: ${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
         run: |
           source scripts/ci-build-functions.sh
           run_sonar "${PROXY_PROFILES}" 'Proxy Runtime' 'kroxylicious_kroxylicious' \
-            -Djapicmp.skip="${REFERENCE_RELEASE_UNPUBLISHED}"
+            -Djapicmp.skip=${{ needs.compute_pom_version.outputs.reference_release_unpublished }}
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: $/.github/actions/common/slack-notification

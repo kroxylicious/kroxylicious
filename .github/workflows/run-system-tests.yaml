@@ -86,9 +86,7 @@ jobs:
       # StepSecurity harden-runner cannot be used here because of the limitation of running it on containers (minikube)
       # https://github.com/step-security/harden-runner/blob/main/docs/limitations.md
       - name: Log tests to run
-        env:
-          TESTS: ${{ matrix.tests }}
-        run: echo "Running tests on classes '${TESTS}'"
+        run: echo "Running tests on classes '${{ matrix.tests }}'"
       - name: 'Check out repository'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -149,10 +147,8 @@ jobs:
           key: base-image-${{ hashFiles('kroxylicious-test-images/pom.xml') }}
       - name: 'Pull strimzi test-clients base image'
         if: steps.cache-base-image.outputs.cache-hit != 'true'
-        env:
-          BASE_IMAGE_NAME: ${{ steps.base-image.outputs.name }}
         run: |
-          IMAGE="${BASE_IMAGE_NAME}"
+          IMAGE="${{ steps.base-image.outputs.name }}"
           for i in 1 2 3; do
             docker pull "$IMAGE" && break
             [ "$i" -lt 3 ] && sleep 30
