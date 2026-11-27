@@ -27,6 +27,7 @@ RUN microdnf install -y --nodocs shadow-utils
 # Copy the ubi9-micro rootfs (including its RPM database) as the install root
 COPY --from=base / ${ROOTFS}
 
+# Require the RHSA-2026:100567 fix for CVE-2026-114938 when building with OpenJDK 21.
 RUN microdnf install \
         --installroot ${ROOTFS} \
         --noplugins \
@@ -40,6 +41,16 @@ RUN microdnf install \
         -y \
         java-${JAVA_VERSION}-openjdk-headless \
         openssl \
+    && if [ "${JAVA_VERSION}" = "21" ]; then \
+        minimum_evr='1:21.0.13.1.2-1.2.el9'; \
+        installed_evr=$(rpm --root "${ROOTFS}" -q --qf '%{EPOCHNUM}:%{VERSION}-%{RELEASE}' java-21-openjdk-headless) || exit 1; \
+        comparison=$(rpm --define "installed_evr ${installed_evr}" --define "minimum_evr ${minimum_evr}" \
+            --eval '%{lua:print(rpm.vercmp(rpm.expand("%{installed_evr}"), rpm.expand("%{minimum_evr}")))}') || exit 1; \
+        case "${comparison}" in \
+            0|1) ;; \
+            *) echo "OpenJDK RPM ${installed_evr} does not meet minimum ${minimum_evr} for CVE-2026-114938" >&2; exit 1 ;; \
+        esac; \
+    fi \
     && if [[ -n "${CONTAINER_USER}" && "${CONTAINER_USER}" != "root" ]] ; then groupadd --root ${ROOTFS} -r -g "${CONTAINER_USER_UID}" "${CONTAINER_USER}" && useradd --root ${ROOTFS} -M -r -u "${CONTAINER_USER_UID}" -g "${CONTAINER_USER}" "${CONTAINER_USER}"; fi \
     && microdnf \
         --installroot ${ROOTFS}\
