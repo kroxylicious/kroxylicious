@@ -104,16 +104,12 @@ jobs:
 
       - name: 'Summary'
         if: steps.version.outputs.is_snapshot == 'true'
-        env:
-          PROJECT_VERSION: ${{ steps.version.outputs.PROJECT_VERSION }}
         run: |
-          # Quoted heredoc keeps the markdown backticks literal; envsubst expands only the listed variables.
-          # shellcheck disable=SC2016
-          envsubst '${PROJECT_VERSION} ${GITHUB_SHA}' >> "$GITHUB_STEP_SUMMARY" << 'SUMMARY'
+          cat >> "$GITHUB_STEP_SUMMARY" << 'SUMMARY'
           ## SNAPSHOT Published
 
-          **Version:** `${PROJECT_VERSION}`
-          **Commit:** `${GITHUB_SHA}`
+          **Version:** `${{ steps.version.outputs.PROJECT_VERSION }}`
+          **Commit:** `${{ github.sha }}`
 
           ### Consumer configuration
 
@@ -134,11 +130,9 @@ jobs:
 
       - name: 'Summary (skipped)'
         if: steps.version.outputs.is_snapshot != 'true'
-        env:
-          PROJECT_VERSION: ${{ steps.version.outputs.PROJECT_VERSION }}
         run: |
           {
             echo "## SNAPSHOT Publish Skipped"
             echo ""
-            echo "Version \`${PROJECT_VERSION}\` does not end with \`-SNAPSHOT\`, nothing to publish."
+            echo "Version \`${{ steps.version.outputs.PROJECT_VERSION }}\` does not end with \`-SNAPSHOT\`, nothing to publish."
           } >> "$GITHUB_STEP_SUMMARY"

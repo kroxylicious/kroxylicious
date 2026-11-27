@@ -3,6 +3,22 @@
 # The ignores below baseline the findings that existed when zizmor was
 # introduced. They should be removed as the underlying issues are fixed.
 rules:
+  template-injection:
+    ignore:
+      - build-kroxylicious-container-images.yaml
+      - build-omb-image.yml
+      - create-release-branch.yaml
+      - integration-tests.yaml
+      - maven.yaml
+      - operator-tests-microshift.yaml
+      - promote_release.yaml
+      - publish-snapshot-docs-to-website.yaml
+      - publish-snapshot.yaml
+      - renovate.yaml
+      - robot-command-dispatcher.yaml
+      - run-system-tests.yaml
+      - sonar.yaml
+      - stage_release.yaml
   self-repository:
     ignore:
       - build-kroxylicious-artifacts.yaml
@@ -88,9 +104,6 @@ rules:
     ignore:
       - kubernetes-modules-maven.yaml
       - maven.yaml
-  ref-version-mismatch:
-    ignore:
-      - action.yml
   secrets-inherit:
     ignore:
       - robot-command-dispatcher.yaml

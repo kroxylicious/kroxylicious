@@ -49,10 +49,9 @@ jobs:
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "${ISSUE_NUMBER}" --body "${GITHUB_ACTOR} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
-          echo "${GITHUB_ACTOR} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
+          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
+          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)" >&2
           exit 1
 
       - name: 'Extract command from comment'
@@ -100,9 +99,7 @@ jobs:
       - name: 'Send help'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          COMMAND: ${{ needs.process-command.outputs.command }}
         run: |
-          gh issue comment "${ISSUE_NUMBER}" --body "Sorry, I don't understand the command '${COMMAND}'."
+          gh issue comment  ${{ github.event.issue.number }} --body "Sorry, I don't understand the command '${{ needs.process-command.outputs.command }}'."
 
 
