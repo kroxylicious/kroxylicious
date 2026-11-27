@@ -19,9 +19,16 @@ name: System Tests for Main branch
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:
+    permissions:
+      contents: read
+      actions: read   # download artifacts / list jobs of this run
+      checks: write   # dorny/test-reporter
     uses: ./.github/workflows/run-system-tests.yaml
     with:
       groups: 'externalKafkaClients,operator'
@@ -52,6 +59,10 @@ jobs:
 
   # Then we run the tests that with the KAFKA_CLIENT selected
   run_system_tests:
+    permissions:
+      contents: read
+      actions: read   # download artifacts / list jobs of this run
+      checks: write   # dorny/test-reporter
     needs: [discover_system_test_clients]
     uses: ./.github/workflows/run-system-tests.yaml
     secrets:

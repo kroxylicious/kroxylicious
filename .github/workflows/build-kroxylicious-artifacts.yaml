@@ -19,6 +19,9 @@ name: Build Kroxylicious Artifacts
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   build_kroxylicious_images:
     uses: ./.github/workflows/build-kroxylicious-container-images.yaml

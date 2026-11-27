@@ -50,6 +50,9 @@ on:
         description: 'The URI of the website repository, starting with everything after the @, e.g. github.com/kroxylicious/kroxylicious.github.io.git'
         required: false
         default: 'github.com/kroxylicious/kroxylicious.github.io.git'
+permissions:
+  contents: read
+
 jobs:
   stage-release:
     runs-on: ubuntu-latest

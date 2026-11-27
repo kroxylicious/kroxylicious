@@ -26,8 +26,17 @@ on:
     # Run weekly on Saturday at 3am UTC to match Dependabot schedule
     - cron: '0 3 * * 6'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   renovate:
+    permissions:
+      # Only used when falling back to github.token (KROXYLICIOUS_GITHUB_READWRITE_TOKEN unset)
+      contents: write
+      pull-requests: write
+      issues: write
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

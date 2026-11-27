@@ -19,6 +19,9 @@ name: System Tests for Pull-Requests
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   # JOB to run change detection
   changes:
@@ -89,6 +92,10 @@ jobs:
           echo "$KAFKA_CLIENT"
 
   run_system_tests:
+    permissions:
+      contents: read
+      actions: read   # download artifacts / list jobs of this run
+      checks: write   # dorny/test-reporter
     needs: [changes,set_variables]
     if: always()
     uses: ./.github/workflows/run-system-tests.yaml
