@@ -85,7 +85,7 @@ jobs:
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
 
       - name: 'Install podman'
         run: |
@@ -155,12 +155,12 @@ jobs:
               -Dio.kroxylicious.proxy.image.name=${KROXYLICIOUS_IMAGE} \
               install
 
-          echo "image=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_OUTPUT}"
+          echo "kroxylicious_image=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_OUTPUT}"
 
       - name: Run operator integration tests
         env:
           # This ensures that the tests will use the built operand.
-          KROXYLICIOUS_IMAGE: ${{ steps.build_operand.outputs.image }}
+          KROXYLICIOUS_IMAGE: ${{ steps.build_operand.outputs.kroxylicious_image }}
           ADDITIONAL_MAVEN_ARGUMENTS: ${{ github.event.inputs.additionalMavenArguments }}
         run: |
           eval "$(crc podman-env --root)"
@@ -184,7 +184,7 @@ jobs:
           retention-days: 7
 
       - name: Slack Notification on Failure
-        if: failure() && steps.slack_secret.outputs.set == 'true' && github.event_name == 'push'
+        if: failure() && steps.slack_secret.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
