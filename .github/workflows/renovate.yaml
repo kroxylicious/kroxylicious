@@ -58,7 +58,7 @@ jobs:
       - name: "Set actor from Github token"
         if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET != 'true'
         run: |
-          echo "RENOVATE_GIT_AUTHOR=${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>" >> "$GITHUB_ENV"
+          echo "RENOVATE_GIT_AUTHOR=${GITHUB_ACTOR} <${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com>" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Setup node
