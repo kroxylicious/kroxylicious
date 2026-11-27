@@ -6,9 +6,9 @@
 # put jose4j on the classpath of Kafka clients that need it for OAUTHBEARER (KAFKA-20184).
 #
 # The system tests (SaslTerminationST) mount this image as an image volume. The workflow runs
-# automatically when a push to main changes jose4j.version in the root pom.xml, and publishes the
-# image for the new version; Renovate then picks up the new tag and updates the pinned image in the
-# system tests' Environment.java. It can also be run manually; if no version is given, the version
+# automatically on pushes to main that change pom.xml, and publishes the image if none exists yet for
+# the jose4j.version in pom.xml; Renovate then picks up the new tag and updates the pinned image in
+# the system tests' Environment.java. It can also be run manually; if no version is given, the version
 # is taken from jose4j.version in the root pom.xml of the selected ref.
 #
 # Requires repository variables:
@@ -40,8 +40,8 @@ permissions:
 
 jobs:
   # Decides which version to publish and whether to publish at all. Manual runs always build.
-  # Pushes only build when they change jose4j.version in pom.xml: the property is read (with yq's
-  # XML parser) from pom.xml at the commit before the push and at the pushed commit, and compared.
+  # Pushes only build when the image for the jose4j.version in pom.xml doesn't exist yet, so pom.xml
+  # changes that don't touch jose4j.version are no-ops.
   resolve:
     runs-on: ubuntu-latest
     # Automatic publishing only from the upstream repository, so forks with registry variables set
@@ -51,8 +51,8 @@ jobs:
       (github.event_name == 'workflow_dispatch' || github.repository == 'kroxylicious/kroxylicious')
     outputs:
       build: ${{ steps.resolve.outputs.build }}
-      version: ${{ steps.resolve.outputs.version }}
-      dependency-plugin-version: ${{ steps.resolve.outputs.dependency-plugin-version }}
+      jose_version: ${{ steps.resolve.outputs.jose_version }}
+      dependency_plugin_version: ${{ steps.resolve.outputs.dependency_plugin_version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -64,54 +64,44 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup Java
+        uses: $/.github/actions/common/setup-java
+
       - name: Resolve version and whether to build
         id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_VERSION: ${{ inputs.version }}
-          BEFORE_SHA: ${{ github.event.before }}
+          DESTINATION: ${{ inputs.registry-destination || 'quay.io/kroxylicious/jose4j' }}
         run: |
-          pom_property() { # <commit> <property>
-            git show "$1:pom.xml" | yq -p xml ".project.properties.\"$2\" // \"\""
-          }
           VERSION_REGEX='^[0-9]+(\.[0-9]+)*([.-][A-Za-z0-9]+)*$'
 
-          VERSION="$(pom_property HEAD jose4j.version)"
-          DEPENDENCY_PLUGIN_VERSION="$(pom_property HEAD maven-dependency-plugin.version)"
-          BUILD=true
-
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            VERSION="${INPUT_VERSION:-${VERSION}}"
-          elif [[ "${BEFORE_SHA}" =~ ^0+$ ]]; then
-            # No previous commit to compare with (the branch was just created).
-            echo "::notice::No previous commit to compare jose4j.version with, not building"
-            BUILD=false
-          else
-            # The checkout is shallow, so fetch the commit main pointed to before the push.
-            git fetch --quiet --no-tags --depth=1 origin "${BEFORE_SHA}"
-            PREVIOUS_VERSION="$(pom_property "${BEFORE_SHA}" jose4j.version)"
-            if [ "${PREVIOUS_VERSION}" = "${VERSION}" ]; then
-              echo "::notice::jose4j.version unchanged (${VERSION}), not building"
-              BUILD=false
-            else
-              echo "::notice::jose4j.version changed from '${PREVIOUS_VERSION}' to '${VERSION}'"
-            fi
+          JOSE_VERSION="${INPUT_VERSION:-$(mvn --batch-mode --quiet help:evaluate -Dexpression=jose4j.version -DforceStdout)}"
+          DEPENDENCY_PLUGIN_VERSION="$(mvn --batch-mode --quiet help:evaluate -Dexpression=maven-dependency-plugin.version -DforceStdout)"
+          if ! [[ "${JOSE_VERSION}" =~ ${VERSION_REGEX} ]]; then
+            echo "::error::Invalid or missing jose4j version: '${JOSE_VERSION}'"
+            exit 1
+          fi
+          if ! [[ "${DEPENDENCY_PLUGIN_VERSION}" =~ ${VERSION_REGEX} ]]; then
+            echo "::error::Unable to resolve maven-dependency-plugin.version: '${DEPENDENCY_PLUGIN_VERSION}'"
+            exit 1
           fi
 
-          if [ "${BUILD}" = "true" ]; then
-            if ! [[ "${VERSION}" =~ ${VERSION_REGEX} ]]; then
-              echo "::error::Invalid or missing jose4j version: '${VERSION}'"
-              exit 1
-            fi
-            if ! [[ "${DEPENDENCY_PLUGIN_VERSION}" =~ ${VERSION_REGEX} ]]; then
-              echo "::error::Unable to resolve maven-dependency-plugin.version: '${DEPENDENCY_PLUGIN_VERSION}'"
-              exit 1
-            fi
+          BUILD=true
+          if [ "${EVENT_NAME}" != "workflow_dispatch" ]; then
+            # skopeo exits 0 if the image exists, 2 if it doesn't, and 1 on any other error.
+            STATUS=0
+            skopeo inspect --no-creds --raw "docker://${DESTINATION}:${JOSE_VERSION}" > /dev/null || STATUS=$?
+            case "${STATUS}" in
+              0) echo "::notice::${DESTINATION}:${JOSE_VERSION} already exists, not building"; BUILD=false ;;
+              2) echo "::notice::${DESTINATION}:${JOSE_VERSION} doesn't exist yet, building" ;;
+              *) echo "::error::Unable to check whether ${DESTINATION}:${JOSE_VERSION} exists"; exit 1 ;;
+            esac
           fi
           {
             echo "build=${BUILD}"
-            echo "version=${VERSION}"
-            echo "dependency-plugin-version=${DEPENDENCY_PLUGIN_VERSION}"
+            echo "jose_version=${JOSE_VERSION}"
+            echo "dependency_plugin_version=${DEPENDENCY_PLUGIN_VERSION}"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -120,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # inputs are empty on push events, so fall back to the default destination.
-      IMAGE: ${{ inputs.registry-destination || 'quay.io/kroxylicious/jose4j' }}:${{ needs.resolve.outputs.version }}
+      IMAGE: ${{ inputs.registry-destination || 'quay.io/kroxylicious/jose4j' }}:${{ needs.resolve.outputs.jose_version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -139,15 +129,15 @@ jobs:
       # about checksum mismatches by default; --strict-checksums makes them fail the build.
       - name: Download jose4j from Maven Central
         env:
-          VERSION: ${{ needs.resolve.outputs.version }}
-          DEPENDENCY_PLUGIN_VERSION: ${{ needs.resolve.outputs.dependency-plugin-version }}
+          JOSE_VERSION: ${{ needs.resolve.outputs.jose_version }}
+          DEPENDENCY_PLUGIN_VERSION: ${{ needs.resolve.outputs.dependency_plugin_version }}
         run: |
           IMAGE_DIR="${RUNNER_TEMP}/jose4j-image"
           mkdir -p "${IMAGE_DIR}" "${RUNNER_TEMP}/mvn-empty"
           cd "${RUNNER_TEMP}/mvn-empty"
           mvn --batch-mode --no-transfer-progress --strict-checksums \
             "org.apache.maven.plugins:maven-dependency-plugin:${DEPENDENCY_PLUGIN_VERSION}:copy" \
-            -Dartifact="org.bitbucket.b_c:jose4j:${VERSION}:jar" \
+            -Dartifact="org.bitbucket.b_c:jose4j:${JOSE_VERSION}:jar" \
             -DoutputDirectory="${IMAGE_DIR}" \
             -Dmdep.stripVersion=true
           test -s "${IMAGE_DIR}/jose4j.jar"
@@ -176,10 +166,10 @@ jobs:
           tags: ${{ env.IMAGE }}
           labels: |
             org.opencontainers.image.title=jose4j
-            org.opencontainers.image.version=${{ needs.resolve.outputs.version }}
+            org.opencontainers.image.version=${{ needs.resolve.outputs.jose_version }}
             org.opencontainers.image.licenses=Apache-2.0
             org.opencontainers.image.source=https://bitbucket.org/b_c/jose4j
-            org.opencontainers.image.description=jose4j jar (org.bitbucket.b_c:jose4j:${{ needs.resolve.outputs.version }} from Maven Central) at /jose4j.jar
+            org.opencontainers.image.description=jose4j jar (org.bitbucket.b_c:jose4j:${{ needs.resolve.outputs.jose_version }} from Maven Central) at /jose4j.jar
 
       - name: Summary
         env:
