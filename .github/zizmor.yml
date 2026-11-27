@@ -76,9 +76,6 @@ rules:
     ignore:
       - operator-tests-microshift.yaml
       - sonar.yaml
-  dependabot-cooldown:
-    ignore:
-      - dependabot.yaml
   dangerous-triggers:
     ignore:
       - operator-tests-microshift.yaml

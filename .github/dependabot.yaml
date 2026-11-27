@@ -8,6 +8,13 @@ updates:
   - package-ecosystem: "maven" # See documentation for possible values
     rebase-strategy: "disabled" # Use manual rebasing to manage CI workload
     directory: "/" # Location of package manifests
+    # Wait before proposing a newly published version, so a compromised or
+    # broken release has time to be noticed and yanked first. When cooldown is
+    # not configured, Dependabot applies a default of 3 days to version updates.
+    # 7 days is the minimum zizmor's dependabot-cooldown audit accepts.
+    # Security updates are never delayed by the cooldown.
+    cooldown:
+      default-days: 7
     schedule:
       interval: "weekly"
       day: "saturday"
@@ -16,6 +23,8 @@ updates:
   - package-ecosystem: "github-actions"
     rebase-strategy: "disabled" # Use manual rebasing to manage CI workload
     directory: "/"
+    cooldown:
+      default-days: 7 # Dependabot default is 3 days; see the maven entry above
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
@@ -30,6 +39,8 @@ updates:
     # directories supports globbing
     directories: 
       - "/.github/actions/common/*"
+    cooldown:
+      default-days: 7 # Dependabot default is 3 days; see the maven entry above
     schedule:
       interval: "weekly"
       day: "saturday"
