@@ -79,11 +79,6 @@ rules:
   dependabot-cooldown:
     ignore:
       - dependabot.yaml
-  dangerous-triggers:
-    ignore:
-      - operator-tests-microshift.yaml
-      - robot-command-dispatcher.yaml
-      - sonar.yaml
   cache-poisoning:
     ignore:
       - kubernetes-modules-maven.yaml

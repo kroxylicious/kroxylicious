@@ -17,7 +17,11 @@
 name: Kroxylicious Robot Command Dispatcher
 
 on:
-  issue_comment:
+  # issue_comment is how @kroxylicious-robot commands are received. It always runs
+  # the default branch's workflow and checks out the default branch, never PR code.
+  # Commands are only acted on after confirming the commenter is a member of the
+  # release-engineers team, and the comment body is only passed via env.
+  issue_comment:  # zizmor: ignore[dangerous-triggers] trusted code only; commenter is authorised first
     types: [created]
 
 jobs:

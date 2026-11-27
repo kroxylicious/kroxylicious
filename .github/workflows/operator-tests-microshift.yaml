@@ -31,7 +31,11 @@ name: Test Operator on MicroShift (OpenShift substitute)
 on:
   push:
     branches: [ main ]
-  workflow_run: # uses workflow_run as we need access to the secrets
+  # workflow_run is needed so PRs from forks can use REDHAT_PULL_SECRET to start
+  # MicroShift. It runs the default branch's workflow definition, and only after
+  # "Lint Pull Request" succeeds, which requires maintainer approval for new
+  # contributors. See the "Checkout source" step for the PR checkout risk.
+  workflow_run:  # zizmor: ignore[dangerous-triggers] needs secrets for fork PRs; see above
     workflows: [ "Lint Pull Request" ]
     types: [completed]
 
