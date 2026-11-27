@@ -145,7 +145,7 @@ allow anonymous to READ Topic with name like "public-*";
 ----
 
 Rules for anonymous clients apply only to clients that have not authenticated, and other rules never apply to them.
-`anonymous` is a keyword, so it cannot be used as a name in a rules file, for example as the alias of an imported type.
+The word `anonymous` is a keyword, so it cannot be used as a name in a rules file. For example, as the alias of an imported type.
 
 == Resource Predicates
 
