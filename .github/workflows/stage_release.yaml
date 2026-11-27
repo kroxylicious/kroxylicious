@@ -52,7 +52,7 @@ on:
         default: 'github.com/kroxylicious/kroxylicious.github.io.git'
 jobs:
   stage-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Harden the runner (Audit all outbound calls)

@@ -68,12 +68,41 @@
       "addLabels": [
         "test/system-test/kaf"
       ]
+    },
+    {
+      // Dependabot owns GitHub Actions version/SHA bumps; Renovate only handles runner images
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDatasources": [
+        "!github-runners"
+      ],
+      "enabled": false
+    },
+    {
+      "matchDatasources": [
+        "github-runners"
+      ],
+      "groupName": "GitHub Actions runner images",
+      "addLabels": [
+        "dev/github_actions"
+      ]
+    },
+    {
+      // ppc64le and s390x runners are not GitHub-hosted, so new Ubuntu releases may arrive
+      // later than on amd64/arm; keep them in a separate PR so they don't block the others
+      "matchDepNames": [
+        "ubuntu-ppc64le",
+        "ubuntu-s390x"
+      ],
+      "groupName": "ppc64le and s390x runner images"
     }
   ],
   "enabledManagers": [
     "custom.regex",
     "dockerfile",
-    "docker-compose"
+    "docker-compose",
+    "github-actions"
   ],
   "customManagers": [
     {
@@ -296,6 +325,52 @@
       ],
       "depNameTemplate": "jbangdev/jbang",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/config\\/arch-matrix\\.json$/"
+      ],
+      "matchStrings": [
+        "\"runs-on\":\\s*\"(?<depName>ubuntu)-(?<currentValue>\\d+\\.\\d+)\""
+      ],
+      "datasourceTemplate": "github-runners"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/config\\/arch-matrix\\.json$/"
+      ],
+      "matchStrings": [
+        "\"runs-on\":\\s*\"ubuntu-(?<currentValue>\\d+\\.\\d+)-arm\""
+      ],
+      "depNameTemplate": "ubuntu-arm",
+      "packageNameTemplate": "ubuntu",
+      "datasourceTemplate": "github-runners"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/config\\/arch-matrix\\.json$/"
+      ],
+      "matchStrings": [
+        "\"runs-on\":\\s*\"ubuntu-(?<currentValue>\\d+\\.\\d+)-ppc64le\""
+      ],
+      "depNameTemplate": "ubuntu-ppc64le",
+      "packageNameTemplate": "ubuntu",
+      "datasourceTemplate": "github-runners"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/config\\/arch-matrix\\.json$/"
+      ],
+      "matchStrings": [
+        "\"runs-on\":\\s*\"ubuntu-(?<currentValue>\\d+\\.\\d+)-s390x\""
+      ],
+      "depNameTemplate": "ubuntu-s390x",
+      "packageNameTemplate": "ubuntu",
+      "datasourceTemplate": "github-runners"
     }
   ],
   "managerFilePatterns": [

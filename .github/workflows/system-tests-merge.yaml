@@ -27,7 +27,7 @@ jobs:
       groups: 'externalKafkaClients,operator'
 
   discover_system_test_clients:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       test_clients: ${{ steps.discover.outputs.test_clients }}
     steps:
@@ -67,7 +67,7 @@ jobs:
         tests: ${{ fromJson(needs.discover_system_test_clients.outputs.test_clients) }}
 
   system_tests_proxy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: [run_system_tests, run_external_kafka_client_and_operator_system_tests]
     if: always()
     permissions:

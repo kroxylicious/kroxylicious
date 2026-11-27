@@ -23,7 +23,7 @@ on:
 jobs:
 
   process-command:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@kroxylicious-robot')  && !contains(github.event.comment.body, '@kroxylicious-robot run')}}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -83,7 +83,7 @@ jobs:
     secrets: inherit
 
   dispatch-help:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: process-command
     if: ${{ needs.process-command.outputs.unrecognized == 'true' }}
     steps:

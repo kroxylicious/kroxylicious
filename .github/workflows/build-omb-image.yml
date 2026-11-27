@@ -28,7 +28,7 @@ permissions:  # added using https://github.com/step-security/secure-repo
 jobs:
   build-and-push:
     name: Build and Push OMB Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4

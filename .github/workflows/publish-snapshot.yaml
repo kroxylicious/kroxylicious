@@ -46,7 +46,7 @@ concurrency:
 
 jobs:
   publish-snapshot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: github.repository == 'kroxylicious/kroxylicious'
 
     steps:

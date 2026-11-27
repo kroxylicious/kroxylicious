@@ -2,7 +2,7 @@
   "amd64": {
     "enabled": true,
     "default": true,
-    "runs-on": "ubuntu-latest",
+    "runs-on": "ubuntu-26.04",
     "dist-profile": "dist,!qa",
     "target-netty-classifier": "x86_64",
     "architecture-override": null

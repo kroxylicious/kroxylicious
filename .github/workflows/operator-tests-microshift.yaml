@@ -50,7 +50,7 @@ concurrency:
 jobs:
   preflight:
     name: Preflight checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       pull-secret-check: ${{ steps.pull-check.outputs.pullsecret }}
     steps:

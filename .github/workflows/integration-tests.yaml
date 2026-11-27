@@ -21,7 +21,7 @@ on:
 
 jobs:
   discover_integration_test_chunks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
       modules: ${{ steps.discover.outputs.modules }}
@@ -64,7 +64,7 @@ jobs:
           echo "Discovered $(echo "$TEST_CHUNKS" | jq -r 'length') test chunks"
 
   get_kroxylicious_image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       kroxylicious_image: ${{ steps.build_image.outputs.KROXYLICIOUS_IMAGE }}
     steps:
@@ -88,7 +88,7 @@ jobs:
 
   run_integration_tests:
     needs: [get_kroxylicious_image, discover_integration_test_chunks]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -243,7 +243,7 @@ jobs:
             verify
   integration_test_filter_archetype:
     needs: get_kroxylicious_image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -275,7 +275,7 @@ jobs:
         working-directory: kroxylicious-filter-archetype
         run: mvn --batch-mode verify
   integration_test_proxy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: [run_integration_tests, integration_test_filter_archetype]
     if: always()
     permissions:

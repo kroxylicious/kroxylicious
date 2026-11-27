@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   build_kubernetes_modules:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
