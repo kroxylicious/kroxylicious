@@ -5,12 +5,18 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+
 import org.junit.jupiter.api.Test;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.bootstrap.BootstrapServerSelector;
 import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
@@ -20,11 +26,13 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.internal.tls.KafkaProxyDelegatingSslContext;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -36,12 +44,14 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class UpstreamClusterModelTest {
 
     private static final TargetCluster PLAINTEXT_CLUSTER = new TargetCluster("broker:9092", Optional.empty());
-    private static final Tls TLS_NO_CREDENTIAL_SUPPLIER = new Tls(null, null, null, null, null);
+    private static final Tls TLS_NO_CREDENTIAL_SUPPLIER = new Tls(null, null, null, null, null, null);
 
     @Plugin(configType = Void.class)
     static class StubSupplierFactory implements ServerTlsCredentialSupplierFactory<Void, Void> {
@@ -196,7 +206,7 @@ class UpstreamClusterModelTest {
     @Test
     void usesDynamicTlsCredentialsReturnsTrueWhenCredentialSupplierConfigured() {
         var supplierConfig = new TlsCredentialSupplierConfig("StubSupplierFactory", null);
-        var tls = new Tls(null, null, null, null, supplierConfig);
+        var tls = new Tls(null, null, null, null, supplierConfig, null);
         var cluster = new TargetCluster("broker:9092", Optional.of(tls));
         var model = new UpstreamClusterModel(cluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
         assertThat(model.usesDynamicTlsCredentials()).isTrue();
@@ -214,7 +224,7 @@ class UpstreamClusterModelTest {
     @Test
     void buildCreatesModelWithConfiguredManagerWhenCredentialSupplierPresent() {
         var supplierConfig = new TlsCredentialSupplierConfig("StubSupplierFactory", null);
-        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, supplierConfig)));
+        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, supplierConfig, null)));
 
         var model = UpstreamClusterModel.build(cluster, stubPfr());
 
@@ -227,12 +237,57 @@ class UpstreamClusterModelTest {
         var client = TlsTestConstants.getResourceLocationOnFilesystem("client.jks");
         var downstreamTls = new Tls(null,
                 new TrustStore(client, new InlinePassword("storepass"), null, new ServerOptions(TlsClientAuth.REQUIRED)),
-                null, null, null);
+                null, null, null, null);
         var cluster = new TargetCluster("bootstrap:9092", Optional.of(downstreamTls));
 
         assertThatThrownBy(() -> UpstreamClusterModel.build(cluster, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
+    }
+
+    @Test
+    void buildAppliesNamedGroupsToUpstreamSslContext() {
+        // Given
+        var namedGroups = new AllowDeny<String>(List.of("X25519MLKEM768"), null);
+        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, null, namedGroups)));
+
+        // When
+        var model = UpstreamClusterModel.build(cluster, null);
+
+        // Then
+        assertThat(model.upstreamSslContext()).get().isInstanceOf(KafkaProxyDelegatingSslContext.class);
+        var engine = model.upstreamSslContext().orElseThrow().newEngine(ByteBufAllocator.DEFAULT);
+        try {
+            // only the hybrid ML-KEM group is offered, with no classical fallback, so a classical-only broker cannot negotiate
+            assertThat(engine.getSSLParameters().getNamedGroups()).containsExactly("X25519MLKEM768");
+        }
+        finally {
+            ReferenceCountUtil.release(engine);
+        }
+    }
+
+    @Test
+    void buildWrapsNamedGroupsValidationFailureAsIllegalConfigurationException() {
+        // Given
+        var namedGroups = new AllowDeny<>(null, Set.of("x25519"));
+        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, null, namedGroups)));
+        var sslParameters = mock(SSLParameters.class);
+        when(sslParameters.getNamedGroups()).thenReturn(null);
+        when(sslParameters.getProtocols()).thenReturn(new String[0]);
+        when(sslParameters.getCipherSuites()).thenReturn(new String[0]);
+        var sslContext = mock(SSLContext.class);
+        when(sslContext.getDefaultSSLParameters()).thenReturn(sslParameters);
+        when(sslContext.getSupportedSSLParameters()).thenReturn(sslParameters);
+
+        try (var mocked = mockStatic(SSLContext.class)) {
+            mocked.when(SSLContext::getDefault).thenReturn(sslContext);
+
+            // When/Then
+            assertThatThrownBy(() -> UpstreamClusterModel.build(cluster, null))
+                    .isInstanceOf(IllegalConfigurationException.class)
+                    .hasMessageContaining("Upstream cluster with bootstrap servers 'broker:9092'")
+                    .hasMessageContaining("does not expose its default named groups");
+        }
     }
 
     // close()

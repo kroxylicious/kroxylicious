@@ -25,6 +25,8 @@ import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.ListGroupsOptions;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.OffsetSpec;
+import org.apache.kafka.clients.admin.RecordsToDelete;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.clients.admin.TransactionDescription;
@@ -42,6 +44,7 @@ import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
@@ -124,6 +127,23 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     @Test
+    void describeTopicConfigs(KafkaCluster cluster) {
+        var config = getConfig(cluster, this.certificateGenerator);
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
+            createTopics(admin, NEW_TOPIC_1);
+
+            var resource = new ConfigResource(ConfigResource.Type.TOPIC, TOPIC_1);
+            await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
+                var describeConfigsResult = admin.describeConfigs(List.of(resource));
+                var configs = describeConfigsResult.all().get();
+                assertThat(configs).containsKey(resource);
+                assertThat(configs.get(resource).entries()).isNotEmpty();
+            });
+        }
+    }
+
+    @Test
     void produceOne(KafkaCluster cluster) {
         var config = getConfig(cluster, this.certificateGenerator);
         try (var tester = buildTester(config)) {
@@ -195,6 +215,32 @@ class MultiTenantIT extends BaseMultiTenantIT {
             admin.deleteConsumerGroupOffsets(groupId, Set.of(new TopicPartition(topicName, 0))).all().get();
             consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new ArrayDeque<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
         }
+    }
+
+    @Test
+    void deleteRecordsIsTenantScoped(KafkaCluster cluster) throws Exception {
+        var config = getConfig(cluster, this.certificateGenerator);
+        try (var tester = kroxyliciousTester(config);
+                var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
+                var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
+            createTopics(adminTenant1, NEW_TOPIC_1);
+            createTopics(adminTenant2, NEW_TOPIC_1);
+            var records = List.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1"), new ProducerRecord<>(TOPIC_1, MY_KEY, "2"));
+            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, records.stream(), Optional.empty());
+            produceAndAssert(tester, this.clientConfig, TENANT_2_CLUSTER, records.stream(), Optional.empty());
+            var partition = new TopicPartition(TOPIC_1, 0);
+
+            var deleted = adminTenant1.deleteRecords(Map.of(partition, RecordsToDelete.beforeOffset(2))).lowWatermarks();
+
+            assertThat(deleted).containsOnlyKeys(partition);
+            assertThat(deleted.get(partition).get().lowWatermark()).isEqualTo(2);
+            assertThat(earliestOffset(adminTenant1, partition)).isEqualTo(2);
+            assertThat(earliestOffset(adminTenant2, partition)).isZero();
+        }
+    }
+
+    private static long earliestOffset(Admin admin, TopicPartition partition) throws Exception {
+        return admin.listOffsets(Map.of(partition, OffsetSpec.earliest())).partitionResult(partition).get().offset();
     }
 
     @Test

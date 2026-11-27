@@ -134,6 +134,19 @@ The following User predicates are supported:
 
 |===
 
+== Anonymous clients
+
+A client that has not authenticated has no principals, so no user predicate matches it.
+To write a rule for such clients, use `anonymous` in place of `User with <user predicate>`:
+
+[source]
+----
+allow anonymous to READ Topic with name like "public-*";
+----
+
+Rules for anonymous clients apply only to clients that have not authenticated, and other rules never apply to them.
+The word `anonymous` is a keyword, so it cannot be used as a name in a rules file. For example, as the alias of an imported type.
+
 == Resource Predicates
 
 The following resource predicates are supported:
@@ -155,9 +168,22 @@ The following resource predicates are supported:
 
 | `MATCHING`
 | Regular expression match
-| `name matching "a+"`
+| `name matching /a+/`
 
 |===
+
+In a `matching` regular expression, the ACL parser recognises two special escape sequences
+before passing the pattern to the regex engine:
+
+* `\/` - a literal slash (needed to avoid ending the `/…/` delimiter early)
+* `\\` - a single backslash character passed to the regex engine
+
+Any other backslash is passed through unchanged, so `/orders\.v1/` matches only `orders.v1`
+(literal dot) and `/\d+-topic/` matches names such as `12-topic`, made of one or more digits followed by `-topic`.
+
+Because there are two layers of escaping — the ACL syntax and the regex engine — matching a
+*literal backslash* in a topic name requires four backslashes in the ACL file:
+`/foo\\\\bar/` produces the regex pattern `foo\\bar`, which matches the string `foo\bar`.
 
 == Operations
 

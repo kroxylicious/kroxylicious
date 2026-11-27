@@ -59,7 +59,7 @@ jobs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - name: 'Check out repository'
@@ -103,24 +103,27 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: ./.github/actions/common/configure-maven-artifact-cache
       - name: 'Download Kroxylicious Maven artifacts'
-        uses: dawidd6/action-download-artifact@eab87c9830c39eff17e5a6eadb20bfb4bc880477
+        uses: dawidd6/action-download-artifact@a92c7ae74cf1df8810783758581e485ac3aaa309
         with:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts
           run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy container artifact
-        uses: dawidd6/action-download-artifact@eab87c9830c39eff17e5a6eadb20bfb4bc880477
+        uses: dawidd6/action-download-artifact@a92c7ae74cf1df8810783758581e485ac3aaa309
         with:
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious operator container artifact
-        uses: dawidd6/action-download-artifact@eab87c9830c39eff17e5a6eadb20bfb4bc880477
+        uses: dawidd6/action-download-artifact@a92c7ae74cf1df8810783758581e485ac3aaa309
         with:
           name: kroxylicious-operator
           run_id: ${{github.run_id}}
       - name: Download kroxylicious admission-webhook container artifact
-        uses: dawidd6/action-download-artifact@eab87c9830c39eff17e5a6eadb20bfb4bc880477
+        uses: dawidd6/action-download-artifact@a92c7ae74cf1df8810783758581e485ac3aaa309
         with:
           name: kroxylicious-admission-webhook
           run_id: ${{github.run_id}}

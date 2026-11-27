@@ -11,12 +11,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -110,7 +112,26 @@ class AclAuthorizerServiceTest {
                                 allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "3:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}."));
+                        "3:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}."),
+                Arguments.argumentSet("anonymous with a principal type",
+                        """
+                                from io.kroxylicious.proxy.authentication import User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                                allow anonymous User to READ Topic with name = "foo";
+
+                                otherwise deny;""",
+                        "4:16: extraneous input 'User' expecting 'to'."),
+                Arguments.argumentSet("anonymous as an import alias",
+                        """
+                                from io.kroxylicious.proxy.authentication import User as anonymous;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                                allow anonymous with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
+                        "1:57: mismatched input 'anonymous' expecting {'deny', 'allow', 'otherwise', 'in', 'to', 'as', 'like', "
+                                + "'matching', 'from', 'import', 'name', 'with', IDENT}."));
     }
 
     @ParameterizedTest
@@ -180,7 +201,7 @@ class AclAuthorizerServiceTest {
                         """
                                 from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
-                                allow User with name = "Alice" to READ Topic with name matching /**/;
+                                allow User with name = "Alice" to READ Topic with name matching /*a/;
 
                                 otherwise deny;""",
                         """
@@ -237,6 +258,39 @@ class AclAuthorizerServiceTest {
         assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Mismatching principal type")
                 .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void anonymousRulesApplyToSubjectsWithoutPrincipalsOnly() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                deny anonymous to READ Topic with name = "secret";
+                allow anonymous to READ Topic with name like "public*";
+                allow anonymous to READ Topic with name = "secret";
+                allow User with name * to WRITE Topic with name *;
+
+                otherwise deny;"""));
+
+        assertThat(anonymousDecision(authz, FakeTopicResource.READ, "public-a")).isEqualTo(Decision.ALLOW);
+        assertThat(anonymousDecision(authz, FakeTopicResource.READ, "secret"))
+                .as("Deny rules apply to anonymous subjects")
+                .isEqualTo(Decision.DENY);
+        assertThat(anonymousDecision(authz, FakeTopicResource.READ, "other")).isEqualTo(Decision.DENY);
+        assertThat(anonymousDecision(authz, FakeTopicResource.WRITE, "public-a"))
+                .as("A rule for any user does not apply to an anonymous subject")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "public-a"))
+                .as("An anonymous rule does not apply to an authenticated subject")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.WRITE, "public-a")).isEqualTo(Decision.ALLOW);
+    }
+
+    private static Decision anonymousDecision(AclAuthorizer authz, ResourceType<?> resourceType, String resourceName) {
+        return authz.authorize(Subject.anonymous(), List.of(new Action(resourceType, resourceName)))
+                .toCompletableFuture().join()
+                .decision(resourceType, resourceName);
     }
 
     @Test
@@ -674,6 +728,69 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.ALLOW);
     }
 
+    /**
+     * A backslash that is not a lexer escape ({@code \\/} or {@code \\\\}) belongs to the regex, and
+     * is kept.
+     */
+    @Test
+    void regexEscapesOtherThanSlashAndBackslashAreKept() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                allow User with name = "Alice" to READ Topic with name matching /orders\\.v1/;
+                allow User with name = "Bob" to READ Topic with name matching /a\\d+/;
+                allow User with name = "Carol" to READ Topic with name matching /x\\/y/;
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "orders.v1")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "ordersXv1")).isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "a12")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "ad")).isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Carol"), FakeTopicResource.READ, "x/y")).isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void shouldAcceptBlockComments() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                /* Rules for team A */
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                /*
+                 * Alice reads foo
+                 */
+                allow User with name = "Alice" to READ Topic with name = "foo"; /* trailing */
+                // a line comment
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void blockCommentCoexistsWithRegexEndingStarSlash() {
+        // /a*/ ends with */ — verify the non-greedy COMMENT rule does not absorb the closing / of the regex token
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                /* Rules for team A */
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                allow User with name = "Alice" to READ Topic with name matching /a*/;
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "aaa")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void unclosedBlockCommentIsAnError() {
+        var input = CharStreams.fromString("""
+                /* unclosed comment
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+                allow User with name = "Alice" to READ Topic with name = "foo";
+                otherwise deny;""");
+        assertThatThrownBy(() -> AclAuthorizerService.parse(input))
+                .isExactlyInstanceOf(InvalidRulesFileException.class)
+                .asInstanceOf(InstanceOfAssertFactories.throwable(InvalidRulesFileException.class))
+                .extracting(InvalidRulesFileException::errors, InstanceOfAssertFactories.STRING)
+                .contains("1:0: token recognition error");
+    }
+
     @Test
     void testLikeQuoting() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
@@ -757,5 +874,72 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.ALLOW);
         assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "bar"))
                 .isEqualTo(Decision.ALLOW);
+    }
+
+    /**
+     * A child-first class loader holding its own copy of {@link FakeTopicResource}, as a host with
+     * several class loaders (an application server, a plugin system, a framework's dev mode) would.
+     * The {@link ResourceType} interface itself is shared with the parent.
+     */
+    private static final class HostClassLoader extends ClassLoader {
+        private static final String COPIED = FakeTopicResource.class.getName();
+
+        HostClassLoader() {
+            super(AclAuthorizerServiceTest.class.getClassLoader());
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (!name.equals(COPIED)) {
+                return super.loadClass(name, resolve);
+            }
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> loaded = findLoadedClass(name);
+                if (loaded != null) {
+                    return loaded;
+                }
+                try (var in = getParent().getResourceAsStream(name.replace('.', '/') + ".class")) {
+                    byte[] bytes = Objects.requireNonNull(in).readAllBytes();
+                    return defineClass(name, bytes, 0, bytes.length);
+                }
+                catch (IOException e) {
+                    throw new ClassNotFoundException(name, e);
+                }
+            }
+        }
+    }
+
+    private static final String HOST_RULES = """
+            from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+            allow User with name = "Alice" to READ Topic with name = "foo";
+            otherwise deny;""";
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static ResourceType<?> hostRead(ClassLoader host) throws ClassNotFoundException {
+        Class enumClass = host.loadClass(FakeTopicResource.class.getName());
+        return (ResourceType<?>) Enum.valueOf(enumClass, "READ");
+    }
+
+    @Test
+    void importedClassesAreResolvedWithTheGivenClassLoader() throws Exception {
+        var host = new HostClassLoader();
+        ResourceType<?> hostRead = hostRead(host);
+        assertThat(hostRead.getClass()).isNotEqualTo(FakeTopicResource.class);
+
+        var authz = AclAuthorizerService.parse(HOST_RULES, host);
+
+        // The rule is for the host's copy of the class, not this module's
+        assertThat(decision(authz, new User("Alice"), hostRead, "foo")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.DENY);
+        assertThat(authz.supportedResourceTypes()).hasValueSatisfying(types -> assertThat(types).containsExactly(
+                (Class) hostRead.getClass()));
+    }
+
+    @Test
+    void importedClassesAreResolvedWithThisModulesClassLoaderByDefault() throws Exception {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString(HOST_RULES));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo")).isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), hostRead(new HostClassLoader()), "foo")).isEqualTo(Decision.DENY);
     }
 }

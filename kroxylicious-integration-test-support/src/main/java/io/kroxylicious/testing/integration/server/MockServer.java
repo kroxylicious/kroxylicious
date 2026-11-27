@@ -8,17 +8,22 @@ package io.kroxylicious.testing.integration.server;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.hamcrest.Matcher;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.ssl.SslContext;
 
 import io.kroxylicious.testing.integration.Request;
@@ -35,11 +40,24 @@ import io.kroxylicious.testing.integration.codec.KafkaResponseEncoder;
  * check the output from the proxy.
  */
 public final class MockServer implements AutoCloseable {
+
+    /**
+     * Key fields extracted from a received PROXY protocol header.
+     *
+     * @param sourceAddress source IP address declared in the PROXY header
+     * @param sourcePort source port declared in the PROXY header
+     * @param destinationAddress destination IP address declared in the PROXY header
+     * @param destinationPort destination port declared in the PROXY header
+     */
+    public record ReceivedProxyHeader(String sourceAddress, int sourcePort, String destinationAddress, int destinationPort) {}
+
     private Channel channel;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private final int port;
     private MockHandler serverHandler;
+    private volatile boolean acceptProxyProtocol = false;
+    private final AtomicReference<ReceivedProxyHeader> receivedProxyHeader = new AtomicReference<>();
 
     private MockServer(ResponsePayload response, int port, SslContext serverSslContext) {
         this.port = start(port, response, serverSslContext);
@@ -139,6 +157,10 @@ public final class MockServer implements AutoCloseable {
                     @Override
                     public void initChannel(SocketChannel ch) {
                         ChannelPipeline p = ch.pipeline();
+                        if (acceptProxyProtocol) {
+                            p.addLast(new HAProxyMessageDecoder());
+                            p.addLast(new ProxyHeaderCapturingHandler());
+                        }
                         if (serverSslContext != null) {
                             p.addLast(serverSslContext.newHandler(ch.alloc()));
                         }
@@ -173,8 +195,10 @@ public final class MockServer implements AutoCloseable {
         ChannelFuture channelFuture = channel.close();
         try {
             channelFuture.sync();
-            bossGroup.shutdownGracefully().syncUninterruptibly();
-            workerGroup.shutdownGracefully().syncUninterruptibly();
+            var bossFuture = bossGroup.shutdownGracefully();
+            var workerFuture = workerGroup.shutdownGracefully();
+            bossFuture.syncUninterruptibly();
+            workerFuture.syncUninterruptibly();
         }
         catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -194,6 +218,28 @@ public final class MockServer implements AutoCloseable {
     }
 
     /**
+     * Configures this server to decode PROXY protocol v1/v2 headers on incoming connections.
+     * Must be called before any client connects. The decoded header is accessible via
+     * {@link #getReceivedProxyHeader()}.
+     *
+     * @return this server, for chaining
+     */
+    public MockServer acceptProxyProtocol() {
+        this.acceptProxyProtocol = true;
+        return this;
+    }
+
+    /**
+     * Returns the PROXY protocol header received on the most recent connection, or
+     * {@code null} if no PROXY header has been received yet.
+     *
+     * @return the received header, or {@code null}
+     */
+    public ReceivedProxyHeader getReceivedProxyHeader() {
+        return receivedProxyHeader.get();
+    }
+
+    /**
      * Clear the response and tell the serverHandler to clear its collection of received requests.
      */
     public void clear() {
@@ -207,5 +253,26 @@ public final class MockServer implements AutoCloseable {
      */
     public void assertAllMockInteractionsInvoked() {
         this.serverHandler.assertAllMockInteractionsInvoked();
+    }
+
+    private class ProxyHeaderCapturingHandler extends ChannelInboundHandlerAdapter {
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            if (msg instanceof HAProxyMessage haProxy) {
+                try {
+                    receivedProxyHeader.set(new ReceivedProxyHeader(
+                            haProxy.sourceAddress(), haProxy.sourcePort(),
+                            haProxy.destinationAddress(), haProxy.destinationPort()));
+                }
+                finally {
+                    haProxy.release();
+                }
+                ctx.pipeline().remove(this);
+            }
+            else {
+                ctx.fireChannelRead(msg);
+            }
+        }
+
     }
 }

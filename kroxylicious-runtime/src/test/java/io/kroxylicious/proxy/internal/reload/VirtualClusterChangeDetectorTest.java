@@ -137,10 +137,10 @@ class VirtualClusterChangeDetectorTest {
         // Build configs with the matching named filter definitions so Configuration validation passes.
         var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(filterDef("filter-a"), filterDef("filter-b")), null, null, List.of(oldVc), null, false,
                 Optional.empty(),
-                null, null);
+                null);
         var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(filterDef("filter-a"), filterDef("filter-b")), null, null, List.of(newVc), null, false,
                 Optional.empty(),
-                null, null);
+                null);
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
         assertThat(result.clustersToModify()).containsExactly("cluster");
     }
@@ -181,7 +181,7 @@ class VirtualClusterChangeDetectorTest {
     }
 
     private static Configuration configWith(List<ClusterDefinition> clusterDefinitionList, VirtualCluster... clusters) {
-        return new Configuration(null, clusterDefinitionList, null, null, null, List.of(clusters), null, false, Optional.empty(), null, null);
+        return new Configuration(null, clusterDefinitionList, null, null, null, List.of(clusters), null, false, Optional.empty(), null);
     }
 
     /**
@@ -234,7 +234,7 @@ class VirtualClusterChangeDetectorTest {
         return new VirtualClusterGateway(gatewayName,
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", port), null, null, null),
                 null,
-                Optional.empty());
+                Optional.empty(), null);
     }
 
     @Test
@@ -294,7 +294,7 @@ class VirtualClusterChangeDetectorTest {
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var newVc = new VirtualCluster("cluster",
-                new TargetCluster("kafka:9092", Optional.of(new Tls(null, null, null, null, null))),
+                new TargetCluster("kafka:9092", Optional.of(new Tls(null, null, null, null))),
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
         var result = detector.detect(new ConfigurationChangeContext(configWith(CLUSTER_DEFINITION_LIST, oldVc), configWith(CLUSTER_DEFINITION_LIST, newVc)));
@@ -326,9 +326,8 @@ class VirtualClusterChangeDetectorTest {
                 List.of(gateway("default", 9192)),
                 false, false, List.of("filter-a"));
         // newConfig needs filter-a in filterDefinitions; old has no filter defs because filters list was empty.
-        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(oldVc), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(filterDef("filter-a")), null, null, List.of(newVc), null, false, Optional.empty(), null,
-                null);
+        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(oldVc), null, false, Optional.empty(), null);
+        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(filterDef("filter-a")), null, null, List.of(newVc), null, false, Optional.empty(), null);
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
         assertThat(result.clustersToModify()).containsExactly("cluster");
     }
@@ -341,9 +340,8 @@ class VirtualClusterChangeDetectorTest {
                 List.of(gateway("default", 9192)),
                 false, false, List.of("filter-a"));
         var newVc = vc("cluster", 9192, CLUSTER_TARGET);
-        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(filterDef("filter-a")), null, null, List.of(oldVc), null, false, Optional.empty(), null,
-                null);
-        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(newVc), null, false, Optional.empty(), null, null);
+        var oldConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, List.of(filterDef("filter-a")), null, null, List.of(oldVc), null, false, Optional.empty(), null);
+        var newConfig = new Configuration(null, CLUSTER_DEFINITION_LIST, null, null, null, List.of(newVc), null, false, Optional.empty(), null);
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
         assertThat(result.clustersToModify()).containsExactly("cluster");
     }
@@ -400,10 +398,8 @@ class VirtualClusterChangeDetectorTest {
                 new TargetCluster("kafka:9092", Optional.empty(), new RoundRobinBootstrapSelectionStrategy(), null),
                 List.of(gateway("default", 9192)),
                 false, false, List.of());
-        var oldConfig = new Configuration(null, null, null, null, null, List.of(new VirtualCluster[]{ oldVc }), null, false, Optional.empty(), null,
-                null);
-        var newConfig = new Configuration(null, null, null, null, null, List.of(new VirtualCluster[]{ newVc }), null, false, Optional.empty(), null,
-                null);
+        var oldConfig = new Configuration(null, null, null, null, null, List.of(new VirtualCluster[]{ oldVc }), null, false, Optional.empty(), null);
+        var newConfig = new Configuration(null, null, null, null, null, List.of(new VirtualCluster[]{ newVc }), null, false, Optional.empty(), null);
 
         // When
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));

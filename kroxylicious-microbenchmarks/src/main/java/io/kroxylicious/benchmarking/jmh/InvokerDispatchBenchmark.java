@@ -6,6 +6,9 @@
 
 package io.kroxylicious.benchmarking.jmh;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +57,7 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvokers;
 import io.kroxylicious.proxy.internal.filter.SafeInvoker;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -211,6 +215,21 @@ public class InvokerDispatchBenchmark {
         @Override
         public String channelDescriptor() {
             return "";
+        }
+
+        @Override
+        public SocketAddress clientAddress() {
+            return new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        }
+
+        @Override
+        public SocketAddress peerAddress() {
+            return new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        }
+
+        @Override
+        public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
+            return Optional.empty();
         }
 
         @Override

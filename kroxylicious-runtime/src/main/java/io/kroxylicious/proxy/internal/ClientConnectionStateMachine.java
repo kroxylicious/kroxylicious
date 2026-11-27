@@ -54,6 +54,7 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -80,7 +81,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *     {@link ClientConnectionState.ClientActive ClientActive} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╭───┤
  *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
- *  │  {@link ClientConnectionState.HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  │  {@link ClientConnectionState.ProxyProtocol ProxyProtocol} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╰───┤
  *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any KRPC request
  *     {@link Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
@@ -448,10 +449,10 @@ public class ClientConnectionStateMachine {
                     .log("Allocated session ID for downstream connection");
             ClientConnectionState.ClientActive clientActive = STARTING_STATE.toClientActive();
             toClientActive(clientActive, frontendHandler);
-            // If an HaProxy context was stored in KafkaSession (by the detection/message
-            // handlers before CCSM was created), transition ClientActive → HaProxy.
-            if (kafkaSession.haProxyContext() != null) {
-                toHaProxy(clientActive.toHaProxy());
+            // If a PROXY protocol context was stored in KafkaSession (by the detection/message
+            // handlers before CCSM was created), transition ClientActive → ProxyProtocol.
+            if (kafkaSession.proxyProtocolContext() != null) {
+                toProxyProtocol(clientActive.toProxyProtocol());
             }
         }
         else {
@@ -885,6 +886,15 @@ public class ClientConnectionStateMachine {
     }
 
     /**
+     * Returns the PROXY protocol context of the downstream client connection, if a PROXY protocol
+     * header carrying a supported TCP4 or TCP6 endpoint was received.
+     * @return the client PROXY protocol context, or empty if no such header was received
+     */
+    public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
+        return kafkaSession.clientProxyProtocolContext();
+    }
+
+    /**
      * Records a successful SASL authentication of the downstream client.
      * @param mechanism the SASL mechanism used
      * @param subject the subject established by the SASL exchange
@@ -1172,8 +1182,8 @@ public class ClientConnectionStateMachine {
         if (state() instanceof ClientConnectionState.ClientActive clientActive) {
             return transitionToForwarding(msg, clientActive::toForwarding);
         }
-        else if (state() instanceof ClientConnectionState.HaProxy haProxy) {
-            return transitionToForwarding(msg, haProxy::toForwarding);
+        else if (state() instanceof ClientConnectionState.ProxyProtocol proxyProtocol) {
+            return transitionToForwarding(msg, proxyProtocol::toForwarding);
         }
         return false;
     }
@@ -1201,8 +1211,8 @@ public class ClientConnectionStateMachine {
         return false;
     }
 
-    private void toHaProxy(ClientConnectionState.HaProxy haProxy) {
-        setState(haProxy);
+    private void toProxyProtocol(ClientConnectionState.ProxyProtocol proxyProtocol) {
+        setState(proxyProtocol);
     }
 
     private void toClosed(@Nullable Throwable errorCodeEx) {

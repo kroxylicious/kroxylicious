@@ -1,0 +1,6 @@
+title: "fix(authorizer-acl): keep regex escapes in 'matching' literals in ACL rules files"
+type: fixed
+issues:
+  - 5236
+important_notes:
+  - "**Behaviour change**: in a `matching /…/` literal, a backslash before any character other than `/` or `\\` is now kept as part of the regular expression. `/orders\\.v1/` now matches only `orders.v1`; previously the backslash was dropped, so it also matched `ordersXv1`. Patterns written with doubled backslashes (`/orders\\\\.v1/`) are unchanged."

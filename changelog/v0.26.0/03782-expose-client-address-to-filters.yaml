@@ -1,0 +1,20 @@
+title: "feat(api): expose client address and PROXY protocol context to filters"
+type: added
+issues:
+  - 3782
+links:
+  - name: Proposal 139
+    url: https://github.com/kroxylicious/design/blob/main/proposals/139-expose-client-address-to-filters.md
+important_notes:
+  - |
+    `FilterContext` now exposes the client's network address to filters through three accessors:
+    `clientAddress()` (the PROXY protocol source address if present, otherwise the immediate transport peer),
+    `peerAddress()` (the immediate transport peer, e.g. a load balancer) and `clientProxyProtocolContext()`.
+  - |
+    Source-incompatible for code that implements `FilterContext` directly (for example a hand-rolled
+    test double): the three new accessors are abstract methods, so such implementations must add them
+    before they will recompile. Filters that only consume a `FilterContext` need no changes.
+  - |
+    `kroxylicious-filter-test-support`: `MockFilterContext` implements the new accessors. Its builder
+    gains `withPeerAddress(...)` and `withClientProxyProtocolContext(...)`, and `DEFAULT_PEER_ADDRESS`
+    is the peer address reported unless overridden.

@@ -38,7 +38,8 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.tls.KeyStore",
         "io.kroxylicious.proxy.config.tls.KeyPair",
         "io.kroxylicious.proxy.config.NetworkDefinition",
-        "io.kroxylicious.proxy.config.NettySettings"
+        "io.kroxylicious.proxy.config.NettySettings",
+        "io.kroxylicious.proxy.config.ProxyProtocolConfig"
 })
 public final class BuilderConfig {
     /**

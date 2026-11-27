@@ -1,0 +1,4 @@
+title: "feat(authorizer-acl): add AclAuthorizerService.parse(String, ClassLoader) to resolve the classes a rules file imports with a given class loader"
+type: added
+issues:
+  - 5238

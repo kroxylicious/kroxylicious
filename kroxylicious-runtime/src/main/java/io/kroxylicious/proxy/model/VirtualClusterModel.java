@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
@@ -80,7 +81,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 /**
  * Runtime representation of a virtual cluster: its name, target Kafka cluster, gateways,
  * TLS configuration, and the components whose lifecycle is bound to this VC.
- *
+ * <br/>
  * <h2>Owned resources</h2>
  * The VCM owns and is responsible for closing two per-VC components directly:
  * <ul>
@@ -91,7 +92,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * For VCs that use dynamic routing, the {@link io.kroxylicious.proxy.internal.routing.DynamicRouting}
  * instance carries and owns the {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory}; the VCM
  * closes it via the routing model.
- *
+ * <br/>
  * <h2>Lifecycle</h2>
  * The VCM is created when the VC is configured (or reconfigured via hot-reload), and closed
  * via {@link #close()} when the VC's lifecycle reaches {@code Stopped}. The
@@ -297,9 +298,11 @@ public class VirtualClusterModel implements AutoCloseable {
             var downstreamBootstrap = gateway.getClusterBootstrapAddress();
             var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
 
+            var proxyProtocolMode = gateway.proxyProtocolMode();
             var logBuilder = LOGGER.atInfo()
                     .addKeyValue("gateway", name)
-                    .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary);
+                    .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary)
+                    .addKeyValue("proxyProtocol", proxyProtocolMode);
             logBuilder = switch (routing) {
                 case DirectRouting dr -> logBuilder.addKeyValue("upstream",
                         dr.upstreamCluster().bootstrapServersList() + generateTlsSummary(dr.upstreamCluster().tls()));
@@ -341,9 +344,10 @@ public class VirtualClusterModel implements AutoCloseable {
      * @param name name of the gateway.
      * @param nodeIdentificationStrategy strategy used by the gateway to identify the target node from an incoming connection.
      * @param tls downstream TLS configuration for the gateway, or empty for plain connections.
+     * @param proxyProtocolMode the PROXY protocol enforcement mode for this gateway.
      */
-    public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {
-        final var gateway = new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name);
+    public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, ProxyProtocolMode proxyProtocolMode) {
+        final var gateway = new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name, proxyProtocolMode);
         tls.ifPresent(tlsConfig -> {
             final TlsFileWatchProvider watcher = new TlsFileWatchProvider(tlsConfig);
             watcher.apply(getCertWatcher(), () -> {
@@ -370,6 +374,17 @@ public class VirtualClusterModel implements AutoCloseable {
             });
         });
         gateways.put(name, gateway);
+    }
+
+    /**
+     * Adds a gateway to this virtual cluster.
+     *
+     * @param name name of the gateway.
+     * @param nodeIdentificationStrategy strategy used by the gateway to identify the target node from an incoming connection.
+     * @param tls downstream TLS configuration for the gateway, or empty for plain connections.
+     */
+    public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {
+        addGateway(name, nodeIdentificationStrategy, tls, ProxyProtocolMode.FORBIDDEN);
     }
 
     /**
@@ -691,6 +706,7 @@ public class VirtualClusterModel implements AutoCloseable {
          */
         private final AtomicReference<Optional<SslContext>> downstreamSslContext = new AtomicReference<>();
         private final String name;
+        private final ProxyProtocolMode proxyProtocolMode;
 
         /**
          * Resolves the actual bound port for a given virtual node. Set by
@@ -706,10 +722,16 @@ public class VirtualClusterModel implements AutoCloseable {
 
         @VisibleForTesting
         VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, String name) {
+            this(virtualCluster, nodeIdentificationStrategy, tls, name, ProxyProtocolMode.FORBIDDEN);
+        }
+
+        VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, String name,
+                                   ProxyProtocolMode proxyProtocolMode) {
             this.virtualCluster = virtualCluster;
             this.nodeIdentificationStrategy = nodeIdentificationStrategy;
             this.tls = tls;
             this.name = name;
+            this.proxyProtocolMode = Objects.requireNonNull(proxyProtocolMode);
             validatePortUsage(nodeIdentificationStrategy);
             validateTLsSettings(nodeIdentificationStrategy, tls);
             this.downstreamSslContext.set(buildDownstreamSslContext(Optional.empty()));
@@ -737,6 +759,11 @@ public class VirtualClusterModel implements AutoCloseable {
         @Override
         public VirtualClusterModel virtualCluster() {
             return virtualCluster;
+        }
+
+        @Override
+        public ProxyProtocolMode proxyProtocolMode() {
+            return proxyProtocolMode;
         }
 
         @Override

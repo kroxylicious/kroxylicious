@@ -20,6 +20,8 @@ The prefix representing a tenant is taken from the name of the virtual cluster r
 For example, if the virtual cluster is named `tenant-1`, the prefix is `tenant-1`.
 Each tenant must be represented by a unique virtual cluster, and virtual cluster names must be globally unique within the Kroxylicious configuration. 
 This means that the same virtual cluster name cannot be used to represent different Kafka clusters.
+When tenants share a Kafka cluster, choose names and separators such that no tenant's full prefix (name plus separator) starts with another tenant's full prefix.
+For example, with the default `-` separator, do not use both `team` and `team-west`: `team-` also matches resources prefixed with `team-west-`.
 
 .Prerequisites
 

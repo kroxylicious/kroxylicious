@@ -40,6 +40,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.EventLoop;
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.ScheduledFuture;
 
@@ -59,7 +61,7 @@ import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
-import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.net.ProxyProtocolContext;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
@@ -91,7 +93,8 @@ import static org.mockito.Mockito.withSettings;
 class ClientConnectionStateMachineTest {
 
     private static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
-    private static final HaProxyContext HA_PROXY_CONTEXT = new HaProxyContext("1.1.1.1", "2.2.2.2", 46421, 9092, java.util.Map.of());
+    private static final ProxyProtocolContext PROXY_PROTOCOL_CONTEXT = new ProxyProtocolContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+            "1.1.1.1", "2.2.2.2", 46421, 9092, java.util.Map.of());
     private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
@@ -348,16 +351,16 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void onClientActiveShouldTransitionToHaProxyWhenContextPresentInSession() {
-        // Given - HaProxy context stored in KafkaSession (by HaProxyMessageHandler before CCSM was created)
-        clientConnectionStateMachine.kafkaSession().setHaProxyContext(HA_PROXY_CONTEXT);
+    void onClientActiveShouldTransitionToProxyProtocolWhenContextPresentInSession() {
+        // Given - PROXY protocol context stored in KafkaSession (by ProxyProtocolMessageHandler before CCSM was created)
+        clientConnectionStateMachine.kafkaSession().setProxyProtocolContext(PROXY_PROTOCOL_CONTEXT);
 
         // When
         clientConnectionStateMachine.onClientActive(frontendHandler);
 
-        // Then - state machine transitions through ClientActive → HaProxy
-        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.HaProxy.class);
-        assertThat(clientConnectionStateMachine.kafkaSession().haProxyContext()).isNotNull();
+        // Then - state machine transitions through ClientActive → ProxyProtocol
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.ProxyProtocol.class);
+        assertThat(clientConnectionStateMachine.kafkaSession().proxyProtocolContext()).isNotNull();
         verify(frontendHandler).inClientActive();
     }
 
@@ -379,9 +382,9 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void inHaProxyShouldBufferAndTransitionToForwardingWhenOnClientApiVersionsRequest() {
+    void inProxyProtocolShouldBufferAndTransitionToForwardingWhenOnClientApiVersionsRequest() {
         // Given
-        stateMachineInHaProxy();
+        stateMachineInProxyProtocol();
         when(endpointBinding.upstreamTarget()).thenReturn(BROKER_ADDRESS);
         var msg = apiVersionsRequest();
 
@@ -396,9 +399,9 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void inHaProxyShouldCloseOnUnexpectedMessage() {
+    void inProxyProtocolShouldCloseOnUnexpectedMessage() {
         // Given
-        stateMachineInHaProxy();
+        stateMachineInProxyProtocol();
 
         // When - an unexpected (non-Kafka) message arrives
         clientConnectionStateMachine.onClientRequest(new Object());
@@ -410,9 +413,9 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void inHaProxyShouldBufferAndTransitionToForwardingWhenOnClientMetadataRequest() {
+    void inProxyProtocolShouldBufferAndTransitionToForwardingWhenOnClientMetadataRequest() {
         // Given
-        stateMachineInHaProxy();
+        stateMachineInProxyProtocol();
         when(endpointBinding.upstreamTarget()).thenReturn(BROKER_ADDRESS);
         var msg = metadataRequest();
 
@@ -726,8 +729,8 @@ class ClientConnectionStateMachineTest {
                 argumentSet("STARTING TLS off ", (Runnable) () -> {
                     // no Op
                 }, false),
-                argumentSet("Ha Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
-                argumentSet("Ha Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
+                argumentSet("Proxy Protocol TLS on", (Runnable) this::stateMachineInProxyProtocol, true),
+                argumentSet("Proxy Protocol TLS off ", (Runnable) this::stateMachineInProxyProtocol, false),
                 argumentSet("Forwarding awaiting backend TLS on", (Runnable) this::stateMachineInForwardingAwaitingTransportSubject, true),
                 argumentSet("Forwarding awaiting backend TLS off ", (Runnable) this::stateMachineInForwardingAwaitingTransportSubject, false),
                 argumentSet("Client Active TLS on", (Runnable) this::stateMachineInClientActive, true),
@@ -740,7 +743,7 @@ class ClientConnectionStateMachineTest {
 
     public Stream<Arguments> givenStates() {
         return Stream.of(
-                argumentSet("Ha Proxy", (Runnable) this::stateMachineInHaProxy),
+                argumentSet("Proxy Protocol", (Runnable) this::stateMachineInProxyProtocol),
                 argumentSet("Forwarding awaiting backend", (Runnable) this::stateMachineInForwardingAwaitingTransportSubject),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
                 argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
@@ -777,9 +780,9 @@ class ClientConnectionStateMachineTest {
                 true);
     }
 
-    private void stateMachineInHaProxy() {
+    private void stateMachineInProxyProtocol() {
         clientConnectionStateMachine.forceState(
-                new ClientConnectionState.HaProxy(),
+                new ClientConnectionState.ProxyProtocol(),
                 frontendHandler,
                 Map.of(),
                 TEST_KAFKA_SESSION,
@@ -1574,10 +1577,10 @@ class ClientConnectionStateMachineTest {
         }
 
         @Test
-        void drainOnHaProxyClosesChannelAndCompletesPromise() {
+        void drainOnProxyProtocolClosesChannelAndCompletesPromise() {
             // Given — connection has parsed the PROXY protocol header but has not yet reached
             // Forwarding.
-            clientConnectionStateMachine.forceState(new ClientConnectionState.HaProxy(), frontendHandler, Map.of(), TEST_KAFKA_SESSION, true);
+            clientConnectionStateMachine.forceState(new ClientConnectionState.ProxyProtocol(), frontendHandler, Map.of(), TEST_KAFKA_SESSION, true);
 
             // When
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);

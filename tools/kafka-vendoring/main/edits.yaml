@@ -29,12 +29,6 @@
 #     so use the original org.apache.kafka namespace in `old` when the text would survive relocation
 #     unchanged (e.g. inside {@code} tags that ChangePackage does not rewrite).
 
-- file: org/apache/kafka/common/record/internal/CompressionType.java
-  removeBlocks:
-    - signature: 'public\s+ConfigDef\.Validator\s+levelValidator\s*\(\s*\)'
-      label: CompressionType.levelValidator
-      count: 4 # base declaration + 3 enum-constant overrides
-
 - file: org/apache/kafka/common/utils/Utils.java
   # Only the config-machinery methods pull org.apache.kafka.common.config into the closure. The
   # nio.file methods are pure JDK (kept). tryWriteTo is cut below along with the rest of the

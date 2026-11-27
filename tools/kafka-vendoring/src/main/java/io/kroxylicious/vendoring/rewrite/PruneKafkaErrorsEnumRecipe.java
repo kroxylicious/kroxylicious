@@ -14,7 +14,6 @@ import org.jspecify.annotations.NullMarked;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.FindSourceFiles;
 import org.openrewrite.Preconditions;
-import org.openrewrite.Recipe;
 import org.openrewrite.Tree;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.java.JavaTemplate;
@@ -35,25 +34,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Strips client exception builders, fields, methods, and imports from Kafka Errors enum.to Apache Kafka's hand rolled Errors enum to make it part of the Kroxylicious API
  */
-public class PruneKafkaErrorsEnumRecipe extends Recipe {
+public class PruneKafkaErrorsEnumRecipe extends BaseVendoringRecipe {
 
     /**
      * Create an instance of the recipe.
      */
     public PruneKafkaErrorsEnumRecipe() {
-        super();
-    }
-
-    @Override
-    @NonNull
-    public String getDisplayName() {
-        return "Prune exception references from vendored Kafka Errors enum";
-    }
-
-    @Override
-    @NonNull
-    public String getDescription() {
-        return "Strips client exception builders, fields, methods, and imports from Kafka Errors enum.";
+        super("Prune exception references from vendored Kafka Errors enum", "Strips client exception builders, fields, methods, and imports from Kafka Errors enum.");
     }
 
     @Override
@@ -78,14 +65,11 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 return this.toString();
                 """).contextSensitive().build();
 
-        private final JavaTemplate constructorTemplate = JavaTemplate.builder(
-                """
-                        Errors(int code, String message) {
-                            this.code = (short) code;
-                            this.message = message;
-                        }""")
-                .contextSensitive()
-                .build();
+        private final JavaTemplate constructorTemplate = JavaTemplate.builder("""
+                Errors(int code, String message) {
+                    this.code = (short) code;
+                    this.message = message;
+                }""").contextSensitive().build();
 
         @Override
         @NonNull
@@ -193,21 +177,13 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
         @Nullable
         private static Statement findFieldByName(J.ClassDeclaration cd, String fieldName) {
-            return cd.getBody().getStatements().stream()
-                    .filter(J.VariableDeclarations.class::isInstance)
-                    .map(J.VariableDeclarations.class::cast)
-                    .filter(vd -> vd.getVariables().stream()
-                            .anyMatch(v -> v.getSimpleName().equals(fieldName)))
-                    .findFirst()
-                    .orElse(null);
+            return cd.getBody().getStatements().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
+                    .filter(vd -> vd.getVariables().stream().anyMatch(v -> v.getSimpleName().equals(fieldName))).findFirst().orElse(null);
         }
 
         private boolean hasBuilderParameter(J.MethodDeclaration md) {
-            return md.getParameters().stream()
-                    .filter(J.VariableDeclarations.class::isInstance)
-                    .map(J.VariableDeclarations.class::cast)
-                    .flatMap(vd -> vd.getVariables().stream())
-                    .anyMatch(v -> BUILDER_METHOD_NAME.equals(v.getSimpleName()));
+            return md.getParameters().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
+                    .flatMap(vd -> vd.getVariables().stream()).anyMatch(v -> BUILDER_METHOD_NAME.equals(v.getSimpleName()));
         }
 
         @NonNull
@@ -285,16 +261,13 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
                 Markers markers = existingMarkers(docComment);
                 Javadoc.Text returnText = new Javadoc.Text(Tree.randomId(), Markers.EMPTY,
                         " the Errors enum entry for the code. Returns {@code Errors.UNKNOWN_SERVER_ERROR} for all unmapped codes.");
-                return List.of(
-                        new Javadoc.LineBreak(Tree.randomId(), margin, markers),
+                return List.of(new Javadoc.LineBreak(Tree.randomId(), margin, markers),
                         new Javadoc.Text(Tree.randomId(), Markers.EMPTY, " Map the code for an Error to its Entry in the enum"),
                         new Javadoc.LineBreak(Tree.randomId(), margin + " ", Markers.EMPTY),
                         new Javadoc.Parameter(Tree.randomId(), Markers.EMPTY, List.of(), codeParamName.withPrefix(Space.format(" ")), null,
                                 List.of(new Javadoc.Text(Tree.randomId(), Markers.EMPTY, " the {@code short} to map"))),
-                        new Javadoc.LineBreak(Tree.randomId(), margin + " ", Markers.EMPTY),
-                        new Javadoc.Return(Tree.randomId(), Markers.EMPTY, List.of(returnText)),
-                        new Javadoc.LineBreak(Tree.randomId(), margin, Markers.EMPTY),
-                        newTerminalLineBreak(margin));
+                        new Javadoc.LineBreak(Tree.randomId(), margin + " ", Markers.EMPTY), new Javadoc.Return(Tree.randomId(), Markers.EMPTY, List.of(returnText)),
+                        new Javadoc.LineBreak(Tree.randomId(), margin, Markers.EMPTY), newTerminalLineBreak(margin));
             }
 
             @NonNull
@@ -304,11 +277,7 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
             @NonNull
             private static String extractMargin(List<Javadoc> body) {
-                return body.stream()
-                        .filter(Javadoc.LineBreak.class::isInstance)
-                        .map(Javadoc.LineBreak.class::cast)
-                        .map(Javadoc.LineBreak::getMargin)
-                        .findFirst()
+                return body.stream().filter(Javadoc.LineBreak.class::isInstance).map(Javadoc.LineBreak.class::cast).map(Javadoc.LineBreak::getMargin).findFirst()
                         .orElse("\n * ");
             }
 
@@ -345,14 +314,9 @@ public class PruneKafkaErrorsEnumRecipe extends Recipe {
 
         @NonNull
         private static J.Identifier findParameterNamed(J.MethodDeclaration method, String paramName) {
-            return method.getParameters().stream()
-                    .filter(J.VariableDeclarations.class::isInstance)
-                    .map(J.VariableDeclarations.class::cast)
-                    .flatMap(vd -> vd.getVariables().stream())
-                    .filter(v -> paramName.equals(v.getSimpleName()))
-                    .map(J.VariableDeclarations.NamedVariable::getName)
-                    .findFirst()
-                    .orElseThrow();
+            return method.getParameters().stream().filter(J.VariableDeclarations.class::isInstance).map(J.VariableDeclarations.class::cast)
+                    .flatMap(vd -> vd.getVariables().stream()).filter(v -> paramName.equals(v.getSimpleName())).map(J.VariableDeclarations.NamedVariable::getName)
+                    .findFirst().orElseThrow();
         }
     }
 

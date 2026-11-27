@@ -77,6 +77,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
             throw new IllegalConfigurationException("one or more gateways were null for virtual cluster '" + name + "'");
         }
         validateNoDuplicatedGatewayNames(gateways);
+        validateNoConflictingProxyProtocolModesOnSamePort(name, gateways);
         // Validate explicitly-supplied drainTimeout. A null drainTimeout is allowed and
         // means "use the proxy's default"; the resolved value is supplied by
         // effectiveDrainTimeout() at the use site so that round-trip serialization
@@ -170,6 +171,26 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         }
         else {
             return DNS_LABEL_PATTERN.matcher(name).matches();
+        }
+    }
+
+    private static void validateNoConflictingProxyProtocolModesOnSamePort(String vcName, List<VirtualClusterGateway> gateways) {
+        var portModes = new java.util.HashMap<Integer, ProxyProtocolMode>();
+        var portGatewayNames = new java.util.HashMap<Integer, String>();
+        for (VirtualClusterGateway gw : gateways) {
+            int port = gw.bootstrapPort();
+            if (port == 0) {
+                continue;
+            }
+            ProxyProtocolMode mode = gw.proxyProtocolMode();
+            ProxyProtocolMode existing = portModes.put(port, mode);
+            String existingName = portGatewayNames.put(port, gw.name());
+            if (existing != null && existing != mode) {
+                throw new IllegalConfigurationException(
+                        ("Gateway '%s' on port %d has proxyProtocol mode %s but gateway '%s' on the same port uses %s. "
+                                + "All gateways in virtual cluster '%s' sharing a port must use the same proxyProtocol mode.")
+                                .formatted(gw.name(), port, mode, existingName, existing, vcName));
+            }
         }
     }
 

@@ -189,7 +189,7 @@ class FilterChangeDetectorTest {
                                             @Nullable List<RouterDefinition> routerDefs,
                                             VirtualCluster... clusters) {
         return new Configuration(null, clusterDefs, filterDefs, defaultFilters, routerDefs, List.of(clusters), null, false,
-                Optional.empty(), null, null);
+                Optional.empty(), null);
     }
 
     private static NamedFilterDefinition filterDef(String name, String opaqueConfig) {
@@ -214,7 +214,7 @@ class FilterChangeDetectorTest {
         var gateway = new VirtualClusterGateway("default",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
                 null,
-                Optional.empty());
+                Optional.empty(), null);
         return new VirtualCluster(name,
                 CLUSTER_TARGET,
                 List.of(gateway),
@@ -227,7 +227,7 @@ class FilterChangeDetectorTest {
         var gateway = new VirtualClusterGateway("default",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
                 null,
-                Optional.empty());
+                Optional.empty(), null);
         return new VirtualCluster(name,
                 null,
                 new RouteTarget(null, routerName),

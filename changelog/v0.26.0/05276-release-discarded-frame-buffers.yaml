@@ -1,0 +1,4 @@
+title: "fix(runtime): release the buffers of decoded frames a filter discards"
+type: fixed
+merge_requests:
+  - 5276

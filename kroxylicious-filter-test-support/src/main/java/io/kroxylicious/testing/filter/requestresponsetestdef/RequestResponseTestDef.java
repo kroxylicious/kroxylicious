@@ -8,6 +8,8 @@ package io.kroxylicious.testing.filter.requestresponsetestdef;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -60,7 +62,7 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
     @SuppressFBWarnings("URLCONNECTION_SSRF_FD") // this is not production code
     private static JsonNode[] readTestResource(ResourceInfo resourceInfo) {
         var url = resourceInfo.url();
-        var sourceFilename = Optional.of(Path.of(url.getPath()).getFileName()).map(Path::getFileName).orElseThrow();
+        var sourceFilename = Optional.of(toPath(url).getFileName()).map(Path::getFileName).orElseThrow();
         try (var is = url.openStream()) {
             var jsonNodes = MAPPER.reader().readValue(is, JsonNode[].class);
             for (int i = 0; i < jsonNodes.length; i++) {
@@ -72,6 +74,15 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    private static Path toPath(URL url) {
+        try {
+            return Path.of(url.toURI());
+        }
+        catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid URI: " + url, e);
         }
     }
 

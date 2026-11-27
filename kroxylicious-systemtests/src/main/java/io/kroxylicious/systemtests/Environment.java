@@ -56,6 +56,10 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV = "AWS_KROXYLICIOUS_ACCESS_KEY_ID";
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
     private static final String AWS_REGION_ENV = "AWS_REGION";
+    private static final String AZURE_TENANT_ID_ENV = "AZURE_TENANT_ID";
+    private static final String AZURE_CLIENT_ID_ENV = "AZURE_CLIENT_ID";
+    private static final String AZURE_CLIENT_SECRET_ENV = "AZURE_CLIENT_SECRET";
+    private static final String AZURE_KEY_VAULT_NAME_ENV = "AZURE_KEY_VAULT_NAME";
     private static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE";
     private static final String TEST_CLIENTS_IMAGE_ENV = "TEST_CLIENTS_IMAGE";
     private static final String TEST_CLIENTS_OAUTH_IMAGE_ENV = "TEST_CLIENTS_OAUTH_IMAGE";
@@ -112,7 +116,8 @@ public class Environment {
     public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT = AWS_ACCESS_KEY_ID_DEFAULT;
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
-    private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.14.0-kafka-" + KAFKA_VERSION_DEFAULT;
+    private static final String AZURE_KEY_VAULT_NAME_DEFAULT = "kroxylicious-key-vault";
+    private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.15.0-kafka-" + KAFKA_VERSION_DEFAULT;
     /**
      * A build of {@link #TEST_CLIENTS_IMAGE_DEFAULT} with jose4j added to the classpath, built by the
      * kroxylicious-test-images module. Needed because Kafka 4.1+ eagerly loads jose4j during OAUTHBEARER
@@ -137,7 +142,7 @@ public class Environment {
     private static final String KROXYLICIOUS_OPERATOR_MANIFEST_SOURCE_DEFAULT = USER_DIR + "/target/kroxylicious-operator/install";
     private static final String KROXYLICIOUS_ADMISSION_MANIFEST_SOURCE_DEFAULT = USER_DIR + "/target/kroxylicious-admission/install";
     public static final String CURL_IMAGE_DEFAULT = Constants.DOCKER_REGISTRY_GCR_MIRROR
-            + "/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13";
+            + "/curlimages/curl:8.23.0@sha256:3fb7e13e5d179a845c97d78204f3f1064d1907037f26a3ebf91710571151fd93";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
@@ -191,6 +196,11 @@ public class Environment {
             AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT);
 
     public static final String AWS_REGION = ENVIRONMENT_VARIABLES.getOrDefault(AWS_REGION_ENV, AWS_REGION_DEFAULT);
+
+    public static final String AZURE_TENANT_ID = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_TENANT_ID_ENV, "");
+    public static final String AZURE_CLIENT_ID = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_CLIENT_ID_ENV, "");
+    public static final String AZURE_CLIENT_SECRET = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_CLIENT_SECRET_ENV, "");
+    public static final String AZURE_KEY_VAULT_NAME = ENVIRONMENT_VARIABLES.getOrDefault(AZURE_KEY_VAULT_NAME_ENV, AZURE_KEY_VAULT_NAME_DEFAULT);
 
     public static final String KROXYLICIOUS_OPERATOR_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_IMAGE_ENV, KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_ORG_ENV, KROXYLICIOUS_OPERATOR_ORG_DEFAULT);

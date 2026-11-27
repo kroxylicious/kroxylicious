@@ -23,12 +23,10 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.SniHandler;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
@@ -42,6 +40,7 @@ import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
@@ -72,10 +71,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private static final ChannelInboundHandlerAdapter LOGGING_INBOUND_ERROR_HANDLER = new LoggingInboundErrorHandler();
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
+    @VisibleForTesting
+    static final String PLAIN_RESOLVER_HANDLER_NAME = "plainResolver";
+    @VisibleForTesting
+    static final String TLS_RESOLVER_HANDLER_NAME = "sniResolver";
     /** Pipeline name of the idle-state handler applied before the session has authenticated. */
     public static final String PRE_SESSION_IDLE_HANDLER = "preSessionIdleHandler";
 
-    private final ProxyProtocolMode proxyProtocolMode;
     private final boolean tls;
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
@@ -95,23 +97,20 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
      * @param tls whether the listening port serves TLS connections
      * @param bindingResolver resolver mapping the accepted endpoint (and SNI hostname, if any) to an {@link EndpointBinding}
      * @param endpointReconciler reconciler notified of upstream cluster topology changes
-     * @param proxyProtocolMode whether/how the PROXY protocol is accepted on this port
      * @param apiVersionsService service used to intersect API versions with those supported by the proxy
      * @param proxyNettySettings optional Netty tuning settings (e.g. idle timeouts)
      * @param virtualClusterRegistry registry tracking active connections per virtual cluster
      */
-    @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S107" })
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
-                                 ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings,
                                  VirtualClusterRegistry virtualClusterRegistry) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
-        this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
         this.apiVersionsService = apiVersionsService;
@@ -130,10 +129,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
-        if (proxyProtocolMode != ProxyProtocolMode.DISABLED) {
-            LOGGER.atDebug().log("Adding PROXY protocol detection handler (mode={})", proxyProtocolMode);
-            ch.pipeline().addLast("HaProxyProtocolDetectionHandler",
-                    new HaProxyProtocolDetectionHandler(proxyProtocolMode, kafkaSession));
+        var bindingCtx = Objects.requireNonNull(
+                Optional.ofNullable(ch.parent())
+                        .map(p -> p.attr(EndpointRegistry.BINDING_CONTEXT).get())
+                        .orElse(null),
+                "No BindingContext on parent channel — EndpointRegistry must set BINDING_CONTEXT before accepting connections");
+        var mode = bindingCtx.proxyProtocolMode();
+        if (mode == ProxyProtocolMode.REQUIRED) {
+            LOGGER.atDebug().log("Adding static PROXY protocol decoder (mode=required)");
+            ch.pipeline().addLast("HAProxyMessageDecoder", new HAProxyMessageDecoder());
+            ch.pipeline().addLast("ProxyProtocolMessageHandler", new ProxyProtocolMessageHandler(kafkaSession));
         }
 
         if (tls) {
@@ -147,99 +152,19 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     private void initPlainChannel(Channel ch, KafkaSession kafkaSession) {
-        ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
-            @SuppressWarnings("java:S1181")
-            @Override
-            public void channelActive(ChannelHandlerContext ctx) {
-
-                bindingResolver.resolve(ch, null)
-                        .handle((binding, t) -> {
-                            if (t != null) {
-                                // No virtual cluster for this endpoint (for example, the virtual cluster is being
-                                // replaced by a reconfigure). Close the connection, as the TLS path does, so the client
-                                // reconnects at once instead of waiting for its request timeout on a connection that
-                                // will never be served.
-                                LOGGER.atWarn()
-                                        .addKeyValue("channel", ch)
-                                        .addKeyValue("error", t.getMessage())
-                                        .setCause(LOGGER.isDebugEnabled() ? t : null)
-                                        .log(LOGGER.isDebugEnabled()
-                                                ? "Exception resolving Virtual Cluster Binding, closing connection"
-                                                : "Exception resolving Virtual Cluster Binding, closing connection. Increase log level to DEBUG for stacktrace");
-                                clientToProxyErrorCounter.increment();
-                                ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
-                                return null;
-                            }
-                            try {
-                                KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
-                                ctx.fireChannelActive();
-                            }
-                            catch (Throwable t1) {
-                                ctx.fireExceptionCaught(t1);
-                            }
-                            finally {
-                                ch.pipeline().remove(this);
-                            }
-                            return null;
-                        });
-            }
-        });
+        ch.pipeline().addLast(PLAIN_RESOLVER_HANDLER_NAME, new PlainResolverHandler(
+                bindingResolver,
+                (channel, binding) -> initConnection(channel, binding, kafkaSession),
+                clientToProxyErrorCounter));
     }
 
-    // deep inheritance tree of SniHandler not something we can fix, throwable is the right choice as we are forwarding it on.
-    @SuppressWarnings({ "java:S110", "java:S1181" })
     private void initTlsChannel(Channel ch, KafkaSession kafkaSession) {
         LOGGER.atDebug().log("Adding SSL/SNI handler");
-        ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
-            try {
-                var stage = bindingResolver.resolve(ch, sniHostname);
-                // completes the netty promise when then resolution completes (success/otherwise).
-                stage.handle((binding, t) -> {
-                    if (Objects.isNull(t)) {
-                        try {
-                            var gateway = binding.endpointGateway();
-                            var sslContext = gateway.getDownstreamSslContext()
-                                    .orElseThrow(() -> new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
-                            KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
-                            promise.setSuccess(sslContext);
-                        }
-                        catch (final Throwable t1) {
-                            t = t1;
-                        }
-                    }
-                    if (Objects.nonNull(t)) {
-                        LOGGER.atWarn()
-                                .addKeyValue("channel", ch)
-                                .addKeyValue("sniHostname", sniHostname)
-                                .addKeyValue("error", t.getMessage())
-                                .log("Exception resolving Virtual Cluster Binding");
-                        promise.setFailure(t);
-                    }
-                    return null;
-                });
-                return promise;
-            }
-            catch (Throwable cause) {
-                return promise.setFailure(cause);
-            }
-        }) {
-
-            @Override
-            protected void onLookupComplete(ChannelHandlerContext ctx, Future<SslContext> future) throws Exception {
-                if (future.isSuccess()) {
-                    super.onLookupComplete(ctx, future);
-                    ctx.fireChannelActive();
-                }
-                else {
-                    // We've failed to look up the SslContext - this indicates that the SNI hostname was unrecognized
-                    // or that the virtual cluster is somehow not configured for TLS. All we can do is close the
-                    // connection.
-                    clientToProxyErrorCounter.increment();
-                    ctx.close().addListener(logFailure(LOGGER, "close after SNI/TLS lookup failure"));
-                }
-
-            }
-        });
+        ch.pipeline().addLast(TLS_RESOLVER_HANDLER_NAME, new TlsResolverHandler(
+                ch,
+                bindingResolver,
+                (channel, binding) -> initConnection(channel, binding, kafkaSession),
+                clientToProxyErrorCounter));
     }
 
     @VisibleForTesting

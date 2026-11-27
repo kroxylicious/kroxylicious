@@ -108,7 +108,7 @@ where:
 * `privateKeyFile` refers to a private key of the virtual cluster.
 * `certificateFile` refers to a public certificate of the virtual cluster.
 
-== Restricting TLS protocols and cipher suites
+== Restricting TLS protocols, cipher suites and named groups
 
 The TLS protocols and cipher suites available to the TLS connection may also be configured.
 
@@ -202,6 +202,66 @@ where:
 
 * `cipherSuites` configures the cipher suites.
 ** `denied` lists the disallowed cipher suites.
+
+You can configure the TLS named groups.
+An `allowed` list enumerates the named groups that you can use, in order of preference.
+Alternatively, a `denied` list removes named groups from the platform's default list.
+As these defaults are not exposed by every platform provider or version, a configuration is rejected at startup where
+the defaults are unavailable. If this happens then an `allowed` list will need to be specified.
+If both an `allowed` and a `denied` list are specified, the resulting list of named groups includes only those groups from the
+`allowed` list that are not in the `denied` list.
+If neither list is specified, the proxy uses the default named groups (and preference order) provided by the platform.
+
+When the proxy connects, it negotiates the most preferred mutually acceptable named group with the upstream cluster.
+If the two have no named groups in common, the connection fails.
+
+The names of the named groups are defined by the {java-21-specs}/security/standard-names.html#named-groups[Java specification].
+
+.Example restricting named groups using an allow list
+
+[source,yaml]
+----
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      # ...
+        namedGroups:
+          allowed:
+          - x25519
+          - secp256r1
+virtualClusters:
+  - name: my-cluster-proxy
+    target:
+      cluster: my-cluster
+----
+where:
+
+* `namedGroups` configures the named groups.
+** `allowed` lists the named groups which are permitted in preference order.
+
+.Example restricting named groups using a deny list
+
+[source,yaml]
+----
+clusterDefinitions:
+  - name: my-cluster
+    bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+    tls:
+      # ...
+        namedGroups:
+          denied:
+          - secp384r1
+          - ffdhe3072
+virtualClusters:
+  - name: my-cluster-proxy
+    target:
+      cluster: my-cluster
+----
+where:
+
+* `namedGroups` configures the named groups.
+** `denied` lists the disallowed named groups.
 
 == Configuring dynamic TLS credential selection
 

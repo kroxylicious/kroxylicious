@@ -23,11 +23,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param portIdentifiesNode network config
  * @param sniHostIdentifiesNode network config
  * @param tls tls settings
+ * @param proxyProtocol per-gateway PROXY protocol configuration. When absent (omitted from YAML or {@code null}),
+ *                      the effective mode is {@link ProxyProtocolMode#FORBIDDEN}: PROXY headers are not expected
+ *                      and any client that sends one will receive a protocol error.
  */
 public record VirtualClusterGateway(@JsonProperty(required = true) String name,
                                     @Nullable @JsonProperty(required = false) PortIdentifiesNodeIdentificationStrategy portIdentifiesNode,
                                     @Nullable @JsonProperty(required = false) SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode,
-                                    Optional<Tls> tls) {
+                                    Optional<Tls> tls,
+                                    @Nullable @JsonProperty(required = false) ProxyProtocolConfig proxyProtocol) {
 
     /**
      * Validates the gateway: exactly one of {@code portIdentifiesNode} or
@@ -45,6 +49,33 @@ public record VirtualClusterGateway(@JsonProperty(required = true) String name,
         if (sniHostIdentifiesNode != null && tls.isEmpty()) {
             throw new IllegalConfigurationException("When using 'sniHostIdentifiesNode', 'tls' must be provided (virtual cluster listener %s)".formatted(name));
         }
+    }
+
+    /**
+     * Returns the effective PROXY protocol mode for this gateway.
+     * When no {@code proxyProtocol} block is configured, {@link ProxyProtocolMode#FORBIDDEN} is returned.
+     *
+     * @return the proxy protocol mode
+     */
+    public ProxyProtocolMode proxyProtocolMode() {
+        return proxyProtocol != null ? proxyProtocol.mode() : ProxyProtocolMode.FORBIDDEN;
+    }
+
+    /**
+     * Returns the configured bootstrap port for this gateway, or {@code 0} if the port is
+     * OS-assigned (i.e. not yet known).
+     *
+     * @return bootstrap port, or 0 for ephemeral/OS-assigned ports
+     */
+    int bootstrapPort() {
+        if (portIdentifiesNode != null) {
+            var addr = portIdentifiesNode.getBootstrapAddress();
+            return addr != null ? addr.port() : 0;
+        }
+        if (sniHostIdentifiesNode != null) {
+            return sniHostIdentifiesNode.getBootstrapPort();
+        }
+        return 0;
     }
 
     /**
@@ -73,6 +104,7 @@ public record VirtualClusterGateway(@JsonProperty(required = true) String name,
                 ", portIdentifiesNode=" + portIdentifiesNode +
                 ", sniHostIdentifiesNode=" + sniHostIdentifiesNode +
                 ", tls=" + tls +
+                ", proxyProtocol=" + proxyProtocol +
                 '}';
     }
 }

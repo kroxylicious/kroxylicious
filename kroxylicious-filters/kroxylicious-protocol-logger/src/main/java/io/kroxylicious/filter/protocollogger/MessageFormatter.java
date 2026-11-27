@@ -6,6 +6,9 @@
 
 package io.kroxylicious.filter.protocollogger;
 
+import java.net.Inet6Address;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -21,6 +24,8 @@ import io.kroxylicious.kafka.common.protocol.ApiKeys;
 import io.kroxylicious.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.kafka.message.json.VendoredKafkaApiMessageConverter;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 class MessageFormatter {
 
     private static final String HEADER_FIELD = "header";
@@ -31,6 +36,8 @@ class MessageFormatter {
     private static final String API_VERSION_FIELD = "apiVersion";
     private static final String CORRELATION_ID_FIELD = "correlationId";
     private static final String CLIENT_ID_FIELD = "clientId";
+    private static final String CLIENT_ADDRESS_FIELD = "clientAddress";
+    private static final String PEER_ADDRESS_FIELD = "peerAddress";
 
     static final String PAYLOAD_WITHHELD_REASON = "credential-bearing API";
 
@@ -48,9 +55,10 @@ class MessageFormatter {
     MessageFormatter() {
     }
 
-    ObjectNode formatRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage message) {
+    ObjectNode formatRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage message,
+                             SocketAddress clientAddress, SocketAddress peerAddress) {
         ObjectNode entry = MAPPER.createObjectNode();
-        entry.set(HEADER_FIELD, buildRequestHeader(apiKey, apiVersion, header));
+        entry.set(HEADER_FIELD, buildRequestHeader(apiKey, apiVersion, header, clientAddress, peerAddress));
         if (CREDENTIAL_BEARING_API_KEYS.contains(apiKey)) {
             entry.putNull(PAYLOAD_FIELD);
             entry.put(PAYLOAD_WITHHELD_FIELD, PAYLOAD_WITHHELD_REASON);
@@ -63,9 +71,10 @@ class MessageFormatter {
         return entry;
     }
 
-    ObjectNode formatResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage message) {
+    ObjectNode formatResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage message,
+                              SocketAddress clientAddress, SocketAddress peerAddress) {
         ObjectNode entry = MAPPER.createObjectNode();
-        entry.set(HEADER_FIELD, buildResponseHeader(apiKey, apiVersion, header));
+        entry.set(HEADER_FIELD, buildResponseHeader(apiKey, apiVersion, header, clientAddress, peerAddress));
         if (CREDENTIAL_BEARING_API_KEYS.contains(apiKey)) {
             entry.putNull(PAYLOAD_FIELD);
             entry.put(PAYLOAD_WITHHELD_FIELD, PAYLOAD_WITHHELD_REASON);
@@ -78,23 +87,53 @@ class MessageFormatter {
         return entry;
     }
 
-    private static ObjectNode buildRequestHeader(ApiKeys apiKey, short apiVersion, RequestHeaderData header) {
+    private static ObjectNode buildRequestHeader(ApiKeys apiKey, short apiVersion, RequestHeaderData header,
+                                                 SocketAddress clientAddress, SocketAddress peerAddress) {
         ObjectNode h = MAPPER.createObjectNode();
         h.put(TYPE_FIELD, "REQUEST");
         h.put(API_KEY_FIELD, apiKey.name());
         h.put(API_VERSION_FIELD, (int) apiVersion);
         h.put(CORRELATION_ID_FIELD, header.correlationId());
         h.put(CLIENT_ID_FIELD, header.clientId());
+        h.put(CLIENT_ADDRESS_FIELD, formatSocketAddress(clientAddress));
+        h.put(PEER_ADDRESS_FIELD, formatSocketAddress(peerAddress));
         return h;
     }
 
-    private static ObjectNode buildResponseHeader(ApiKeys apiKey, short apiVersion, ResponseHeaderData header) {
+    private static ObjectNode buildResponseHeader(ApiKeys apiKey, short apiVersion, ResponseHeaderData header,
+                                                  SocketAddress clientAddress, SocketAddress peerAddress) {
         ObjectNode h = MAPPER.createObjectNode();
         h.put(TYPE_FIELD, "RESPONSE");
         h.put(API_KEY_FIELD, apiKey.name());
         h.put(API_VERSION_FIELD, (int) apiVersion);
         h.put(CORRELATION_ID_FIELD, header.correlationId());
+        h.put(CLIENT_ADDRESS_FIELD, formatSocketAddress(clientAddress));
+        h.put(PEER_ADDRESS_FIELD, formatSocketAddress(peerAddress));
         return h;
+    }
+
+    @Nullable
+    private static String formatSocketAddress(SocketAddress address) {
+        // Defensive: FilterContext should never return null addresses, but handle gracefully
+        if (address == null) {
+            return null;
+        }
+        if (address instanceof InetSocketAddress inet) {
+            int port = inet.getPort();
+
+            // Check if IPv6 using proper class hierarchy
+            if (inet.getAddress() instanceof Inet6Address) {
+                // IPv6 - use getHostAddress() for compressed form, wrap in brackets per RFC 3986
+                String host = inet.getAddress().getHostAddress();
+                return "[" + host + "]:" + port;
+            }
+            else {
+                // IPv4 - use getHostString() to avoid DNS lookup
+                String host = inet.getHostString();
+                return host + ":" + port;
+            }
+        }
+        return address.toString();
     }
 
     static String prettyPrint(ObjectNode node) {

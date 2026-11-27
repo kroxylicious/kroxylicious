@@ -12,7 +12,7 @@ import static io.kroxylicious.proxy.internal.ClientConnectionState.ClientActive;
 import static io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import static io.kroxylicious.proxy.internal.ClientConnectionState.Draining;
 import static io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
-import static io.kroxylicious.proxy.internal.ClientConnectionState.HaProxy;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.ProxyProtocol;
 import static io.kroxylicious.proxy.internal.ClientConnectionState.Startup;
 
 /**
@@ -21,7 +21,7 @@ import static io.kroxylicious.proxy.internal.ClientConnectionState.Startup;
 sealed interface ClientConnectionState permits
         Startup,
         ClientActive,
-        HaProxy,
+        ProxyProtocol,
         Forwarding,
         Draining,
         Closed {
@@ -44,11 +44,11 @@ sealed interface ClientConnectionState permits
     record ClientActive() implements ClientConnectionState {
 
         /**
-         * Transition to {@link HaProxy}, because a PROXY header has been received
-         * @return The HaProxy state
+         * Transition to {@link ProxyProtocol}, because a PROXY header has been received
+         * @return The ProxyProtocol state
          */
-        public HaProxy toHaProxy() {
-            return new HaProxy();
+        public ProxyProtocol toProxyProtocol() {
+            return new ProxyProtocol();
         }
 
         /**
@@ -64,9 +64,9 @@ sealed interface ClientConnectionState permits
     /**
      * A PROXY protocol header has been received on the channel.
      * The connection metadata is captured in the {@link KafkaSession}'s
-     * {@link io.kroxylicious.proxy.internal.net.HaProxyContext}.
+     * {@link io.kroxylicious.proxy.internal.net.ProxyProtocolContext}.
      */
-    record HaProxy()
+    record ProxyProtocol()
             implements ClientConnectionState {
 
         /**

@@ -7,9 +7,11 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
-import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.net.ProxyProtocolContext;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -24,12 +26,18 @@ public class KafkaSession {
     private KafkaSessionState currentState;
 
     /**
-     * The HaProxy PROXY-protocol message received for this session, if any.
-     * Captured by {@link HaProxyMessageHandler} before the SSL/binding handshake
+     * The PROXY-protocol context received for this session, if any.
+     * Captured by {@link ProxyProtocolMessageHandler} before the SSL/binding handshake
      * completes so it is available when the state machine becomes active.
      */
     @Nullable
-    private HaProxyContext haProxyContext;
+    private ProxyProtocolContext proxyProtocolContext;
+
+    /**
+     * The public view of {@link #proxyProtocolContext}, derived once in {@link #setProxyProtocolContext} so that
+     * per-request reads neither re-parse addresses nor allocate an {@link Optional}.
+     */
+    private Optional<ClientProxyProtocolContext> clientProxyProtocolContext = Optional.empty();
 
     /**
      * Creates a session with a randomly generated session ID.
@@ -77,21 +85,30 @@ public class KafkaSession {
     }
 
     /**
-     * Store the HaProxy PROXY-protocol context for this session.
+     * Store the PROXY-protocol context for this session.
      *
      * @param context the immutable context extracted from the decoded message
      */
-    public void setHaProxyContext(HaProxyContext context) {
-        haProxyContext = context;
+    public void setProxyProtocolContext(ProxyProtocolContext context) {
+        proxyProtocolContext = context;
+        clientProxyProtocolContext = context.toClientProxyProtocolContext();
     }
 
     /**
-     * Returns the HA Proxy context received for this session, or {@code null} if none.
-     * @return the HA Proxy context, or {@code null} if no PROXY-protocol message was received
+     * Returns the PROXY-protocol context received for this session, or {@code null} if none.
+     * @return the PROXY-protocol context, or {@code null} if no PROXY-protocol message was received
      */
     @Nullable
-    public HaProxyContext haProxyContext() {
-        return haProxyContext;
+    public ProxyProtocolContext proxyProtocolContext() {
+        return proxyProtocolContext;
+    }
+
+    /**
+     * Returns the public PROXY protocol context for this session.
+     * @return the context, or empty if no PROXY protocol header carrying a supported TCP4 or TCP6 endpoint was received
+     */
+    public Optional<ClientProxyProtocolContext> clientProxyProtocolContext() {
+        return clientProxyProtocolContext;
     }
 
     @Override

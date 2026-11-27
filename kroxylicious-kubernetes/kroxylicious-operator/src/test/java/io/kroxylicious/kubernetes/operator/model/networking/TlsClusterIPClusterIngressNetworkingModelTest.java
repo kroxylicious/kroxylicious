@@ -33,6 +33,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.TlsBuilder;
+import io.kroxylicious.kubernetes.operator.TestPortConstants;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -45,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class TlsClusterIPClusterIngressNetworkingModelTest {
+    private static final SharedSniContainerPort TEST_SNI_PORT = new SharedSniContainerPort(5, "test-sni-port");
 
     private static final String INGRESS_NAME = "my-ingress";
     public static final String CLUSTER_NAME = "my-cluster";
@@ -94,7 +96,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange("a", 1L, 3L));
         // when
         TlsClusterIPClusterIngressNetworkingModel model = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                nodeIdRange, TLS, 1);
+                nodeIdRange, TLS, new SharedSniContainerPort(1, "test-sni-port"));
         // then
         assertThat(model).isNotNull();
     }
@@ -107,7 +109,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         int rangeEnd = 3;
         List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange(rangeName, rangeStart, rangeEnd));
 
-        int sharedSniPort = 5;
+        SharedSniContainerPort sharedSniPort = TEST_SNI_PORT;
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
                 nodeIdRange, TLS, sharedSniPort);
         assertThat(instance).isNotNull();
@@ -121,8 +123,9 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isNotNull();
         assertThat(gateway.sniHostIdentifiesNode()).isNotNull().satisfies(sni -> {
             assertThat(sni.getBootstrapAddress())
-                    .isEqualTo(new HostPort("my-cluster-my-ingress-bootstrap." + NAMESPACE + ".svc.cluster.local", sharedSniPort).toString());
-            assertThat(sni.getAdvertisedBrokerAddressPattern()).isEqualTo("my-cluster-my-ingress-$(nodeId)." + NAMESPACE + ".svc.cluster.local:" + 9292);
+                    .isEqualTo(new HostPort("my-cluster-my-ingress-bootstrap." + NAMESPACE + ".svc.cluster.local", sharedSniPort.containerPort()).toString());
+            assertThat(sni.getAdvertisedBrokerAddressPattern())
+                    .isEqualTo("my-cluster-my-ingress-$(nodeId)." + NAMESPACE + ".svc.cluster.local:" + TestPortConstants.FIRST_IDENTIFYING_PORT);
         });
     }
 
@@ -130,7 +133,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     void serviceMetadata() {
         // given
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), TLS, 5);
+                List.of(createNodeIdRange("a", 1, 3)), TLS, TEST_SNI_PORT);
         assertThat(instance).isNotNull();
 
         // when
@@ -169,7 +172,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     void serviceCommonSpec() {
         // given
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), TLS, 5);
+                List.of(createNodeIdRange("a", 1, 3)), TLS, TEST_SNI_PORT);
 
         // when
         List<ServiceBuilder> serviceBuilders = instance.services().toList();
@@ -187,7 +190,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     @Test
     void servicesSingleRangeOfNodeIds() {
         // given
-        int sharedSniPort = 5;
+        SharedSniContainerPort sharedSniPort = TEST_SNI_PORT;
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
                 List.of(createNodeIdRange("a", 1, 2)), TLS, sharedSniPort);
 
@@ -200,15 +203,18 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         var listAssert = assertThat(serviceBuilders).isNotNull().hasSize(3);
 
         listAssert.element(0).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", 9292, sharedSniPort);
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(1).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", 9292, sharedSniPort);
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(2).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-2", 9292, sharedSniPort);
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-2", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
     }
 
@@ -232,7 +238,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     @Test
     void servicesMultipleRangesOfNodeIds() {
         // given
-        int sharedSniPort = 5;
+        SharedSniContainerPort sharedSniPort = TEST_SNI_PORT;
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
                 List.of(createNodeIdRange("a", 1, 1), createNodeIdRange("b", 3, 3)), TLS, sharedSniPort);
 
@@ -245,37 +251,42 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         var listAssert = assertThat(serviceBuilders).isNotNull().hasSize(3);
 
         listAssert.element(0).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", 9292, sharedSniPort);
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(1).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", 9292, sharedSniPort);
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-1", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
 
         listAssert.element(2).satisfies(serviceBuild -> {
-            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-3", 9292, sharedSniPort);
+            assertServiceNameAndPortMapping(serviceBuild, CLUSTER_NAME + "-" + INGRESS_NAME + "-3", TestPortConstants.FIRST_IDENTIFYING_PORT,
+                    sharedSniPort.containerPort());
         });
     }
 
     @Test
     void nodeIdRangesMustBeNonEmpty() {
         List<NodeIdRanges> nodeIdRanges = List.of();
-        assertThatThrownBy(() -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, TLS, 5))
+        assertThatThrownBy(() -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, TLS, TEST_SNI_PORT))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void requiresSharedSniContainerPort() {
+    void sharedSniContainerPort() {
+        // Given
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), TLS, 5);
+                List.of(createNodeIdRange("a", 1, 3)), TLS, TEST_SNI_PORT);
 
-        assertThat(instance.requiresSharedSniContainerPort()).isTrue();
+        // When / Then
+        assertThat(instance.sharedSniContainerPort()).contains(TEST_SNI_PORT);
     }
 
     @Test
     void identifyingProxyContainerPortsEmpty() {
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), TLS, 5);
+                List.of(createNodeIdRange("a", 1, 3)), TLS, TEST_SNI_PORT);
 
         assertThat(instance).isNotNull();
         assertThat(instance.identifyingProxyContainerPorts())
@@ -284,11 +295,11 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
 
     public static Stream<Arguments> constructorArgsMustBeNonNull() {
         List<NodeIdRanges> nodeIdRanges = List.of(NODE_ID_RANGE);
-        ThrowingCallable nullIngress = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, null, nodeIdRanges, TLS, 5);
-        ThrowingCallable nullVirtualCluster = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, null, INGRESS, nodeIdRanges, TLS, 5);
-        ThrowingCallable nullProxy = () -> new TlsClusterIPClusterIngressNetworkingModel(null, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, TLS, 5);
-        ThrowingCallable nullRanges = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, null, TLS, 5);
-        ThrowingCallable nullTls = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, null, null, 5);
+        ThrowingCallable nullIngress = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, null, nodeIdRanges, TLS, TEST_SNI_PORT);
+        ThrowingCallable nullVirtualCluster = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, null, INGRESS, nodeIdRanges, TLS, TEST_SNI_PORT);
+        ThrowingCallable nullProxy = () -> new TlsClusterIPClusterIngressNetworkingModel(null, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, TLS, TEST_SNI_PORT);
+        ThrowingCallable nullRanges = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, null, TLS, TEST_SNI_PORT);
+        ThrowingCallable nullTls = () -> new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, null, null, TEST_SNI_PORT);
         return Stream.of(argumentSet("ingress", nullIngress),
                 argumentSet("virtualCluster", nullVirtualCluster),
                 argumentSet("proxy", nullProxy),
@@ -336,7 +347,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
 
         // when
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, ingressWithAnnotations,
-                List.of(createNodeIdRange("a", 1, 2)), TLS, 5);
+                List.of(createNodeIdRange("a", 1, 2)), TLS, TEST_SNI_PORT);
         List<ServiceBuilder> serviceBuilders = instance.services().toList();
 
         // then - all services should have infrastructure annotations
@@ -373,7 +384,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
 
         // when
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, ingressWithReserved,
-                List.of(createNodeIdRange("a", 1, 2)), TLS, 5);
+                List.of(createNodeIdRange("a", 1, 2)), TLS, TEST_SNI_PORT);
         List<ServiceBuilder> serviceBuilders = instance.services().toList();
 
         // then
@@ -392,7 +403,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     void serviceWithoutInfrastructureAnnotations() {
         // given - using INGRESS without infrastructure annotations
         ClusterIngressNetworkingModel instance = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 2)), TLS, 5);
+                List.of(createNodeIdRange("a", 1, 2)), TLS, TEST_SNI_PORT);
 
         // when
         List<ServiceBuilder> serviceBuilders = instance.services().toList();

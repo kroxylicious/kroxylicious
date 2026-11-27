@@ -55,23 +55,29 @@ inputs:
     description: "Multiline list of Maven credential origins in the format 'server-id:repository-origin'. Requires Maven 3.10+."
     required: false
     default: ""
+  architecture:
+    description: "JDK architecture override (e.g. 'ppc64le'). Leave empty to let actions/setup-java auto-detect from the runner."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
   steps:
     # Basic Java setup without Maven/GPG configuration
-    - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+    - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
       if: ${{ inputs.server-id == '' }}
       with:
         distribution: ${{ inputs.javaDistro }}
         java-version: ${{ inputs.javaVersion }}
+        architecture: ${{ inputs.architecture }}
 
     # Java setup with Maven server and optional GPG configuration
-    - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+    - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
       if: ${{ inputs.server-id != '' }}
       with:
         distribution: ${{ inputs.javaDistro }}
         java-version: ${{ inputs.javaVersion }}
+        architecture: ${{ inputs.architecture }}
         server-id: ${{ inputs.server-id }}
         server-username-env-var: ${{ inputs.server-username }}
         server-password-env-var: ${{ inputs.server-password }}

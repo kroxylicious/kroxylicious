@@ -5,11 +5,15 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +21,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -38,6 +43,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.kafka.common.message.ApiMessageType;
@@ -76,6 +83,9 @@ import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.net.ProxyProtocolContext;
+import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
+import io.kroxylicious.proxy.proxyprotocol.ClientProxyProtocolContext;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -691,6 +701,34 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    void closedChannelReleasesDecodedDeferredPendingRequests() {
+        // Given
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
+        buildChannel(filter);
+        writeRequest(new ApiVersionsRequestData());
+
+        // a buffer associated with the queued request, as by a filter earlier in the chain
+        var buffer = Unpooled.buffer();
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.API_VERSIONS.id)
+                .setRequestApiVersion(ApiKeys.API_VERSIONS.latestVersion())
+                .setCorrelationId(43);
+        var queued = new DecodedRequestFrame<>(header.requestApiVersion(), 43, false, header, new ApiVersionsRequestData());
+        queued.add(buffer);
+        writeRequest(queued);
+
+        // When
+        // the filter handler will have queued up the second request, awaiting the completion of the first.
+        filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
+        runAllPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat(buffer.refCnt()).isZero();
+    }
+
+    @Test
     void closedChannelIgnoresDeferredPendingResponse() {
         var seen = new ArrayList<ApiMessage>();
         var filterFuture = new CompletableFuture<ResponseFilterResult>();
@@ -735,6 +773,30 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(seen).containsExactly(frame1.body());
 
         verify(opaqueBuf).release();
+    }
+
+    @Test
+    void closedChannelReleasesDecodedDeferredPendingResponses() {
+        // Given
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        FetchResponseFilter filter = (apiVersion, header, response, context) -> filterFuture;
+        buildChannel(filter);
+        writeResponse(new FetchResponseData());
+
+        // a buffer associated with the queued response, as by a filter later in the chain
+        var buffer = Unpooled.buffer();
+        var queued = new DecodedResponseFrame<>(ApiKeys.FETCH.latestVersion(), 43, new ResponseHeaderData().setCorrelationId(43), new FetchResponseData());
+        queued.add(buffer);
+        channel.writeOutbound(queued);
+
+        // When
+        // the filter handler will have queued up the second response, awaiting the completion of the first.
+        filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
+        runAllPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+        assertThat(buffer.refCnt()).isZero();
     }
 
     @Test
@@ -1434,6 +1496,101 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    void peerAddressIsInboundChannelRemoteAddress() {
+        // Given
+        var observed = new AtomicReference<SocketAddress>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observed.set(context.peerAddress());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observed).hasValue(TEST_PEER_ADDRESS);
+    }
+
+    @Test
+    void clientAddressIsProxySourceAddressWithTcp4ProxyHeader() {
+        // Given
+        var observedClient = new AtomicReference<SocketAddress>();
+        var observedPeer = new AtomicReference<SocketAddress>();
+        var observedContext = new AtomicReference<Optional<ClientProxyProtocolContext>>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observedClient.set(context.clientAddress());
+            observedPeer.set(context.peerAddress());
+            observedContext.set(context.clientProxyProtocolContext());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+        clientConnectionStateMachine.kafkaSession().setProxyProtocolContext(
+                new ProxyProtocolContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+                        "192.168.1.100", "10.0.0.1", 54321, 9092, Map.of()));
+        var expectedSource = new InetSocketAddress("192.168.1.100", 54321);
+        var expectedDestination = new InetSocketAddress("10.0.0.1", 9092);
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observedClient).hasValue(expectedSource);
+        assertThat(observedPeer).hasValue(TEST_PEER_ADDRESS);
+        assertThat(observedContext.get()).hasValueSatisfying(proxyProtocol -> {
+            assertThat(proxyProtocol.sourceAddress()).isEqualTo(expectedSource);
+            assertThat(proxyProtocol.destinationAddress()).isEqualTo(expectedDestination);
+        });
+    }
+
+    @Test
+    void clientAddressIsPeerAddressWithoutProxyHeader() {
+        // Given
+        var observedClient = new AtomicReference<SocketAddress>();
+        var observedContext = new AtomicReference<Optional<ClientProxyProtocolContext>>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observedClient.set(context.clientAddress());
+            observedContext.set(context.clientProxyProtocolContext());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observedClient).hasValue(TEST_PEER_ADDRESS);
+        assertThat(observedContext.get()).isEmpty();
+    }
+
+    @Test
+    void clientAddressIsPeerAddressWithUnixStreamProxyHeader() {
+        // Given
+        var observedClient = new AtomicReference<SocketAddress>();
+        var observedContext = new AtomicReference<Optional<ClientProxyProtocolContext>>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            observedClient.set(context.clientAddress());
+            observedContext.set(context.clientProxyProtocolContext());
+            return context.requestFilterResultBuilder().forward(header, request).completed();
+        };
+        buildChannel(filter);
+        clientConnectionStateMachine.kafkaSession().setProxyProtocolContext(
+                new ProxyProtocolContext(HAProxyCommand.PROXY, HAProxyProxiedProtocol.UNIX_STREAM,
+                        "/run/haproxy/src.sock", "/run/haproxy/dst.sock", 0, 0, Map.of()));
+
+        // When
+        writeRequest(new ApiVersionsRequestData());
+        channel.readInbound();
+
+        // Then
+        assertThat(observedClient).hasValue(TEST_PEER_ADDRESS);
+        assertThat(observedContext.get()).isEmpty();
+    }
+
+    @Test
     void internalResponsePassedThroughNonRecipientFilterThatFailsClosesChannel() {
         // Given
         ApiVersionsResponseFilter failingFilter = (apiVersion, header, response, context) -> CompletableFuture.failedStage(new RuntimeException("filter failed"));
@@ -1569,5 +1726,118 @@ class FilterHandlerTest extends FilterHarness {
 
         // Then
         when.isSameAs(cause);
+    }
+
+    static Stream<Arguments> discardedRequestReleasesFilterAllocatedBuffers() {
+        return Stream.of(
+                Arguments.argumentSet("dropped",
+                        (Function<FilterContext, CompletionStage<RequestFilterResult>>) context -> context.requestFilterResultBuilder()
+                                .drop().completed()),
+                Arguments.argumentSet("closed without forwarding",
+                        (Function<FilterContext, CompletionStage<RequestFilterResult>>) context -> context.requestFilterResultBuilder()
+                                .withCloseConnection().completed()),
+                Arguments.argumentSet("completes exceptionally",
+                        (Function<FilterContext, CompletionStage<RequestFilterResult>>) context -> CompletableFuture
+                                .failedStage(new RuntimeException("filter error"))),
+                // a zero-acks produce has no response, so the short-circuit response is dropped too
+                Arguments.argumentSet("short-circuit response to zero-acks produce",
+                        (Function<FilterContext, CompletionStage<RequestFilterResult>>) context -> context.requestFilterResultBuilder()
+                                .shortCircuitResponse(new ProduceResponseData()).completed()));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void discardedRequestReleasesFilterAllocatedBuffers(Function<FilterContext, CompletionStage<RequestFilterResult>> result) {
+        // Given
+        var allocated = new AtomicReference<ByteBuf>();
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> {
+            allocated.set(((ByteBufOutputStream) context.createByteBufferOutputStream(16)).byteBuf());
+            return result.apply(context);
+        };
+        buildChannel(filter);
+
+        // When
+        writeRequest(new ProduceRequestData().setAcks((short) 0));
+        runAllPendingTasks();
+
+        // Then
+        assertThat((Object) channel.readInbound()).isNull();
+        assertThat((Object) channel.readOutbound()).isNull();
+        assertThat(allocated.get().refCnt()).isZero();
+    }
+
+    @Test
+    void forwardedRequestKeepsFilterAllocatedBuffersForTheNextHandler() {
+        // Given
+        var allocated = new AtomicReference<ByteBuf>();
+        ProduceRequestFilter filter = (apiVersion, header, request, context) -> {
+            allocated.set(((ByteBufOutputStream) context.createByteBufferOutputStream(16)).byteBuf());
+            return context.forwardRequest(header, request);
+        };
+        buildChannel(filter);
+
+        // When
+        var frame = writeRequest(new ProduceRequestData().setAcks((short) 1));
+
+        // Then
+        DecodedRequestFrame<?> propagated = channel.readInbound();
+        assertThat(propagated).isSameAs(frame);
+        assertThat(allocated.get().refCnt()).isEqualTo(1);
+        propagated.release();
+        assertThat(allocated.get().refCnt()).isZero();
+    }
+
+    static Stream<Arguments> discardedResponseReleasesFilterAllocatedBuffers() {
+        return Stream.of(
+                Arguments.argumentSet("dropped",
+                        (Function<FilterContext, CompletionStage<ResponseFilterResult>>) context -> context.responseFilterResultBuilder()
+                                .drop().completed()),
+                Arguments.argumentSet("closed without forwarding",
+                        (Function<FilterContext, CompletionStage<ResponseFilterResult>>) context -> context.responseFilterResultBuilder()
+                                .withCloseConnection().completed()),
+                Arguments.argumentSet("completes exceptionally",
+                        (Function<FilterContext, CompletionStage<ResponseFilterResult>>) context -> CompletableFuture
+                                .failedStage(new RuntimeException("filter error"))));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void discardedResponseReleasesFilterAllocatedBuffers(Function<FilterContext, CompletionStage<ResponseFilterResult>> result) {
+        // Given
+        var allocated = new AtomicReference<ByteBuf>();
+        FetchResponseFilter filter = (apiVersion, header, response, context) -> {
+            allocated.set(((ByteBufOutputStream) context.createByteBufferOutputStream(16)).byteBuf());
+            return result.apply(context);
+        };
+        buildChannel(filter);
+
+        // When
+        writeResponse(new FetchResponseData());
+        runAllPendingTasks();
+
+        // Then
+        assertThat((Object) channel.readOutbound()).isNull();
+        assertThat(allocated.get().refCnt()).isZero();
+    }
+
+    @Test
+    void forwardedResponseKeepsFilterAllocatedBuffersForTheNextHandler() {
+        // Given
+        var allocated = new AtomicReference<ByteBuf>();
+        FetchResponseFilter filter = (apiVersion, header, response, context) -> {
+            allocated.set(((ByteBufOutputStream) context.createByteBufferOutputStream(16)).byteBuf());
+            return context.forwardResponse(header, response);
+        };
+        buildChannel(filter);
+
+        // When
+        var frame = writeResponse(new FetchResponseData());
+
+        // Then
+        DecodedResponseFrame<?> propagated = channel.readOutbound();
+        assertThat(propagated).isSameAs(frame);
+        assertThat(allocated.get().refCnt()).isEqualTo(1);
+        propagated.release();
+        assertThat(allocated.get().refCnt()).isZero();
     }
 }

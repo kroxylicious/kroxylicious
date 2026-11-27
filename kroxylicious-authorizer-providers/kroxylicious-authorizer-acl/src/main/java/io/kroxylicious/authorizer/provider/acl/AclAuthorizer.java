@@ -7,6 +7,7 @@
 package io.kroxylicious.authorizer.provider.acl;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -161,6 +162,14 @@ public class AclAuthorizer implements Authorizer {
         public PrincipalSelectorBuilder subjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
             return new PrincipalSelectorBuilder(builder, allow,
                     userPrincipalClass);
+        }
+
+        /**
+         * Selects anonymous subjects, which have no principals.
+         * @return the next stage in the fluent builder.
+         */
+        public OperationsBuilder anonymousSubjects() {
+            return new OperationsBuilder(builder, allow, Set.of(ANONYMOUS));
         }
     }
 
@@ -406,6 +415,22 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
+    /**
+     * Stands for the absence of principals, so that rules for anonymous subjects are held with the
+     * others. It is not visible outside this class, so no subject can hold it.
+     */
+    private record AnonymousPrincipal(String name) implements Principal {}
+
+    @SuppressWarnings("unchecked")
+    private static final OrderedKey<Principal> ANONYMOUS = (OrderedKey<Principal>) (OrderedKey<?>) new ResourceMatcherAnyOfType<>(AnonymousPrincipal.class);
+
+    private static final List<Principal> ANONYMOUS_PRINCIPALS = List.of(new AnonymousPrincipal(""));
+
+    /** An anonymous subject is matched by the rules for anonymous subjects only. */
+    private static Collection<? extends Principal> principalsOf(Identity subject) {
+        return subject.principals().isEmpty() ? ANONYMOUS_PRINCIPALS : subject.principals();
+    }
+
     private static @Nullable Decision authorizeInternal(
                                                         TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
                                                         Identity subject,
@@ -413,10 +438,9 @@ public class AclAuthorizer implements Authorizer {
                                                         Decision whenFound,
                                                         @Nullable Decision whenNotFound) {
         assert whenFound != whenNotFound;
-        for (var p : subject.principals()) {
+        for (var p : principalsOf(subject)) {
             for (var matcher : principalMatchers(p)) {
-                var grant = allowPerPrincipal.matchingOperations(matcher);
-                if (grant != null) {
+                for (var grant : allowPerPrincipal.matchingValues(matcher)) {
                     Decision foundDecision = decision(action, grant, whenFound);
                     if (foundDecision != null) {
                         return foundDecision;
@@ -435,7 +459,6 @@ public class AclAuthorizer implements Authorizer {
                 (OrderedKey<Principal>) new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
     }
 
-    @SuppressWarnings("unchecked")
     private static List<OrderedKey<?>> resourceMatchers(Action action) {
         return List.of(
                 (OrderedKey<?>) new ResourceMatcherNameEquals<>(action.resourceTypeClass(), action.resourceName()),
@@ -444,23 +467,24 @@ public class AclAuthorizer implements Authorizer {
     }
 
     @Nullable
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     private static Decision decision(Action action,
                                      ResourceGrants grants,
                                      Decision whenFound) {
-        Set<? extends ResourceType<?>> operations;
         var typeNameMap = grants.nameMatches();
         ResourceType<?> resourceType = action.operation();
         if (typeNameMap != null) {
             for (var matcher : resourceMatchers(action)) {
-                operations = typeNameMap.matchingOperations((OrderedKey) matcher);
-                if (isFound(operations, resourceType)) {
-                    return whenFound;
+                for (var matchingOperations : typeNameMap.matchingValues((OrderedKey) matcher)) {
+                    if (isFound((Set<? extends ResourceType<?>>) matchingOperations, resourceType)) {
+                        return whenFound;
+                    }
                 }
             }
         }
         var patternMatch = grants.patternMatches();
         if (patternMatch != null) {
-            operations = patternMatch.matchingOperations((Class) action.resourceTypeClass(), action.resourceName());
+            Set<? extends ResourceType<?>> operations = patternMatch.matchingOperations((Class) action.resourceTypeClass(), action.resourceName());
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }

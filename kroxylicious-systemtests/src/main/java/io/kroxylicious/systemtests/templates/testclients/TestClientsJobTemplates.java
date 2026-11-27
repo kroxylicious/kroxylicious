@@ -170,11 +170,11 @@ public class TestClientsJobTemplates {
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
                                                           @Nullable String messageKey, Map<String, String> additionalConfig) {
         return defaultTestClientProducerJob(jobName, bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig, Environment.TEST_CLIENTS_IMAGE,
-                Map.of());
+                Map.of(), List.of());
     }
 
     /**
-     * Default test client producer job builder with JVM system properties.
+     * Default test client producer job builder with JVM system properties and extra env vars.
      *
      * @param jobName the job name
      * @param bootstrap the bootstrap
@@ -185,13 +185,15 @@ public class TestClientsJobTemplates {
      * @param additionalConfig the additional config
      * @param image the container image to use for the producer
      * @param javaSystemProperties JVM system properties to set via JAVA_TOOL_OPTIONS
+     * @param extraEnvVars additional env vars appended to the container (e.g. TLS client cert vars)
      * @return  the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
                                                           @Nullable String messageKey, Map<String, String> additionalConfig, String image,
-                                                          Map<String, String> javaSystemProperties) {
+                                                          Map<String, String> javaSystemProperties, List<EnvVar> extraEnvVars) {
         List<EnvVar> envVars = testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, additionalConfig);
         addJavaToolOptionsEnvVar(envVars, javaSystemProperties);
+        envVars.addAll(extraEnvVars);
         return newJobForContainer(jobName,
                 "test-client-producer",
                 image,
@@ -225,11 +227,11 @@ public class TestClientsJobTemplates {
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
                                                           Map<String, String> additionalKafkaProps, String consumerGroup) {
         return defaultTestClientConsumerJob(jobName, bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup, Environment.TEST_CLIENTS_IMAGE,
-                Map.of());
+                Map.of(), List.of());
     }
 
     /**
-     * Default test client consumer job builder with JVM system properties.
+     * Default test client consumer job builder with JVM system properties and extra env vars.
      *
      * @param jobName the job name
      * @param bootstrap the bootstrap
@@ -239,13 +241,15 @@ public class TestClientsJobTemplates {
      * @param consumerGroup the consumer group
      * @param image the container image to use for the consumer
      * @param javaSystemProperties JVM system properties to set via JAVA_TOOL_OPTIONS
+     * @param extraEnvVars additional env vars appended to the container (e.g. TLS client cert vars)
      * @return  the job builder
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages,
                                                           Map<String, String> additionalKafkaProps, String consumerGroup, String image,
-                                                          Map<String, String> javaSystemProperties) {
+                                                          Map<String, String> javaSystemProperties, List<EnvVar> extraEnvVars) {
         List<EnvVar> envVars = new ArrayList<>(testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages, additionalKafkaProps, consumerGroup));
         addJavaToolOptionsEnvVar(envVars, javaSystemProperties);
+        envVars.addAll(extraEnvVars);
         return newJobForContainer(jobName,
                 "test-client-consumer",
                 image,

@@ -702,6 +702,6 @@ class RoutingGraphWalkerTest {
     private static VirtualClusterGateway gateway() {
         return new VirtualClusterGateway("default",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
-                null, Optional.empty());
+                null, Optional.empty(), null);
     }
 }

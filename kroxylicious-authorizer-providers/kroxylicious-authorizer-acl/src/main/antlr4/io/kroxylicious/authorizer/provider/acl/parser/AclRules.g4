@@ -40,7 +40,8 @@ allowRule: ALLOW allowOrDenyRule SEMI
 allowOrDenyRule: userPattern TO operationPattern
     ;
 
-userPattern: principalType WITH NAME userNamePred
+userPattern: ANONYMOUS
+    | principalType WITH NAME userNamePred
     ;
 principalType: ident
     ;
@@ -97,6 +98,7 @@ RBRA: '}';
 DENY: 'deny';
 ALLOW: 'allow';
 OTHERWISE: 'otherwise';
+ANONYMOUS: 'anonymous';
 IN: 'in';
 TO: 'to';
 AS: 'as';
@@ -108,9 +110,11 @@ NAME: 'name';
 WITH: 'with';
 STRING: '"' (STRING_ESC | .)*? '"';
 fragment STRING_ESC: '\\"' | '\\\\';
-REGEX: '/' (REGEX_ESC | .)*? '/';
-fragment REGEX_ESC: '\\/' | '\\\\';
+// Comments come before REGEX: a block comment is also a valid regex literal of the same length,
+// and the lexer picks the first rule that matches
 LINE_COMMENT: '//' .*? '\r'? '\n' -> skip;
 COMMENT: '/*' .*? '*/' -> skip;
+REGEX: '/' (REGEX_ESC | .)*? '/';
+fragment REGEX_ESC: '\\/' | '\\\\';
 WS: [ \t\r\n]+ -> skip;
 IDENT: [A-Za-z][A-Za-z0-9_]*;

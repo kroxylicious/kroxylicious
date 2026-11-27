@@ -1,0 +1,57 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DESCRIBE_CONFIGS
+  version: 4
+  request:
+    payload:
+      resources:
+        - resourceType: 2
+          resourceName: mytopic
+          configurationKeys:
+            - retention.ms
+        - resourceType: 32
+          resourceName: mygroup
+          configurationKeys: []
+        - resourceType: 4
+          resourceName: "1"
+          configurationKeys: []
+      includeSynonyms: false
+      includeDocumentation: false
+    diff:
+      - op: replace
+        path: "/resources/0/resourceName"
+        value: tenant1-mytopic
+      - op: replace
+        path: "/resources/1/resourceName"
+        value: tenant1-mygroup
+  response:
+    payload:
+      throttleTimeMs: 0
+      results:
+        - errorCode: 0
+          errorMessage: null
+          resourceType: 2
+          resourceName: tenant1-mytopic
+          configs: []
+        - errorCode: 0
+          errorMessage: null
+          resourceType: 32
+          resourceName: tenant1-mygroup
+          configs: []
+        - errorCode: 0
+          errorMessage: null
+          resourceType: 4
+          resourceName: "1"
+          configs: []
+    diff:
+      - op: replace
+        path: "/results/0/resourceName"
+        value: mytopic
+      - op: replace
+        path: "/results/1/resourceName"
+        value: mygroup
+  disabled: false

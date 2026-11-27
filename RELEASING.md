@@ -47,6 +47,22 @@ gpg --armor --export-secret-key ${KEY_ID} | pbcopy
 
 While `pbcopy` is macOS specific, similar utilities exist for Linux see [StackExchange](https://superuser.com/a/288333)
 
+## Merge Queue Compatibility
+
+The release workflow uses a team-based ruleset bypass to merge the release PR because:
+- The merge queue requires squash merges
+- The release process requires true merge commits to preserve commit ancestry
+- The release tag must point to the exact commit that artifacts were built from
+
+The `kroxylicious-robot` account is a member of the `release-automation` team,
+which has write access to the repository and an "Always Allow" ruleset bypass
+configured in the "Lock down default branch" ruleset. This allows the robot to
+bypass both the merge queue requirement and the squash-only restriction when
+merging PRs.
+
+**Note:** The `--delete-branch` flag cannot be used with merge queue enabled, so
+the workflow deletes the PR branch and release branch separately after merging.
+
 ## Prepare the release blog post
 
 Prepare the release blog post by opening a PR [kroxylicious.github.io](https://github.com/kroxylicious/kroxylicious.github.io).  Get the PR
@@ -109,6 +125,36 @@ This will drop the snapshot repository, delete the release notes and close PR.
 
 Update the private key/passphrase secrets from the
 [repository secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions) to whitespace.
+
+## Container Image Tags
+
+Images are published to the same registry and organisation (`vars.REGISTRY_SERVER` / `vars.REGISTRY_ORGANISATION`)
+regardless of whether the build is a snapshot push, a staged release, or a promoted one - there's no separate
+registry for pre-release images.
+
+**Snapshot pushes:** every successful push to `main` or a release branch builds and pushes images tagged
+`commit-<SHA>` and `<version>-SNAPSHOT`. The `-SNAPSHOT` tag is overwritten on each push while the POM version is
+unchanged, so it's a floating tag: it reflects the most recently *successful* build, not necessarily the branch's
+current HEAD, and a failed build simply leaves it pointing at an older commit. Pull request builds are never pushed.
+
+**Staging (`stage_release`):** dispatches the image build directly against the release commit, producing
+`commit-<SHA>` tags only - no version tag exists until promotion.
+
+**Promotion (`promote_release`):** checks the staged manifests exist, then re-tags the exact staged images (via
+`skopeo copy --all`, with no rebuild) as the release version (e.g. `0.25.0`) and as `latest`. The staged
+`commit-<SHA>` tag is not deleted on a successful promotion - only `drop-release` deletes staged images, as cleanup
+for an abandoned release. So after a release, both the version tag and the originating `commit-<SHA>` tag persist
+and point at identical content, which is what gives a released version traceability back to its exact source
+commit.
+
+`latest` is the one tag we deliberately keep floating past its initial publish, re-pointed at the newest release
+each time, matching what users conventionally expect of it.
+
+**Known limitation:** nothing in the workflow actually stops two different builds from writing different content to
+the same `commit-<SHA>` tag. In practice this hasn't happened, because `promote-release`'s `gh pr merge --merge`
+always produces a two-parent merge commit, so the commit `stage_release` tags is never the same SHA that an
+ordinary push-triggered build later tags - the staged commit stays reachable from the branch but never becomes a
+tip that CI rebuilds. That's a byproduct of the current merge topology, not an enforced guarantee.
 
 ## Creating a Release Branch
 

@@ -168,6 +168,10 @@ Specify a xref:con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{c
 
 You must also xref:proc-virtualkafkacluster-loadbalancer-dns-config-{context}[configure DNS] so that the bootstrap and broker address resolve from the network used by the applications.
 
+For additional `loadBalancer` configuration options, see:
+
+* xref:con-kafkaproxyingress-loadbalancer-proxy-protocol-{context}[Configuring PROXY protocol for LoadBalancer ingress]
+* xref:con-kafkaproxyingress-loadbalancer-service-settings-{context}[Configuring LoadBalancer Service settings]
 
 == `openShiftRoute` ingress type
 

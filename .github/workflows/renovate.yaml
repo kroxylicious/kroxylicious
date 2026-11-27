@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -64,7 +64,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       - name: Renovate
-        uses: renovatebot/github-action@2804199d260ad00c1fae0e9e842888369391c776
+        uses: renovatebot/github-action@acdd6bda8b035c99ce59d5675816af2aa65a1774
         with:
           configurationFile: .github/renovate.json
           token: ${{ env.EFFECTIVE_TOKEN }}

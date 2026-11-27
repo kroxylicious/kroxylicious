@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.protocollogger;
 
+import java.net.SocketAddress;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
@@ -57,6 +58,9 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
                                                           ApiMessage request,
                                                           FilterContext context) {
         try {
+            SocketAddress clientAddress = context.clientAddress();
+            SocketAddress peerAddress = context.peerAddress();
+
             logger.atLevel(logLevel)
                     .addKeyValue("direction", "request")
                     .addKeyValue("apiKey", apiKey)
@@ -64,7 +68,7 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
                     .addKeyValue("clientCorrelationId", header.correlationId())
                     .addKeyValue("clientId", header.clientId())
                     .addKeyValue("sessionId", context.sessionId())
-                    .log(() -> buildRequestLogMessage(apiKey, apiVersion, header, request));
+                    .log(() -> buildRequestLogMessage(apiKey, apiVersion, header, request, clientAddress, peerAddress));
         }
         catch (Exception e) {
             try {
@@ -84,13 +88,16 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
                                                             ApiMessage response,
                                                             FilterContext context) {
         try {
+            SocketAddress clientAddress = context.clientAddress();
+            SocketAddress peerAddress = context.peerAddress();
+
             logger.atLevel(logLevel)
                     .addKeyValue("direction", "response")
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("apiVersion", apiVersion)
                     .addKeyValue("clientCorrelationId", header.correlationId())
                     .addKeyValue("sessionId", context.sessionId())
-                    .log(() -> buildResponseLogMessage(apiKey, apiVersion, header, response));
+                    .log(() -> buildResponseLogMessage(apiKey, apiVersion, header, response, clientAddress, peerAddress));
         }
         catch (Exception e) {
             try {
@@ -103,13 +110,15 @@ class ProtocolLoggerFilter implements RequestFilter, ResponseFilter {
         return context.forwardResponse(header, response);
     }
 
-    String buildRequestLogMessage(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request) {
-        ObjectNode entry = formatter.formatRequest(apiKey, apiVersion, header, request);
+    String buildRequestLogMessage(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request,
+                                  SocketAddress clientAddress, SocketAddress peerAddress) {
+        ObjectNode entry = formatter.formatRequest(apiKey, apiVersion, header, request, clientAddress, peerAddress);
         return MessageFormatter.prettyPrint(entry);
     }
 
-    String buildResponseLogMessage(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response) {
-        ObjectNode entry = formatter.formatResponse(apiKey, apiVersion, header, response);
+    String buildResponseLogMessage(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage response,
+                                   SocketAddress clientAddress, SocketAddress peerAddress) {
+        ObjectNode entry = formatter.formatResponse(apiKey, apiVersion, header, response, clientAddress, peerAddress);
         return MessageFormatter.prettyPrint(entry);
     }
 

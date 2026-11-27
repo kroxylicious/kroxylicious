@@ -1053,6 +1053,8 @@ class EndpointRegistryTest {
         var channel = mock(Channel.class);
         var attr = createTestAttribute(EndpointRegistry.CHANNEL_BINDINGS);
         when(channel.attr(EndpointRegistry.CHANNEL_BINDINGS)).thenReturn(attr);
+        var bindingContextAttr = createTestAttribute(EndpointRegistry.BINDING_CONTEXT);
+        lenient().when(channel.attr(EndpointRegistry.BINDING_CONTEXT)).thenReturn(bindingContextAttr);
         var localAddress = InetSocketAddress.createUnresolved("localhost", port); // This is lenient because not all tests exercise the unbind path
         lenient().when(channel.localAddress()).thenReturn(localAddress);
         return channel;
