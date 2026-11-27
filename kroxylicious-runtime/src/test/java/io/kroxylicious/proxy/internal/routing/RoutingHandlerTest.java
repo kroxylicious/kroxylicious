@@ -553,6 +553,66 @@ class RoutingHandlerTest {
     }
 
     @Test
+    void topLevel_shouldNotCallOnRoutedRequestCompleteWhenRespondWithWritesResponse() {
+        // Given
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWith(null, new ProduceResponseData(), false)));
+        var handler = topLevelHandlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.runPendingTasks();
+
+        // Then: response exits via channel outbound where onBeforeClientResponse decrements the count
+        assertThat((Object) channel.readOutbound()).isNotNull();
+        verify(ccsm, never()).onRoutedRequestComplete();
+    }
+
+    @Test
+    void topLevel_shouldNotCallOnRoutedRequestCompleteWhenRespondWithErrorWritesResponse() {
+        // Given: Produce with acks=1 expects an error response frame back to the client
+        var reqHeader = new RequestHeaderData().setCorrelationId(CORRELATION_ID).setRequestApiKey(ApiKeys.PRODUCE.id);
+        var reqBody = new ProduceRequestData().setAcks((short) 1);
+        var frame = new DecodedRequestFrame<>(ApiKeys.PRODUCE.latestVersion(), CORRELATION_ID, false, reqHeader, reqBody);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithError(reqHeader, reqBody, Errors.UNKNOWN_SERVER_ERROR, "boom", false)));
+        var handler = topLevelHandlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(frame);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat((Object) channel.readOutbound()).isNotNull();
+        verify(ccsm, never()).onRoutedRequestComplete();
+    }
+
+    @Test
+    void topLevel_shouldCallOnRoutedRequestCompleteWhenRespondWithErrorHasNoResponse() {
+        // Given: Produce with acks=0 produces no response frame (errorResponse == null)
+        var reqHeader = new RequestHeaderData().setCorrelationId(CORRELATION_ID).setRequestApiKey(ApiKeys.PRODUCE.id);
+        var reqBody = new ProduceRequestData().setAcks((short) 0);
+        var frame = new DecodedRequestFrame<>(ApiKeys.PRODUCE.latestVersion(), CORRELATION_ID, false, reqHeader, reqBody);
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithError(reqHeader, reqBody, Errors.UNKNOWN_SERVER_ERROR, "boom", false)));
+        var handler = topLevelHandlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(frame);
+        channel.runPendingTasks();
+
+        // Then: no frame is written to the client, so RoutingHandler must notify completion directly
+        assertThat((Object) channel.readOutbound()).isNull();
+        verify(ccsm).onRoutedRequestComplete();
+    }
+
+    @Test
     void topLevel_shouldNotWriteOutboundFrameForRespondWithoutReply() {
         // Given
         when(router.onRequest(any(), anyShort(), any(), any(), any()))

@@ -57,7 +57,6 @@ import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -1517,6 +1516,10 @@ class ClientConnectionStateMachineTest {
             // timer task itself is captured via ArgumentCaptor in tests that need to fire it.
             doAnswer(invocation -> scheduledFuture).when(eventLoop)
                     .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            doAnswer(invocation -> {
+                clientConnectionStateMachine.onBeforeClientResponse(invocation.getArgument(0));
+                return null;
+            }).when(frontendHandler).forwardToClient(any());
         }
 
         // --- drain(Duration) entry point ---
@@ -1820,57 +1823,16 @@ class ClientConnectionStateMachineTest {
         }
 
         @Test
-        void onResponseFromServer_whenRouterActiveAndMsgNotAFrame_decrementsInFlight() {
+        void onResponseFromServer_forwardsToFrontendHandler() {
             // Given
             stateMachineInForwarding();
-            clientConnectionStateMachine.setRouterActive();
-            bumpClientInFlightCount();
-            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
-            assertThat(closedFuture).isNotCompleted();
-
-            // When: a non-frame response arrives
-            clientConnectionStateMachine.onResponseFromServer(new Object());
-
-            // Then: in-flight count reached zero → drain fired
-            assertThat(closedFuture).isCompleted();
-        }
-
-        @Test
-        void onResponseFromServer_whenRouterActiveAndNonRoutingCorrelationId_decrementsInFlight() {
-            // Given
-            stateMachineInForwarding();
-            clientConnectionStateMachine.setRouterActive();
-            bumpClientInFlightCount();
-            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
-            assertThat(closedFuture).isNotCompleted();
-            var frame = new DecodedResponseFrame<>((short) 12, 0 /* not a routing ID */,
-                    new ResponseHeaderData(), new MetadataResponseData());
+            var msg = new Object();
 
             // When
-            clientConnectionStateMachine.onResponseFromServer(frame);
+            clientConnectionStateMachine.onResponseFromServer(msg);
 
-            // Then: non-routing ID → decrement happens → drain fired
-            assertThat(closedFuture).isCompleted();
-        }
-
-        @Test
-        void onResponseFromServer_whenRouterActiveAndRoutingCorrelationId_doesNotDecrementInFlight() {
-            // Given
-            stateMachineInForwarding();
-            clientConnectionStateMachine.setRouterActive();
-            bumpClientInFlightCount();
-            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
-            assertThat(closedFuture).isNotCompleted();
-            var routingFrame = new DecodedResponseFrame<>((short) 12, 0,
-                    new ResponseHeaderData(), new MetadataResponseData());
-            routingFrame.setRouting(new PathElement.RouterOriginator(new CompletableFuture<>(), new PathElement.Route("route-a", PathElement.ClientOrigin.INSTANCE)));
-
-            // When
-            clientConnectionStateMachine.onResponseFromServer(routingFrame);
-
-            // Then: a router-issued OOB response with routerActive → decrement skipped → drain NOT fired
-            assertThat(closedFuture).isNotCompleted();
-            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            // Then
+            verify(frontendHandler).forwardToClient(msg);
         }
 
         @Test
@@ -1963,7 +1925,7 @@ class ClientConnectionStateMachineTest {
         }
 
         @Test
-        void onShortCircuitResponseCompleteShouldDecrementAndFireDrainWhenCountReachesZero() {
+        void onBeforeClientResponseShouldDecrementAndFireDrainWhenCountReachesZero() {
             // Given
             stateMachineInForwarding();
             bumpClientInFlightCount();
@@ -1971,14 +1933,14 @@ class ClientConnectionStateMachineTest {
             assertThat(closedFuture).isNotCompleted();
 
             // When
-            clientConnectionStateMachine.onShortCircuitResponseComplete();
+            clientConnectionStateMachine.onBeforeClientResponse(new Object());
 
             // Then
             assertThat(closedFuture).isCompleted();
         }
 
         @Test
-        void onShortCircuitResponseCompleteShouldDecrementWithoutFiringDrainWhenCountStillPositive() {
+        void onBeforeClientResponseShouldDecrementWithoutFiringDrainWhenCountStillPositive() {
             // Given
             stateMachineInForwarding();
             bumpClientInFlightCount();
@@ -1987,11 +1949,27 @@ class ClientConnectionStateMachineTest {
             assertThat(closedFuture).isNotCompleted();
 
             // When
-            clientConnectionStateMachine.onShortCircuitResponseComplete();
+            clientConnectionStateMachine.onBeforeClientResponse(new Object());
 
             // Then: one decrement, one still in-flight
             assertThat(closedFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+        }
+
+        @Test
+        void onBeforeClientResponseShouldThrowOnInternalResponseFrame() {
+            // Given
+            stateMachineInForwarding();
+            var irf = new InternalResponseFrame<>(
+                    ApiVersionsResponseData.HIGHEST_SUPPORTED_VERSION,
+                    1,
+                    new ResponseHeaderData(),
+                    new ApiVersionsResponseData());
+
+            // When / Then
+            assertThatThrownBy(() -> clientConnectionStateMachine.onBeforeClientResponse(irf))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("unexpected response");
         }
 
         /**

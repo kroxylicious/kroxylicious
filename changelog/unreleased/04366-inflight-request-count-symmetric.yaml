@@ -1,0 +1,4 @@
+title: "refactor: make in-flight request count decrement symmetric with increment"
+type: changed
+issues:
+  - 4366

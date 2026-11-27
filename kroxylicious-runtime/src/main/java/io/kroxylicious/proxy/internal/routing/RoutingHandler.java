@@ -373,10 +373,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
         var routingContext = new RouterContextImpl(frame, dispatcher, sessionId, subjectSupplier.get(), effectiveNodeId);
 
         if (frame instanceof InternalRequestFrame<?> oobFrame) {
-            if (requestSource instanceof VirtualClusterRequestSource(ClientConnectionStateMachine ccsm)) {
+            if (requestSource instanceof VirtualClusterRequestSource) {
                 Objects.requireNonNull(responseSequencer).skip(sequence);
                 invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
-                        (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId, ccsm));
+                        (result, error) -> handleOobCompletion(ctx, oobFrame, result, error, apiKey, apiVersion, correlationId));
             }
             else {
                 invokeRouter(apiKey, apiVersion, frame.header(), frame.body(), routingContext,
@@ -420,50 +420,43 @@ public class RoutingHandler extends ChannelDuplexHandler {
 
     // --- OOB completion (top-level only) ---
 
-    @SuppressWarnings("java:S107") // difficult to reduce the number of parameters for this method
     private void handleOobCompletion(ChannelHandlerContext ctx,
                                      InternalRequestFrame<?> oobFrame,
                                      @Nullable RouterResponse result,
                                      @Nullable Throwable error,
                                      ApiKeys apiKey,
                                      short apiVersion,
-                                     int correlationId,
-                                     ClientConnectionStateMachine ccsm) {
-        try {
-            if (error != null) {
-                logErrorFailedFuture(error, apiKey, correlationId);
-                oobFrame.promise().completeExceptionally(error);
-                ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future for OOB request"));
-                return;
-            }
-            if (!(result instanceof RouterResponseImpl rri)) {
-                var cause = new IllegalStateException(
-                        "Router returned unrecognised RouterResponse type (apiKey=" + apiKey + ", type=" + (result == null ? "null" : result.getClass().getName()) + ")");
-                LOGGER.atError()
-                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
-                        .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
-                        .addKeyValue(LOG_KEY_API_KEY, apiKey)
-                        .addKeyValue(KOG_KEY_RESULT_TYPE, result == null ? "null" : result.getClass().getName())
-                        .log("Router returned unrecognised RouterResponse type; closing connection");
-                oobFrame.promise().completeExceptionally(cause);
-                ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type for OOB request"));
-                return;
-            }
-            if (rri instanceof RouterResponseImpl.RespondWith rw) {
-                writeOobResponse(ctx, rw, oobFrame, apiVersion, correlationId);
-            }
-            else {
-                Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
-                        ? new ApiException(rwe.message())
-                        : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
-                oobFrame.promise().completeExceptionally(cause);
-                if (rri.closeConnection()) {
-                    ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router for OOB request"));
-                }
-            }
+                                     int correlationId) {
+        if (error != null) {
+            logErrorFailedFuture(error, apiKey, correlationId);
+            oobFrame.promise().completeExceptionally(error);
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after router returned failed future for OOB request"));
+            return;
         }
-        finally {
-            ccsm.onRoutedRequestComplete();
+        if (!(result instanceof RouterResponseImpl rri)) {
+            var cause = new IllegalStateException(
+                    "Router returned unrecognised RouterResponse type (apiKey=" + apiKey + ", type=" + (result == null ? "null" : result.getClass().getName()) + ")");
+            LOGGER.atError()
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, virtualClusterName)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_API_KEY, apiKey)
+                    .addKeyValue(KOG_KEY_RESULT_TYPE, result == null ? "null" : result.getClass().getName())
+                    .log("Router returned unrecognised RouterResponse type; closing connection");
+            oobFrame.promise().completeExceptionally(cause);
+            ctx.channel().close().addListener(logFailure(LOGGER, "close after unrecognised router response type for OOB request"));
+            return;
+        }
+        if (rri instanceof RouterResponseImpl.RespondWith rw) {
+            writeOobResponse(ctx, rw, oobFrame, apiVersion, correlationId);
+        }
+        else {
+            Throwable cause = rri instanceof RouterResponseImpl.RespondWithError rwe
+                    ? new ApiException(rwe.message())
+                    : new IllegalStateException("Router returned no-reply response for OOB request (apiKey=" + apiKey + ")");
+            oobFrame.promise().completeExceptionally(cause);
+            if (rri.closeConnection()) {
+                ctx.channel().close().addListener(logFailure(LOGGER, "close requested by router for OOB request"));
+            }
         }
     }
 
@@ -595,8 +588,6 @@ public class RoutingHandler extends ChannelDuplexHandler {
                         .log("Nested router attempted to close connection; ignoring close request");
             }
         }
-
-        notifyRequestComplete();
     }
 
     private void deliverResponse(ChannelHandlerContext ctx,
@@ -605,6 +596,10 @@ public class RoutingHandler extends ChannelDuplexHandler {
                                  short apiVersion,
                                  int correlationId,
                                  long sequence) {
+        // Branches that call deliverResponseFrame() write a response back to the client, where
+        // ClientConnectionStateMachine.onBeforeClientResponse() decrements the in-flight count.
+        // Terminal branches that send no frame to the client must call notifyRequestComplete() here
+        // so the in-flight count does not leak.
         switch (rri) {
             case RouterResponseImpl.RespondWith rw -> {
                 ResponseHeaderData header = rw.header() != null ? rw.header() : new ResponseHeaderData();
@@ -627,6 +622,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                     if (responseSequencer != null) {
                         responseSequencer.skip(sequence);
                     }
+                    notifyRequestComplete();
                 }
                 else {
                     ResponseHeaderData header = new ResponseHeaderData();
@@ -644,6 +640,7 @@ public class RoutingHandler extends ChannelDuplexHandler {
                 if (responseSequencer != null) {
                     responseSequencer.skip(sequence);
                 }
+                notifyRequestComplete();
             }
         }
     }

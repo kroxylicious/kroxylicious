@@ -36,8 +36,6 @@ import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.frame.PathElement;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
@@ -226,8 +224,6 @@ public class ClientConnectionStateMachine {
 
     @Nullable
     private Map<String, HostPort> routeTargets;
-
-    private boolean routerActive;
 
     @Nullable
     private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
@@ -498,11 +494,22 @@ public class ClientConnectionStateMachine {
      */
     void onResponseFromServer(Object msg) {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
-        if (!routerActive
-                || !(msg instanceof DecodedResponseFrame<?> frame)
-                || !(frame.routing() instanceof PathElement.RouterOriginator)) {
-            decrementInFlightCount();
+    }
+
+    /**
+     * Callback from {@link KafkaProxyFrontendHandler} when a response is being written to the downstream client.
+     * Decrements the in-flight request count at the edge where the response exits the proxy runtime,
+     * symmetrically with {@link #onClientRequest(Object)}.
+     *
+     * @param msg the message being written to the client
+     */
+    void onBeforeClientResponse(Object msg) {
+        if (msg instanceof InternalResponseFrame<?>) {
+            throw new IllegalStateException(
+                    "onBeforeClientResponse received an unexpected response " + msg.getClass()
+                            + ". This is indicative of a problem with the delivery of responses to internally generated requests to their originator.");
         }
+        decrementInFlightCount();
     }
 
     private void decrementInFlightCount() {
@@ -1075,15 +1082,6 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Signals that a {@link io.kroxylicious.proxy.internal.routing.RoutingHandler} is active on this connection's pipeline.
-     * When active, responses bearing routing-range correlation IDs are not counted
-     * against the client in-flight limit (because they are synthetic, not client requests).
-     */
-    public void setRouterActive() {
-        this.routerActive = true;
-    }
-
-    /**
      * Sets the resolver used by {@link #forwardToNode} to translate a virtual node ID to
      * an upstream address. Must be set before any per-broker requests are sent.
      * @param resolver function mapping a virtual node ID to the upstream address, if known
@@ -1093,24 +1091,12 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Signals that a dynamically-routed client request has been fully handled.
+     * Signals that a dynamically-routed client request has completed without generating
+     * an outbound client response (e.g. acks=0 Produce or failed future where no response frame is sent).
      * Called by {@link io.kroxylicious.proxy.internal.routing.RoutingHandler}
-     * when the router's {@code onRequest} future completes and the response has been
-     * delivered to the client. Decrements the in-flight request count to maintain the
-     * 1:1 invariant even during fan-out routing.
+     * when the router's {@code onRequest} completes without writing a response frame to the client.
      */
     public void onRoutedRequestComplete() {
-        decrementInFlightCount();
-    }
-
-    /**
-     * Signals that a client request has been fully handled by a filter's short-circuit
-     * response, without a broker round-trip. Called by {@link io.kroxylicious.proxy.internal.FilterHandler}
-     * once the response has been written to the client. Decrements the in-flight request
-     * count so that a {@link #requestClose} triggered by the same filter can drain
-     * promptly instead of waiting out the full drain timeout.
-     */
-    public void onShortCircuitResponseComplete() {
         decrementInFlightCount();
     }
 
