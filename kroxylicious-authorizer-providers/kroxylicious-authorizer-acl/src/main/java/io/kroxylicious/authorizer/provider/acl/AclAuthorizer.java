@@ -578,7 +578,7 @@ public class AclAuthorizer implements Authorizer {
 
     /** Whether a rule's principal matcher selects one of the subject's principals. */
     private static boolean appliesTo(OrderedKey<Principal> principalMatcher, Identity subject) {
-        for (var principal : subject.principals()) {
+        for (var principal : principalsOf(subject)) {
             if (!principalMatcher.type().equals(principal.getClass())) {
                 continue;
             }
