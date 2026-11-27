@@ -96,11 +96,9 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Load Jekyll configuration overrides
-        env:
-          JEKYLL_CONFIG_OVERRIDES: ${{ vars.JEKYLL_CONFIG_OVERRIDES }}
         run: |
           echo "baseurl: kroxylicious" > _config-baseurl.yml
-          echo "${JEKYLL_CONFIG_OVERRIDES}" > _config-overrides.yml
+          echo "${{ vars.JEKYLL_CONFIG_OVERRIDES }}" > _config-overrides.yml
         working-directory: kroxylicious.github.io
 
       - name: copy built documentation into website
