@@ -62,7 +62,7 @@ public class Environment {
     private static final String AZURE_KEY_VAULT_NAME_ENV = "AZURE_KEY_VAULT_NAME";
     private static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE";
     private static final String TEST_CLIENTS_IMAGE_ENV = "TEST_CLIENTS_IMAGE";
-    private static final String TEST_CLIENTS_OAUTH_IMAGE_ENV = "TEST_CLIENTS_OAUTH_IMAGE";
+    private static final String TEST_CLIENTS_JOSE4J_IMAGE_ENV = "TEST_CLIENTS_JOSE4J_IMAGE";
     private static final String OLM_OPERATOR_CHANNEL_ENV = "OLM_OPERATOR_CHANNEL";
     private static final String CATALOG_SOURCE_NAME_ENV = "CATALOG_SOURCE_NAME";
     private static final String CATALOG_NAMESPACE_ENV = "CATALOG_NAMESPACE";
@@ -119,20 +119,13 @@ public class Environment {
     private static final String AZURE_KEY_VAULT_NAME_DEFAULT = "kroxylicious-key-vault";
     private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.15.0-kafka-" + KAFKA_VERSION_DEFAULT;
     /**
-     * A build of {@link #TEST_CLIENTS_IMAGE_DEFAULT} with jose4j added to the classpath, built by the
-     * kroxylicious-test-images module. Needed because Kafka 4.1+ eagerly loads jose4j during OAUTHBEARER
-     * SASL client login but Kafka incorrectly omits jose4j as a runtime dependency of kafka-clients (KAFKA-20184),
-     * and the upstream Strimzi test-clients image does not bundle it.
-     * <p>
-     * Deliberately a static tag containing neither "latest" nor "snapshot" (case-insensitive):
-     * {@link io.kroxylicious.systemtests.templates.ContainerTemplates#baseImageBuilder} forces
-     * {@code imagePullPolicy=Always} the first time it sees either substring in an image reference -
-     * note {@code ${project.version}} (e.g. {@code 0.24.0-SNAPSHOT}) would ALSO trigger this via the
-     * "snapshot" substring. This image only ever exists in minikube's local cache (loaded via
-     * {@code minikube image load}) and isn't served by any real registry, so an Always pull fails
-     * outright. It's rebuilt fresh right before every use, so the tag doesn't need to track versions.
+     * Image holding only {@code /jose4j.jar}, built by the jose4j.yaml GitHub workflow. It is mounted as an image
+     * volume onto the classpath of the JVM test client by tests using OAUTHBEARER, because Kafka 4.1+ clients eagerly
+     * load jose4j during OAUTHBEARER login but kafka-clients doesn't declare it as a runtime dependency (KAFKA-20184)
+     * and the upstream Strimzi test-clients image doesn't bundle it. Kept up to date by Renovate as new image tags are
+     * published.
      */
-    private static final String TEST_CLIENTS_OAUTH_IMAGE_DEFAULT = "localhost/kroxylicious/oauth-test-clients:jose4j";
+    private static final String TEST_CLIENTS_JOSE4J_IMAGE_DEFAULT = "quay.io/kroxylicious/jose4j:0.9.7@sha256:8f7bcc7a5b4bd6b9c1995d09e971f02887484f2ba446b9b481b42a64a57d5121";
     private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
     private static final String CATALOG_SOURCE_NAME_DEFAULT = "kroxylicious-source";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
@@ -209,7 +202,7 @@ public class Environment {
     public static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV, "");
 
     public static final String TEST_CLIENTS_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_IMAGE_ENV, TEST_CLIENTS_IMAGE_DEFAULT);
-    public static final String TEST_CLIENTS_OAUTH_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_OAUTH_IMAGE_ENV, TEST_CLIENTS_OAUTH_IMAGE_DEFAULT);
+    public static final String TEST_CLIENTS_JOSE4J_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_JOSE4J_IMAGE_ENV, TEST_CLIENTS_JOSE4J_IMAGE_DEFAULT);
     public static final String TEST_CLIENTS_PULL_SECRET = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_PULL_SECRET_ENV, "");
     public static final String OLM_OPERATOR_CHANNEL = ENVIRONMENT_VARIABLES.getOrDefault(OLM_OPERATOR_CHANNEL_ENV, OLM_OPERATOR_CHANNEL_DEFAULT);
     public static final String CATALOG_SOURCE_NAME = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_SOURCE_NAME_ENV, CATALOG_SOURCE_NAME_DEFAULT);

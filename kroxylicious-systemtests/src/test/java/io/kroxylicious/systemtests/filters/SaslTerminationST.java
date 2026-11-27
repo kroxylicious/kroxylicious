@@ -70,19 +70,14 @@ class SaslTerminationST extends AbstractSystemTests {
     private static final String OAUTH_FILTER_NAME = "sasl-termination-oauth";
     private static final String MOCK_OAUTH_SERVER_NAME = "mock-oauth2-server";
     private static final int MOCK_OAUTH_SERVER_PORT = 8080;
+    private static final String JOSE4J_JAR_PATH = "jose4j.jar";
 
     private final String clusterName = "sasl-termination-st-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
     @BeforeAll
     void setUp() {
-        KafkaClient defaultClient = KafkaClients.getKafkaClient();
-        defaultClient.preloadImage();
-        // Only the JVM client needs the jose4j-augmented image (see testOauthBearerAuthentication);
-        // preload it once here rather than in every test that might use it.
-        if (defaultClient instanceof StrimziTestClient strimziTestClient) {
-            strimziTestClient.withImage(Environment.TEST_CLIENTS_OAUTH_IMAGE).preloadImage();
-        }
+        KafkaClients.getKafkaClient().preloadImage();
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().log("Skipping kafka deployment. It is already deployed!");
@@ -192,13 +187,13 @@ class SaslTerminationST extends AbstractSystemTests {
                 "org.apache.kafka.sasl.oauthbearer.allowed.urls", tokenUrl + "," + jwksUrl);
 
         KafkaClient client = KafkaClients.getKafkaClient().inNamespace(namespace);
-        // Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login (KAFKA-20184), but
-        // due to https://issues.apache.org/jira/browse/KAFKA-20184 jose4j is not treated
-        // as a runtime dependency of kafka-clients. The upstream Strimzi test-clients image
-        // doesn't bundle it, so the JVM client uses our jose4j-augmented build of that image for
-        // this test only (already preloaded in setUp()).
+        // Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login, but jose4j is not
+        // declared as a runtime dependency of kafka-clients (https://issues.apache.org/jira/browse/KAFKA-20184)
+        // and the upstream Strimzi test-clients image doesn't bundle it. Mount the jose4j image (built
+        // by the jose4j.yaml workflow) as an image volume onto the JVM client's classpath.
+        // TODO remove once KAFKA-20184 is fixed in the Kafka version used by the test-clients image.
         if (client instanceof StrimziTestClient strimziTestClient) {
-            strimziTestClient.withImage(Environment.TEST_CLIENTS_OAUTH_IMAGE);
+            strimziTestClient.withExtraClasspathImage(Environment.TEST_CLIENTS_JOSE4J_IMAGE, JOSE4J_JAR_PATH);
         }
 
         // When
