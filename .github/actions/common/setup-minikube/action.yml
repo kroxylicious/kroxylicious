@@ -22,6 +22,10 @@ inputs:
   githubToken:
     description: "Github Token to be used"
     required: true
+  containerRuntime:
+    description: "Container runtime for minikube (docker, containerd or cri-o)"
+    required: false
+    default: "docker"
 
 runs:
   using: "composite"
@@ -40,7 +44,8 @@ runs:
         # change (incl. Renovate bumps to the lines below) invalidates the
         # cache automatically - no separate Renovate rule needed, and no risk
         # of serving stale-version artifacts.
-        key: ${{ runner.os }}-minikube-${{ hashFiles('.github/actions/common/setup-minikube/action.yml') }}
+        # The runtime is part of the key because the kubernetes preload tarball is runtime-specific.
+        key: ${{ runner.os }}-minikube-${{ inputs.containerRuntime }}-${{ hashFiles('.github/actions/common/setup-minikube/action.yml') }}
 
     - name: Setup Minikube
       uses: manusa/actions-setup-minikube@001b9f30165b2a875b835ec5183ced75b94bc269
@@ -50,3 +55,4 @@ runs:
         "kubernetes version": "v1.37.0"
         "github token": ${{ inputs.githubToken }}
         driver: docker
+        "container runtime": ${{ inputs.containerRuntime }}

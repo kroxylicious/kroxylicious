@@ -194,6 +194,10 @@ public final class Constants {
     public static final String TRUSTSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + TRUSTSTORE_SECRET_NAME + "/";
     public static final String KAF_CONFIG_TEMP_DIR = "/tmp/.kaf/";
     public static final String KAF_CONFIG_FILE_NAME = "config";
+    /**
+     * Directory inside test client containers where extra classpath jars are mounted.
+     */
+    public static final String TEST_CLIENTS_EXTRA_LIBS_DIR = "/opt/extra-libs";
 
     /*
      * Kroxylicious annotations

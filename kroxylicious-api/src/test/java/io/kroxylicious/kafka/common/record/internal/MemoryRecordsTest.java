@@ -17,6 +17,7 @@
 package io.kroxylicious.kafka.common.record.internal;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -263,6 +264,8 @@ public class MemoryRecordsTest {
     /**
      * This test verifies that the checksum returned for various versions matches hardcoded values to catch unintentional
      * changes to how the checksum is computed.
+     * This test verifies that the checksum returned for various versions matches hardcoded values to catch unintentional
+     * changes to how the checksum is computed.
      */
     @ParameterizedTest
     @ArgumentsSource(MemoryRecordsArgumentsProvider.class)
@@ -273,29 +276,45 @@ public class MemoryRecordsTest {
         if (compression.type() != CompressionType.NONE && compression.type() != CompressionType.LZ4)
             return;
 
+        // Given
+        byte[] value = "Some repetitive content to make the records compressible. "
+                .repeat(64)
+                .getBytes(StandardCharsets.UTF_8);
         SimpleRecord[] records = {
-                new SimpleRecord(283843L, "key1".getBytes(), "value1".getBytes()),
-                new SimpleRecord(1234L, "key2".getBytes(), "value2".getBytes())
+                new SimpleRecord(283843L, "key1".getBytes(), value),
+                new SimpleRecord(1234L, "key2".getBytes(), value)
         };
+
+        // When
         RecordBatch batch = MemoryRecords.withRecords(magic, compression, records).batches().iterator().next();
+
+        // Then
+        if (compression.type() == CompressionType.LZ4) {
+            // if the records did not compress, the LZ4 frame would store the block raw and the checksum
+            // below would not cover the output of the compressor, which is the point of this test
+            RecordBatch uncompressedBatch = MemoryRecords.withRecords(magic, Compression.none().build(), records)
+                    .batches().iterator().next();
+            assertTrue(batch.sizeInBytes() < uncompressedBatch.sizeInBytes(),
+                    "Records are expected to be compressible for magic " + magic);
+        }
         long expectedChecksum;
         if (magic == RecordBatch.MAGIC_VALUE_V0) {
             if (compression.type() == CompressionType.NONE)
-                expectedChecksum = 1978725405L;
+                expectedChecksum = 1089603500L;
             else
-                expectedChecksum = 66944826L;
+                expectedChecksum = 1446606907L;
         }
         else if (magic == RecordBatch.MAGIC_VALUE_V1) {
             if (compression.type() == CompressionType.NONE)
-                expectedChecksum = 109425508L;
+                expectedChecksum = 4097503866L;
             else
-                expectedChecksum = 1407303399L;
+                expectedChecksum = 3935250079L;
         }
         else {
             if (compression.type() == CompressionType.NONE)
-                expectedChecksum = 3851219455L;
+                expectedChecksum = 497758750L;
             else
-                expectedChecksum = 2745969314L;
+                expectedChecksum = 2592492317L;
         }
         assertEquals(expectedChecksum, batch.checksum(), "Unexpected checksum for magic " + magic +
                 " and compression type " + compression);

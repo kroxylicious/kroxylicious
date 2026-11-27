@@ -22,8 +22,6 @@ import io.netty.util.ReferenceCountUtil;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import static io.kroxylicious.proxy.internal.util.NettyFutures.logFailure;
 
 /**
@@ -80,43 +78,48 @@ class PlainResolverHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) {
         Channel ch = ctx.channel();
         bindingResolver.resolve(ch, null)
-                .handle((binding, t) -> {
-                    ch.eventLoop().execute(() -> onResolutionComplete(ctx, binding, t));
+                .thenAccept(binding -> ch.eventLoop().execute(() -> onResolutionSucceeded(ctx, binding)))
+                .exceptionally(t -> {
+                    ch.eventLoop().execute(() -> onResolutionFailed(ctx, t));
                     return null;
                 });
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        pending.add(msg);
+        pending.add(ReferenceCountUtil.retain(msg));
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
-        // Release any messages that were buffered but never replayed (error/close path).
-        pending.forEach(ReferenceCountUtil::release);
+        // Single point of cleanup for retained pending messages. Both paths lead here:
+        // success calls pipeline.remove(this) directly; failure calls ctx.close() which
+        // causes Netty to remove all handlers from the pipeline.
+        releasePending();
+    }
+
+    private void onResolutionFailed(ChannelHandlerContext ctx, Throwable t) {
+        Channel ch = ctx.channel();
+        // No virtual cluster for this endpoint (for example, the virtual cluster is being
+        // replaced by a reconfigure). Close the connection, as the TLS path does, so the client
+        // reconnects at once instead of waiting for its request timeout on a connection that
+        // will never be served.
+        LOGGER.atWarn()
+                .addKeyValue("channel", ch)
+                .addKeyValue("error", t.getMessage())
+                .setCause(LOGGER.isDebugEnabled() ? t : null)
+                .log(LOGGER.isDebugEnabled()
+                        ? "Exception resolving Virtual Cluster Binding, closing connection"
+                        : "Exception resolving Virtual Cluster Binding, closing connection. Increase log level to DEBUG for stacktrace");
+        clientToProxyErrorCounter.increment();
+        // Closing the channel removes all pipeline handlers, triggering handlerRemoved() which releases pending.
+        ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
     }
 
     // Throwable is the right choice as we are forwarding it on.
     @SuppressWarnings("java:S1181")
-    private void onResolutionComplete(ChannelHandlerContext ctx, @Nullable EndpointBinding binding, @Nullable Throwable t) {
+    private void onResolutionSucceeded(ChannelHandlerContext ctx, EndpointBinding binding) {
         Channel ch = ctx.channel();
-        if (t != null) {
-            // No virtual cluster for this endpoint (for example, the virtual cluster is being
-            // replaced by a reconfigure). Close the connection, as the TLS path does, so the client
-            // reconnects at once instead of waiting for its request timeout on a connection that
-            // will never be served.
-            LOGGER.atWarn()
-                    .addKeyValue("channel", ch)
-                    .addKeyValue("error", t.getMessage())
-                    .setCause(LOGGER.isDebugEnabled() ? t : null)
-                    .log(LOGGER.isDebugEnabled()
-                            ? "Exception resolving Virtual Cluster Binding, closing connection"
-                            : "Exception resolving Virtual Cluster Binding, closing connection. Increase log level to DEBUG for stacktrace");
-            clientToProxyErrorCounter.increment();
-            ctx.close().addListener(logFailure(LOGGER, "close after binding resolution failure"));
-            return;
-        }
         try {
             connectionInitializer.accept(ch, binding);
             ctx.fireChannelActive();
@@ -126,13 +129,19 @@ class PlainResolverHandler extends ChannelInboundHandlerAdapter {
             if (!pending.isEmpty()) {
                 ctx.fireChannelReadComplete();
             }
-            pending.clear();
         }
-        catch (Throwable t1) {
-            ctx.fireExceptionCaught(t1);
+        catch (Throwable t) {
+            ctx.fireExceptionCaught(t);
         }
         finally {
+            // Removing this handler triggers handlerRemoved() which releases pending.
             ch.pipeline().remove(this);
         }
     }
+
+    private void releasePending() {
+        pending.forEach(ReferenceCountUtil::release);
+        pending.clear();
+    }
+
 }

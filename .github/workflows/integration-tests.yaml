@@ -125,6 +125,9 @@ jobs:
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: ./.github/actions/common/configure-maven-artifact-cache
       - name: 'Download Kroxylicious Maven artifacts'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
@@ -246,6 +249,9 @@ jobs:
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: ./.github/actions/common/configure-maven-artifact-cache
       - name: 'Download Kroxylicious Maven artifacts'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
@@ -256,6 +262,10 @@ jobs:
           mkdir -p "$HOME/.m2/repository"
           cd "$HOME/.m2/repository"
           tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+      - name: 'Pre-warm archetype local repository from Maven cache'
+        run: |
+          mkdir -p kroxylicious-filter-archetype/target/local-repo
+          cp -a "${HOME}/.m2/repository/." kroxylicious-filter-archetype/target/local-repo/
       - name: 'run filter archetype integration tests'
         working-directory: kroxylicious-filter-archetype
         run: mvn --batch-mode verify

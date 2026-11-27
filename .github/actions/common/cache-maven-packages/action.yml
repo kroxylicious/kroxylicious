@@ -37,7 +37,10 @@ runs:
       run: |
         restore_key="${{ runner.os }}-m2-$(date -u +%Y-%m)-"
         echo "restore-key=${restore_key}" >> $GITHUB_OUTPUT
-        echo "key=${restore_key}${{ hashFiles('**/pom.xml') }}" >> $GITHUB_OUTPUT
+        # Bump cache_version to force the warm step to re-run against existing caches (it is skipped on
+        # an exact key hit). Older caches still match restore-key, so the re-warm only fills the gaps.
+        cache_version="v2"
+        echo "key=${restore_key}${cache_version}-${{ hashFiles('**/pom.xml') }}" >> $GITHUB_OUTPUT
     - name: 'Restore Maven packages (read-only)'
       id: restore
       if: ${{ inputs.read-only == 'true' }}

@@ -22,7 +22,7 @@ public class MockOauthServer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MockOauthServer.class);
     private static final String MOCK_OAUTH_SERVER_DEFAULT_NAMESPACE = "lowkey-vault";
     @SuppressWarnings("java:S6418") // Sonar "thinks" this is a hard coded secret as it contains the string "AUTH" :cry:
-    private static final String MOCK_OAUTH_SERVER_IMAGE = "ghcr.io/navikt/mock-oauth2-server:5.0.2@sha256:f625692f5bf84939f3d0af4931f2c0f038dca84c4f1bac1171710d544181f97f";
+    private static final String MOCK_OAUTH_SERVER_IMAGE = "ghcr.io/navikt/mock-oauth2-server:7.0.1@sha256:eb07a0a65007c34c40c7b849592a47e6299128a514a5c6c582a53451cc6e3390";
     private final String deploymentNamespace;
     private static final String TENANT_ID = "tenant2";
 

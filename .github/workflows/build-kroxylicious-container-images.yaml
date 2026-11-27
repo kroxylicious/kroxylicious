@@ -125,6 +125,10 @@ jobs:
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
 
+      - name: 'Configure Maven offline releases'
+        id: configure-maven-artifact-cache
+        uses: ./.github/actions/common/configure-maven-artifact-cache
+
       # Matrix object keys use underscores: GitHub expressions parse `matrix.runs-on`
       # as a subtraction, so hyphenated keys cannot be read in `${{ }}`. The
       # architecture matrix itself keeps the hyphenated names.
@@ -170,7 +174,8 @@ jobs:
               | { arch: .key,
                   runs_on: .value["runs-on"],
                   dist_profile: .value["dist-profile"],
-                  target_netty_classifier: .value["target-netty-classifier"] } ]
+                  target_netty_classifier: .value["target-netty-classifier"],
+                  architecture_override: .value["architecture-override"] } ]
           ' "${ARCH_MATRIX_FILE}")
 
           PLATFORMS=$(jq -rn --argjson arches "${ARCHES}" '[$arches[] | "linux/\(.)"] | join(",")')
@@ -311,12 +316,14 @@ jobs:
 
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
+        with:
+          architecture: ${{ matrix.architecture_override }}
 
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
 
       - name: Restore installed Kroxylicious modules
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: kroxylicious-m2-modules
           path: ~/.m2/repository/io/kroxylicious
@@ -354,7 +361,7 @@ jobs:
 
       - name: Login to container registry
         if: needs.prepare.outputs.push_images == 'true'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}
@@ -472,7 +479,7 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Login to container registry
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}
@@ -597,7 +604,7 @@ jobs:
         uses: ./.github/actions/common/cache-maven-packages
 
       - name: Restore installed Kroxylicious modules
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: kroxylicious-m2-modules
           path: ~/.m2/repository/io/kroxylicious
@@ -617,7 +624,7 @@ jobs:
 
       - name: Login to container registry
         if: needs.prepare.outputs.push_images == 'true'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}

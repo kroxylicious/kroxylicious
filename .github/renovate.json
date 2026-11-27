@@ -1,4 +1,8 @@
 {
+  "branchConcurrentLimit": 50,
+  "prConcurrentLimit": 50,
+  "prHourlyLimit": 0,
+  "pruneStaleBranches": true,
   "baseBranchPatterns": [
     "main"
   ],
@@ -188,7 +192,7 @@
         "/DEV_GUIDE.md/"
       ],
       "matchStrings": [
-        "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+        "(?<depName>quay.io/kroxylicious/jose4j):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"
     },
@@ -196,7 +200,17 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/",
-        "/kroxylicious-test-images/pom.xml/"
+        "/DEV_GUIDE.md/"
+      ],
+      "matchStrings": [
+        "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/"
       ],
       "matchStrings": [
         // For strimzi test clients we cannot add the digest because it depends on kafka version and it is calculated on runtime

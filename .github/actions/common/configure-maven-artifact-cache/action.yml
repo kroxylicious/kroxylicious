@@ -1,0 +1,83 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+name: "Configure Maven cached artifact policy"
+description: "Configure Maven to trust cached release artifacts without network verification (updatePolicy=never)"
+
+# Downstream CI workflows (documentation-tests, integration-tests, system-tests, etc.) run in
+# parallel after maven.yaml has warmed the Maven package cache. Even with a warm cache, Maven
+# contacts Maven Central to verify that cached release artifacts are still current, which
+# triggers HTTP 429 rate-limit errors when many jobs run simultaneously.
+#
+# Setting updatePolicy=never for release repositories tells Maven to trust whatever is in the
+# local cache without re-verifying against the remote, eliminating the unnecessary network
+# traffic and the 429 errors it causes.
+#
+# The profile is written to Maven's global settings (MAVEN_HOME/conf/settings.xml) rather than
+# the user settings (~/.m2/settings.xml). Maven merges both files, so the updatePolicy takes
+# effect regardless of what is in user settings. It also leaves ~/.m2/settings.xml entirely free
+# for other actions (e.g. setup-java writing server credentials for release workflows) to manage
+# without any risk of conflict or ordering dependency between this action and those actions.
+
+runs:
+  using: "composite"
+  steps:
+    - name: 'Write updatePolicy=never to Maven global settings'
+      shell: bash
+      run: |
+        MAVEN_HOME=$(mvn --version | grep 'Maven home' | sed 's/Maven home: //')
+        cat > "${MAVEN_HOME}/conf/settings.xml" << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <profiles>
+            <profile>
+              <id>ci-offline-releases</id>
+              <repositories>
+                <repository>
+                  <id>central</id>
+                  <url>https://repo.maven.apache.org/maven2</url>
+                  <releases>
+                    <enabled>true</enabled>
+                    <updatePolicy>never</updatePolicy>
+                  </releases>
+                  <snapshots>
+                    <enabled>false</enabled>
+                  </snapshots>
+                </repository>
+              </repositories>
+              <pluginRepositories>
+                <pluginRepository>
+                  <id>central</id>
+                  <url>https://repo.maven.apache.org/maven2</url>
+                  <releases>
+                    <enabled>true</enabled>
+                    <updatePolicy>never</updatePolicy>
+                  </releases>
+                  <snapshots>
+                    <enabled>false</enabled>
+                  </snapshots>
+                </pluginRepository>
+              </pluginRepositories>
+            </profile>
+          </profiles>
+          <activeProfiles>
+            <activeProfile>ci-offline-releases</activeProfile>
+          </activeProfiles>
+        </settings>
+        EOF
