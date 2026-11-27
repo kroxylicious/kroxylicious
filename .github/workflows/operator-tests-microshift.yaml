@@ -81,10 +81,11 @@ jobs:
           egress-policy: audit
 
       - name: 'Test for Slack secret'
+        id: slack_secret
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
         run: |
-          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+          echo "slack_webhook_set=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> "$GITHUB_OUTPUT"
 
       - name: 'Install podman'
         run: |
@@ -135,6 +136,7 @@ jobs:
           kubectl version
 
       - name: 'Build Kroxylicious Operand Container Images'
+        id: build_operand
         run: |
           eval "$(crc podman-env --root)"
 
@@ -153,10 +155,13 @@ jobs:
               -Dio.kroxylicious.proxy.image.name=${KROXYLICIOUS_IMAGE} \
               install
 
-          # This ensures that the tests will use the built operand.
-          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
+          echo "kroxylicious_image=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_OUTPUT}"
 
       - name: Run operator integration tests
+        env:
+          # This ensures that the tests will use the built operand.
+          KROXYLICIOUS_IMAGE: ${{ steps.build_operand.outputs.kroxylicious_image }}
+          ADDITIONAL_MAVEN_ARGUMENTS: ${{ github.event.inputs.additionalMavenArguments }}
         run: |
           eval "$(crc podman-env --root)"
 
@@ -165,7 +170,7 @@ jobs:
             --activate-profiles '!qa' \
             -Derrorprone.skip=true \
             -Dmaven.javadoc.skip=true \
-            ${{ github.event.inputs.additionalMavenArguments }} \
+            ${ADDITIONAL_MAVEN_ARGUMENTS} \
             verify
 
       - name: Upload Maven surefire / failsafe reports
@@ -179,7 +184,7 @@ jobs:
           retention-days: 7
 
       - name: Slack Notification on Failure
-        if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
+        if: failure() && steps.slack_secret.outputs.slack_webhook_set == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
         with:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
