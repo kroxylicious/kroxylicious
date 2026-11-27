@@ -166,6 +166,35 @@ sealed interface State permits State.RequiringHandshake, State.RequiringAuthenti
             return accumulatedAuthWorkNanos;
         }
 
+        private long subjectBuildingDurationNanos;
+
+        /**
+         * Add the duration of the {@code buildSaslSubject()} call.
+         *
+         * @param nanos the duration in nanoseconds
+         */
+        void addSubjectBuildingDuration(long nanos) {
+            subjectBuildingDurationNanos += nanos;
+        }
+
+        /**
+         * Get the duration spent in {@code buildSaslSubject()}.
+         *
+         * @return subject building duration in nanoseconds
+         */
+        long subjectBuildingDurationNanos() {
+            return subjectBuildingDurationNanos;
+        }
+
+        /**
+         * Get the total authentication work time including round evaluation and subject building.
+         *
+         * @return total authentication work time in nanoseconds
+         */
+        long totalAuthWorkNanos() {
+            return accumulatedAuthWorkNanos + subjectBuildingDurationNanos;
+        }
+
         /**
          * Get the authorization ID from the previous authentication, if this is a reauthentication.
          *
