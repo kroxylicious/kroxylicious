@@ -112,7 +112,26 @@ class AclAuthorizerServiceTest {
                                 allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "3:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}."));
+                        "3:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}."),
+                Arguments.argumentSet("anonymous with a principal type",
+                        """
+                                from io.kroxylicious.proxy.authentication import User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                                allow anonymous User to READ Topic with name = "foo";
+
+                                otherwise deny;""",
+                        "4:16: extraneous input 'User' expecting 'to'."),
+                Arguments.argumentSet("anonymous as an import alias",
+                        """
+                                from io.kroxylicious.proxy.authentication import User as anonymous;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                                allow anonymous with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
+                        "1:57: mismatched input 'anonymous' expecting {'deny', 'allow', 'otherwise', 'in', 'to', 'as', 'like', "
+                                + "'matching', 'from', 'import', 'name', 'with', IDENT}."));
     }
 
     @ParameterizedTest
@@ -239,6 +258,39 @@ class AclAuthorizerServiceTest {
         assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Mismatching principal type")
                 .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void anonymousRulesApplyToSubjectsWithoutPrincipalsOnly() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                deny anonymous to READ Topic with name = "secret";
+                allow anonymous to READ Topic with name like "public*";
+                allow anonymous to READ Topic with name = "secret";
+                allow User with name * to WRITE Topic with name *;
+
+                otherwise deny;"""));
+
+        assertThat(anonymousDecision(authz, FakeTopicResource.READ, "public-a")).isEqualTo(Decision.ALLOW);
+        assertThat(anonymousDecision(authz, FakeTopicResource.READ, "secret"))
+                .as("Deny rules apply to anonymous subjects")
+                .isEqualTo(Decision.DENY);
+        assertThat(anonymousDecision(authz, FakeTopicResource.READ, "other")).isEqualTo(Decision.DENY);
+        assertThat(anonymousDecision(authz, FakeTopicResource.WRITE, "public-a"))
+                .as("A rule for any user does not apply to an anonymous subject")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "public-a"))
+                .as("An anonymous rule does not apply to an authenticated subject")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.WRITE, "public-a")).isEqualTo(Decision.ALLOW);
+    }
+
+    private static Decision anonymousDecision(AclAuthorizer authz, ResourceType<?> resourceType, String resourceName) {
+        return authz.authorize(Subject.anonymous(), List.of(new Action(resourceType, resourceName)))
+                .toCompletableFuture().join()
+                .decision(resourceType, resourceName);
     }
 
     @Test
