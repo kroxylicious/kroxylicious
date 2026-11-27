@@ -85,8 +85,11 @@ jobs:
         # jobs in this workflow use (e.g. rewrite-maven-plugin via validate-tree). The module-group
         # profiles (proxy-core, runtime-plugins, supplementary, kubernetes-management) are omitted: they're
         # redundant with build-the-world, which is already active by default here.
+        # Uses the default (depth-first) dependency collector: the breadth-first one ("bf") skips POMs of
+        # versions that lose conflict resolution, but Maven core still reads them when resolving plugins
+        # (e.g. docker-maven-plugin), so builds fell back to Maven Central and failed when it was slow.
         run: >
-          mvn dependency:go-offline dependency:resolve-plugins -DexcludeArtifactIds=lifecycle-mapping -Daether.dependencyCollector.impl=bf -q
+          mvn dependency:go-offline dependency:resolve-plugins -DexcludeArtifactIds=lifecycle-mapping -q
           -P ci
           -P debug
           -P dist
