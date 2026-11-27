@@ -37,6 +37,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.PodSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyContainer;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.MountedResourceConfigProvider;
@@ -217,13 +218,21 @@ public class ProxyDeploymentDependentResource
         if (!isOpenShift) {
             specBuilder = specBuilder.editSecurityContext().withFsGroup(PROXY_IMAGE_GID).endSecurityContext();
         }
-        String serviceAccountName = infrastructure(primary).map(Infrastructure::getServiceAccountName).orElse(null);
+        Optional<Infrastructure> infrastructure = infrastructure(primary);
+        Optional<PodSpec> podSpec = infrastructure.map(Infrastructure::getPodSpec);
+        String serviceAccountName = infrastructure.map(Infrastructure::getServiceAccountName).orElse(null);
         return specBuilder
                     // Also set the deprecated serviceAccount alias, which Kubernetes keeps as a copy of serviceAccountName.
                     // Server-side apply only removes fields we set, so without this, removing the account from the
                     // KafkaProxy would leave the alias behind and Kubernetes would restore serviceAccountName from it.
                     .withServiceAccountName(serviceAccountName)
                     .withServiceAccount(serviceAccountName)
+                    // Unset scheduling fields are empty rather than null: that matches the PodSpec defaults, and fabric8 omits
+                    // empty collections when serializing, so server-side apply releases the fields when they are removed.
+                    .withNodeSelector(podSpec.map(PodSpec::getNodeSelector).orElse(Map.of()))
+                    .withTolerations(podSpec.map(PodSpec::getTolerations).orElse(List.of()))
+                    .withAffinity(podSpec.map(PodSpec::getAffinity).orElse(null))
+                    .withTopologySpreadConstraints(podSpec.map(PodSpec::getTopologySpreadConstraints).orElse(List.of()))
                     .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
