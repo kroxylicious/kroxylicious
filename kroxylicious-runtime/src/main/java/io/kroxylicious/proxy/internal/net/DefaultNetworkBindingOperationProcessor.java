@@ -22,7 +22,7 @@ import io.netty.bootstrap.ServerBootstrap;
 /**
  * Default {@link NetworkBindingOperationProcessor} implementation that processes queued
  * {@link NetworkBindingOperation}s sequentially on a dedicated daemon thread, applying each
- * operation to the plain or TLS {@link ServerBootstrap} as appropriate.
+ * operation to the {@link ServerBootstrap} supplied at {@link #start(ServerBootstrap)}.
  */
 public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOperationProcessor {
 
@@ -78,7 +78,7 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
     // (interrupt) is logged immediately before it is thrown. The returned Future
     // therefore carries no information that is not already logged.
     @SuppressWarnings({ "ReferenceEquality", "FutureReturnValueIgnored" })
-    public void start(ServerBootstrap plainServerBootstrap, ServerBootstrap tlsServerBootstrap) {
+    public void start(ServerBootstrap serverBootstrap) {
         if (!running.compareAndSet(false, true)) {
             return;
         }
@@ -91,8 +91,7 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
                         return;
                     }
 
-                    var bootstrap = networkBindingOperation.tls() ? tlsServerBootstrap : plainServerBootstrap;
-                    performBindingOperation(networkBindingOperation, bootstrap);
+                    performBindingOperation(networkBindingOperation, serverBootstrap);
                 } while (!Thread.interrupted());
             }
             catch (InterruptedException e) {
