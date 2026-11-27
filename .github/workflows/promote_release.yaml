@@ -88,10 +88,9 @@ jobs:
       - name: 'Stop workflow if user is not a release-engineer'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
-          gh issue comment "${ISSUE_NUMBER}" --body "${GITHUB_ACTOR} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
           exit 1
 
       - name: 'Get run id of stage release workflow'
@@ -256,10 +255,9 @@ jobs:
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-          STAGING_TRANSITION: ${{ inputs.command == 'promote-release' && 'release' || 'drop' }}
         run: |
-          ./scripts/transition-staging-repository-state.sh -d "${DEPLOYMENT_ID}" \
-                                                           -s "${STAGING_TRANSITION}"
+          ./scripts/transition-staging-repository-state.sh -d "${{ env.DEPLOYMENT_ID}}" \
+                                                           -s "${{ inputs.command == 'promote-release' && 'release' || 'drop' }}"
 
       - name: 'Unblock the merge'
         if: ${{ inputs.command == 'promote-release' }}
@@ -323,7 +321,7 @@ jobs:
           # The staging tag is stripped from the manifest ref to derive the image name.
           tag_release() {
             local manifest="$1" image="$2"
-            skopeo copy --all "docker://${manifest}" "docker://${image}:${RELEASE_VERSION}"
+            skopeo copy --all "docker://${manifest}" "docker://${image}:${{ env.RELEASE_VERSION }}"
             skopeo copy --all "docker://${manifest}" "docker://${image}:latest"
           }
 

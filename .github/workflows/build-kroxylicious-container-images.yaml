@@ -191,15 +191,8 @@ jobs:
         id: build_configuration
         env:
           ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
-          OUTPUT_TARBALLS: ${{ inputs.output-tarballs }}
-          PUSH_IMAGES: ${{ inputs.push-images }}
-          REGISTRY_SERVER: ${{ vars.REGISTRY_SERVER }}
-          REGISTRY_ORGANISATION: ${{ vars.REGISTRY_ORGANISATION }}
-          PROXY_IMAGE_NAME: ${{ vars.PROXY_IMAGE_NAME }}
-          OPERATOR_IMAGE_NAME: ${{ vars.OPERATOR_IMAGE_NAME }}
-          ADMISSION_IMAGE_NAME: ${{ vars.ADMISSION_IMAGE_NAME }}
         run: |
-          if [[ "${OUTPUT_TARBALLS}" == "true" && "${PUSH_IMAGES}" == "true" ]]; then
+          if [[ "${{ inputs.output-tarballs }}" == "true" && "${{ inputs.push-images }}" == "true" ]]; then
             echo "::error::output-tarballs and push-images are mutually exclusive; set at most one to true." >&2
             exit 1
           fi
@@ -208,11 +201,11 @@ jobs:
           {
             echo "release_version=${POMS_VERSION}"
             echo "image_created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "output_tarballs=${OUTPUT_TARBALLS}"
+            echo "output_tarballs=${{ inputs.output-tarballs }}"
           } >> "$GITHUB_OUTPUT"
           SHA_TAG="commit-${GITHUB_SHA}"
 
-          if [[ "${OUTPUT_TARBALLS}" == "true" ]]; then
+          if [[ "${{ inputs.output-tarballs }}" == "true" ]]; then
             # Tarball mode: no push, and Maven image names for compatibility with
             # system-test tooling that verifies image names via Maven properties.
             # The tarball is loaded by name, so it carries no per-arch tag suffix.
@@ -224,7 +217,7 @@ jobs:
               echo "operator_tags=quay.io/kroxylicious/operator:${POMS_VERSION}"
               echo "admission_tags=quay.io/kroxylicious/webhook:${POMS_VERSION}"
             } >> "$GITHUB_OUTPUT"
-          elif [[ "${PUSH_IMAGES}" != "true" || "${REGISTRY_SERVER}" == "" ]]; then
+          elif [[ "${{ inputs.push-images }}" != "true" || "${{ vars.REGISTRY_SERVER }}" == "" ]]; then
             # No-push mode: validation build only (CI PRs, or forks without registry
             # vars). Every requested architecture is still built, so a pull request
             # that asks for an architecture by label gets it checked.
@@ -237,9 +230,9 @@ jobs:
               echo "admission_tags=kroxylicious-admission:${SHA_TAG}"
             } >> "$GITHUB_OUTPUT"
           else
-            PROXY_IMAGE="${REGISTRY_SERVER}/${REGISTRY_ORGANISATION}/${PROXY_IMAGE_NAME}"
-            OPERATOR_IMAGE="${REGISTRY_SERVER}/${REGISTRY_ORGANISATION}/${OPERATOR_IMAGE_NAME}"
-            ADMISSION_IMAGE="${REGISTRY_SERVER}/${REGISTRY_ORGANISATION}/${ADMISSION_IMAGE_NAME}"
+            PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
+            OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
+            ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
 
             # All builds get a commit SHA tag. Callers may also pass arbitrary
             # additional-tags (e.g. maven.yaml adds the POM version on pushes

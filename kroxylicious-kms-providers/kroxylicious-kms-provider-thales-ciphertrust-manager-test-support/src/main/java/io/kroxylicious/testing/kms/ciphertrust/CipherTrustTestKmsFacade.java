@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -165,6 +166,15 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
     private String jwtToken;
 
     /**
+     * When the current {@link #jwtToken} expires, or null if CipherTrust Manager did not say. A real CipherTrust Manager
+     * issues short-lived tokens, which a test run can outlive.
+     */
+    @Nullable
+    private Instant jwtExpiresAt;
+
+    private static final Duration TOKEN_REFRESH_MARGIN = Duration.ofSeconds(30);
+
+    /**
      * Creates a CipherTrust test KMS facade.
      * <p>
      * See class-level Javadoc for complete list of environment variables.
@@ -225,6 +235,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
         HttpRequest request = buildAuthRequest(AUTH_TOKENS_PATH, requestBody);
         AuthResponse authResponse = sendRequest(request, AUTH_RESPONSE_TYPE_REF, null, 200);
         this.jwtToken = authResponse.jwt();
+        this.jwtExpiresAt = authResponse.duration() > 0 ? Instant.now().plusSeconds(authResponse.duration()) : null;
 
         LOGGER.atDebug()
                 .addKeyValue("useReal", useReal)
@@ -529,7 +540,13 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
                 .build();
     }
 
-    private String bearerHeader() {
+    private synchronized String bearerHeader() {
+        if (jwtExpiresAt != null && Instant.now().isAfter(jwtExpiresAt.minus(TOKEN_REFRESH_MARGIN))) {
+            LOGGER.atDebug()
+                    .addKeyValue("expiresAt", jwtExpiresAt)
+                    .log("CipherTrust Manager token has expired or is about to, re-authenticating");
+            authenticateViaHttp();
+        }
         return "Bearer " + jwtToken;
     }
 
