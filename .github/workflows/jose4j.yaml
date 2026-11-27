@@ -1,0 +1,188 @@
+# jose4j.yaml - builds and pushes a container image holding the jose4j jar.
+#
+# The image is built FROM scratch and contains only /jose4j.jar (org.bitbucket.b_c:jose4j), resolved
+# from Maven Central by Maven itself with strict checksum verification, i.e. the same artifact the
+# build uses. It has no shell, so it is meant to be consumed as a Kubernetes image volume, e.g. to
+# put jose4j on the classpath of Kafka clients that need it for OAUTHBEARER (KAFKA-20184).
+#
+# The system tests (SaslTerminationST) mount this image as an image volume. The workflow runs
+# automatically when a push to main changes jose4j.version in the root pom.xml, and publishes the
+# image for the new version; Renovate then picks up the new tag and updates the pinned image in the
+# system tests' Environment.java. It can also be run manually; if no version is given, the version
+# is taken from jose4j.version in the root pom.xml of the selected ref.
+#
+# Requires repository variables:
+# - REGISTRY_SERVER - the server of the container registry service e.g. `quay.io` or `docker.io`
+# - REGISTRY_USERNAME - your username on the service (or username of your robot account)
+# - REGISTRY_TOKEN - the access token that corresponds to `REGISTRY_USERNAME`
+#
+
+name: jose4j Container
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'jose4j version, e.g. 0.9.7 (leave empty to use jose4j.version from pom.xml)'
+        required: false
+        default: ''
+      registry-destination:
+        description: 'The image repository, e.g. quay.io/<my org>/jose4j'
+        default: 'quay.io/kroxylicious/jose4j'
+        required: true
+  push:
+    branches:
+      - main
+    paths:
+      - pom.xml
+
+permissions:
+  contents: read
+
+jobs:
+  # Decides which version to publish and whether to publish at all. Manual runs always build.
+  # Pushes only build when they change jose4j.version in pom.xml: the property is read (with yq's
+  # XML parser) from pom.xml at the commit before the push and at the pushed commit, and compared.
+  resolve:
+    runs-on: ubuntu-latest
+    # Automatic publishing only from the upstream repository, so forks with registry variables set
+    # don't publish on every push to their main. Manual runs work anywhere the variables are set.
+    if: >-
+      vars.REGISTRY_SERVER != '' && vars.REGISTRY_USERNAME != '' &&
+      (github.event_name == 'workflow_dispatch' || github.repository == 'kroxylicious/kroxylicious')
+    outputs:
+      build: ${{ steps.resolve.outputs.build }}
+      version: ${{ steps.resolve.outputs.version }}
+      dependency-plugin-version: ${{ steps.resolve.outputs.dependency-plugin-version }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Resolve version and whether to build
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          pom_property() { # <commit> <property>
+            git show "$1:pom.xml" | yq -p xml ".project.properties.\"$2\" // \"\""
+          }
+          VERSION_REGEX='^[0-9]+(\.[0-9]+)*([.-][A-Za-z0-9]+)*$'
+
+          VERSION="$(pom_property HEAD jose4j.version)"
+          DEPENDENCY_PLUGIN_VERSION="$(pom_property HEAD maven-dependency-plugin.version)"
+          BUILD=true
+
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            VERSION="${INPUT_VERSION:-${VERSION}}"
+          elif [[ "${BEFORE_SHA}" =~ ^0+$ ]]; then
+            # No previous commit to compare with (the branch was just created).
+            echo "::notice::No previous commit to compare jose4j.version with, not building"
+            BUILD=false
+          else
+            # The checkout is shallow, so fetch the commit main pointed to before the push.
+            git fetch --quiet --no-tags --depth=1 origin "${BEFORE_SHA}"
+            PREVIOUS_VERSION="$(pom_property "${BEFORE_SHA}" jose4j.version)"
+            if [ "${PREVIOUS_VERSION}" = "${VERSION}" ]; then
+              echo "::notice::jose4j.version unchanged (${VERSION}), not building"
+              BUILD=false
+            else
+              echo "::notice::jose4j.version changed from '${PREVIOUS_VERSION}' to '${VERSION}'"
+            fi
+          fi
+
+          if [ "${BUILD}" = "true" ]; then
+            if ! [[ "${VERSION}" =~ ${VERSION_REGEX} ]]; then
+              echo "::error::Invalid or missing jose4j version: '${VERSION}'"
+              exit 1
+            fi
+            if ! [[ "${DEPENDENCY_PLUGIN_VERSION}" =~ ${VERSION_REGEX} ]]; then
+              echo "::error::Unable to resolve maven-dependency-plugin.version: '${DEPENDENCY_PLUGIN_VERSION}'"
+              exit 1
+            fi
+          fi
+          {
+            echo "build=${BUILD}"
+            echo "version=${VERSION}"
+            echo "dependency-plugin-version=${DEPENDENCY_PLUGIN_VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    env:
+      # inputs are empty on push events, so fall back to the default destination.
+      IMAGE: ${{ inputs.registry-destination || 'quay.io/kroxylicious/jose4j' }}:${{ needs.resolve.outputs.version }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: $/.github/actions/common/setup-java
+
+      # Run from an empty directory so Maven doesn't try to load the project's pom. Maven only warns
+      # about checksum mismatches by default; --strict-checksums makes them fail the build.
+      - name: Download jose4j from Maven Central
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+          DEPENDENCY_PLUGIN_VERSION: ${{ needs.resolve.outputs.dependency-plugin-version }}
+        run: |
+          IMAGE_DIR="${RUNNER_TEMP}/jose4j-image"
+          mkdir -p "${IMAGE_DIR}" "${RUNNER_TEMP}/mvn-empty"
+          cd "${RUNNER_TEMP}/mvn-empty"
+          mvn --batch-mode --no-transfer-progress --strict-checksums \
+            "org.apache.maven.plugins:maven-dependency-plugin:${DEPENDENCY_PLUGIN_VERSION}:copy" \
+            -Dartifact="org.bitbucket.b_c:jose4j:${VERSION}:jar" \
+            -DoutputDirectory="${IMAGE_DIR}" \
+            -Dmdep.stripVersion=true
+          test -s "${IMAGE_DIR}/jose4j.jar"
+          printf 'FROM scratch\nCOPY jose4j.jar /jose4j.jar\n' > "${IMAGE_DIR}/Containerfile"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+
+      - name: Login to container registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      # The image only copies a jar onto scratch (no RUN steps), so it can be built for every
+      # platform without QEMU. All platforms are published so the image can be pulled on any node.
+      - name: Build and push jose4j container image
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+        with:
+          context: ${{ runner.temp }}/jose4j-image
+          file: ${{ runner.temp }}/jose4j-image/Containerfile
+          platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+          push: true
+          tags: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.title=jose4j
+            org.opencontainers.image.version=${{ needs.resolve.outputs.version }}
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.source=https://bitbucket.org/b_c/jose4j
+            org.opencontainers.image.description=jose4j jar (org.bitbucket.b_c:jose4j:${{ needs.resolve.outputs.version }} from Maven Central) at /jose4j.jar
+
+      - name: Summary
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "Pushed \`${IMAGE}@${DIGEST}\`" >> "$GITHUB_STEP_SUMMARY"

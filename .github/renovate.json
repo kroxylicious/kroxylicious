@@ -192,6 +192,17 @@
         "/DEV_GUIDE.md/"
       ],
       "matchStrings": [
+        "(?<depName>quay.io/kroxylicious/jose4j):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java/",
+        "/DEV_GUIDE.md/"
+      ],
+      "matchStrings": [
         "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"

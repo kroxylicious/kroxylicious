@@ -51,7 +51,6 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.templates.testclients.TestClientsConfigMapTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,8 +70,7 @@ class SaslTerminationST extends AbstractSystemTests {
     private static final String OAUTH_FILTER_NAME = "sasl-termination-oauth";
     private static final String MOCK_OAUTH_SERVER_NAME = "mock-oauth2-server";
     private static final int MOCK_OAUTH_SERVER_PORT = 8080;
-    private static final Path JOSE4J_JAR = Path.of(System.getProperty("user.dir"), "target", "extra-libs", "jose4j.jar");
-    private static final String JOSE4J_CONFIG_MAP_NAME = "jose4j";
+    private static final String JOSE4J_JAR_PATH = "jose4j.jar";
 
     private final String clusterName = "sasl-termination-st-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
@@ -191,11 +189,11 @@ class SaslTerminationST extends AbstractSystemTests {
         KafkaClient client = KafkaClients.getKafkaClient().inNamespace(namespace);
         // Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login, but jose4j is not
         // declared as a runtime dependency of kafka-clients (https://issues.apache.org/jira/browse/KAFKA-20184)
-        // and the upstream Strimzi test-clients image doesn't bundle it. Mount the jar (copied into
-        // target/ by the systemtest Maven profile) onto the JVM client's classpath via a ConfigMap.
+        // and the upstream Strimzi test-clients image doesn't bundle it. Mount the jose4j image (built
+        // by the jose4j.yaml workflow) as an image volume onto the JVM client's classpath.
         // TODO remove once KAFKA-20184 is fixed in the Kafka version used by the test-clients image.
         if (client instanceof StrimziTestClient strimziTestClient) {
-            addJose4jToClasspath(namespace, strimziTestClient);
+            strimziTestClient.withExtraClasspathImage(Environment.TEST_CLIENTS_JOSE4J_IMAGE, JOSE4J_JAR_PATH);
         }
 
         // When
@@ -215,15 +213,6 @@ class SaslTerminationST extends AbstractSystemTests {
                 .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    }
-
-    private void addJose4jToClasspath(String namespace, StrimziTestClient client) {
-        assertThat(JOSE4J_JAR)
-                .as("jose4j jar should have been copied by the systemtest Maven profile (pre-integration-test phase)")
-                .isRegularFile();
-        resourceManager.createOrUpdateResourceFromBuilderWithWait(
-                TestClientsConfigMapTemplates.jarConfigMap(namespace, JOSE4J_CONFIG_MAP_NAME, JOSE4J_JAR));
-        client.withExtraClasspathJar(JOSE4J_CONFIG_MAP_NAME, JOSE4J_JAR.getFileName().toString());
     }
 
     private Map<String, String> scramSaslProps(String username, String password) {

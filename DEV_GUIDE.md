@@ -468,6 +468,7 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 * `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`, `python_test_client`
 * `TEST_CLIENTS_IMAGE`: strimzi test client image to be used when running the tests. It is useful when running regression tests. Default value: `quay.io/strimzi-test-clients/test-clients:latest-kafka-${kafka.version}`
+* `TEST_CLIENTS_JOSE4J_IMAGE`: image containing only `/jose4j.jar`, mounted as an [image volume](https://kubernetes.io/docs/concepts/storage/volumes/#image) onto the classpath of the strimzi test client by the OAUTHBEARER SASL termination test. Kafka 4.1+ clients load `jose4j` during OAUTHBEARER login but don't declare it as a dependency ([KAFKA-20184](https://issues.apache.org/jira/browse/KAFKA-20184)), and the test client image doesn't bundle it. The image is built by the `jose4j.yaml` GitHub workflow. Default value: `quay.io/kroxylicious/jose4j:0.9.7@sha256:8f7bcc7a5b4bd6b9c1995d09e971f02887484f2ba446b9b481b42a64a57d5121`
 * `USE_CLOUD_KMS`: set to `true` in case AWS/Azure Cloud is used for Record Encryption System Tests. LocalStack/Lowkey-Vault will be used by default. Default value: `false`
 * `AWS_REGION`: region of the AWS Cloud account to be used for KMS management. Default value: `us-east-2`
 * `AWS_ACCESS_KEY_ID`: key id of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
@@ -480,8 +481,11 @@ the container engine. Default value: `$HOME/.docker/config.json`
 First of all, start Minikube:
 
 ```shell
-minikube start --cpus 4
+minikube start --cpus 4 --container-runtime=containerd
 ```
+
+The OAUTHBEARER SASL termination test uses a Kubernetes image volume, which needs a container runtime that supports
+them (containerd 2.1+ or CRI-O 1.31+). Minikube's `docker` runtime doesn't, hence `--container-runtime=containerd`.
 
 By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/proxy:${project.version}`.
 These will be the latest images built by CI.  You can change this behaviour by setting the environment variables shown in the table above.

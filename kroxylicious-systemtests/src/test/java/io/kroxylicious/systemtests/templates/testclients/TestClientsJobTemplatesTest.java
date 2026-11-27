@@ -24,8 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TestClientsJobTemplatesTest {
 
-    private static final String CONFIG_MAP_NAME = "my-jars";
-    private static final String JAR_FILE_NAME = "my.jar";
+    private static final String IMAGE = "quay.io/example/my-jar:1.0.0";
+    private static final String JAR_PATH = "my.jar";
 
     private static JobBuilder producerJob() {
         // @formatter:off
@@ -45,25 +45,20 @@ class TestClientsJobTemplatesTest {
     }
 
     @Test
-    void withExtraClasspathJarMountsConfigMapVolume() {
+    void withExtraClasspathImageMountsImageVolume() {
         // Given
         JobBuilder jobBuilder = producerJob();
 
         // When
-        PodSpec podSpec = TestClientsJobTemplates.withExtraClasspathJar(jobBuilder, CONFIG_MAP_NAME, JAR_FILE_NAME)
+        PodSpec podSpec = TestClientsJobTemplates.withExtraClasspathImage(jobBuilder, IMAGE, JAR_PATH)
                 .build().getSpec().getTemplate().getSpec();
 
         // Then
         assertThat(podSpec.getVolumes())
                 .singleElement()
                 .satisfies(volume -> {
-                    assertThat(volume.getConfigMap().getName()).isEqualTo(CONFIG_MAP_NAME);
-                    assertThat(volume.getConfigMap().getItems())
-                            .singleElement()
-                            .satisfies(item -> {
-                                assertThat(item.getKey()).isEqualTo(JAR_FILE_NAME);
-                                assertThat(item.getPath()).isEqualTo(JAR_FILE_NAME);
-                            });
+                    assertThat(volume.getImage().getReference()).isEqualTo(IMAGE);
+                    assertThat(volume.getImage().getPullPolicy()).isEqualTo(Constants.PULL_IMAGE_IF_NOT_PRESENT);
                 });
         Volume volume = podSpec.getVolumes().get(0);
         assertThat(podSpec.getContainers())
@@ -79,13 +74,13 @@ class TestClientsJobTemplatesTest {
     }
 
     @Test
-    void withExtraClasspathJarSetsClasspathAndKeepsExistingEnv() {
+    void withExtraClasspathImageSetsClasspathAndKeepsExistingEnv() {
         // Given
         JobBuilder jobBuilder = producerJob();
         List<EnvVar> originalEnv = jobBuilder.build().getSpec().getTemplate().getSpec().getContainers().get(0).getEnv();
 
         // When
-        List<EnvVar> env = TestClientsJobTemplates.withExtraClasspathJar(jobBuilder, CONFIG_MAP_NAME, JAR_FILE_NAME)
+        List<EnvVar> env = TestClientsJobTemplates.withExtraClasspathImage(jobBuilder, IMAGE, JAR_PATH)
                 .build().getSpec().getTemplate().getSpec().getContainers().get(0).getEnv();
 
         // Then
@@ -94,6 +89,6 @@ class TestClientsJobTemplatesTest {
                 .filteredOn(e -> e.getName().equals("CLASSPATH"))
                 .singleElement()
                 .extracting(EnvVar::getValue)
-                .isEqualTo(Constants.TEST_CLIENTS_EXTRA_LIBS_DIR + "/" + JAR_FILE_NAME);
+                .isEqualTo(Constants.TEST_CLIENTS_EXTRA_LIBS_DIR + "/" + JAR_PATH);
     }
 }

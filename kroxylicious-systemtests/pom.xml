@@ -409,28 +409,6 @@
                                 </configuration>
                             </execution>
                             <execution>
-                                <!-- Kafka 4.1+ clients eagerly load jose4j during OAUTHBEARER login but kafka-clients
-                                     doesn't declare it as a runtime dependency (KAFKA-20184), and the Strimzi test-clients
-                                     image doesn't bundle it. SaslTerminationST mounts this jar onto the test client's
-                                     classpath via a ConfigMap. -->
-                                <id>copy-jose4j</id>
-                                <phase>pre-integration-test</phase>
-                                <goals>
-                                    <goal>copy</goal>
-                                </goals>
-                                <configuration>
-                                    <artifactItems>
-                                        <artifactItem>
-                                            <groupId>org.bitbucket.b_c</groupId>
-                                            <artifactId>jose4j</artifactId>
-                                            <version>${jose4j.version}</version>
-                                            <outputDirectory>${project.build.directory}/extra-libs</outputDirectory>
-                                            <destFileName>jose4j.jar</destFileName>
-                                        </artifactItem>
-                                    </artifactItems>
-                                </configuration>
-                            </execution>
-                            <execution>
                                 <id>unpack-kroxylicious-operator</id>
                                 <phase>pre-integration-test</phase>
                                 <goals>

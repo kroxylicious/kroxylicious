@@ -112,6 +112,7 @@
         <maven.javadoc.skip>${central.publishing.skip}</maven.javadoc.skip>
         <maven.source.skip>${central.publishing.skip}</maven.source.skip>
         <rewrite-maven-plugin.version>6.46.1</rewrite-maven-plugin.version>
+        <docker-maven-plugin.version>0.49.0</docker-maven-plugin.version>
     </properties>
 
     <name>Parent POM</name>
@@ -1050,7 +1051,7 @@
                 <plugin>
                     <groupId>io.fabric8</groupId>
                     <artifactId>docker-maven-plugin</artifactId>
-                    <version>0.49.0</version>
+                    <version>${docker-maven-plugin.version}</version>
                 </plugin>
 
                 <plugin>

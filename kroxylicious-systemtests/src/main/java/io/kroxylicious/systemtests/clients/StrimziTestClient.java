@@ -58,9 +58,9 @@ public class StrimziTestClient implements KafkaClient {
     private String marker;
     private final String image;
     @Nullable
-    private String extraClasspathConfigMap;
+    private String extraClasspathImage;
     @Nullable
-    private String extraClasspathJarFileName;
+    private String extraClasspathJarPath;
 
     @Override
     public String toString() {
@@ -88,25 +88,25 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     /**
-     * Adds a jar held in a ConfigMap to the classpath of the client containers started by this instance.
-     * See {@link TestClientsJobTemplates#withExtraClasspathJar} and
-     * {@link io.kroxylicious.systemtests.templates.testclients.TestClientsConfigMapTemplates#jarConfigMap}.
+     * Adds a jar shipped inside a container image to the classpath of the client containers started by this
+     * instance, by mounting the image as a Kubernetes image volume.
+     * See {@link TestClientsJobTemplates#withExtraClasspathImage}.
      *
-     * @param configMapName the name of the ConfigMap, which must exist in the namespace the client is deployed to
-     * @param jarFileName the ConfigMap key holding the jar
+     * @param image the image holding the jar
+     * @param jarPath the path of the jar relative to the root of the image
      * @return  this client
      */
-    public StrimziTestClient withExtraClasspathJar(String configMapName, String jarFileName) {
-        this.extraClasspathConfigMap = Objects.requireNonNull(configMapName);
-        this.extraClasspathJarFileName = Objects.requireNonNull(jarFileName);
+    public StrimziTestClient withExtraClasspathImage(String image, String jarPath) {
+        this.extraClasspathImage = Objects.requireNonNull(image);
+        this.extraClasspathJarPath = Objects.requireNonNull(jarPath);
         return this;
     }
 
     private JobBuilder withExtraClasspath(JobBuilder jobBuilder) {
-        if (extraClasspathConfigMap == null || extraClasspathJarFileName == null) {
+        if (extraClasspathImage == null || extraClasspathJarPath == null) {
             return jobBuilder;
         }
-        return TestClientsJobTemplates.withExtraClasspathJar(jobBuilder, extraClasspathConfigMap, extraClasspathJarFileName);
+        return TestClientsJobTemplates.withExtraClasspathImage(jobBuilder, extraClasspathImage, extraClasspathJarPath);
     }
 
     @Override

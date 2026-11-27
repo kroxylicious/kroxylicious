@@ -348,26 +348,27 @@ public class TestClientsJobTemplates {
     }
 
     /**
-     * Adds a jar, held under {@code jarFileName} in the given ConfigMap, to the classpath of the
-     * (single) container of a test client job. The ConfigMap is mounted read-only at
+     * Adds a jar, shipped as {@code jarPath} inside the given container image, to the classpath of the
+     * (single) container of a test client job. The image is mounted read-only as a Kubernetes
+     * <a href="https://kubernetes.io/docs/concepts/storage/volumes/#image">image volume</a> at
      * {@link Constants#TEST_CLIENTS_EXTRA_LIBS_DIR} and {@code CLASSPATH} is pointed at the jar;
      * the Strimzi test-clients image passes {@code CLASSPATH} straight to {@code java -cp}.
+     * <p>
+     * Image volumes require the cluster to support the {@code ImageVolume} feature, including a
+     * container runtime that implements it (e.g. containerd 2.1+ or CRI-O 1.31+).
      *
      * @param jobBuilder the test client job builder
-     * @param configMapName the name of the ConfigMap holding the jar as binary data
-     * @param jarFileName the ConfigMap key, also used as the file name of the mounted jar
+     * @param image the image holding the jar
+     * @param jarPath the path of the jar relative to the root of the image, e.g. {@code jose4j.jar}
      * @return the job builder
      */
-    public static JobBuilder withExtraClasspathJar(JobBuilder jobBuilder, String configMapName, String jarFileName) {
+    public static JobBuilder withExtraClasspathImage(JobBuilder jobBuilder, String image, String jarPath) {
         Volume volume = new VolumeBuilder()
                 .withName(EXTRA_LIBS_VOLUME_NAME)
-                .withConfigMap(new ConfigMapVolumeSourceBuilder()
-                        .withName(configMapName)
-                        .addNewItem()
-                        .withKey(jarFileName)
-                        .withPath(jarFileName)
-                        .endItem()
-                        .build())
+                .withNewImage()
+                .withReference(image)
+                .withPullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .endImage()
                 .build();
 
         VolumeMount volumeMount = new VolumeMountBuilder()
@@ -383,7 +384,7 @@ public class TestClientsJobTemplates {
                 .addToVolumes(volume)
                 .editFirstContainer()
                 .addToVolumeMounts(volumeMount)
-                .addToEnv(envVar(CLASSPATH_VAR, Constants.TEST_CLIENTS_EXTRA_LIBS_DIR + "/" + jarFileName))
+                .addToEnv(envVar(CLASSPATH_VAR, Constants.TEST_CLIENTS_EXTRA_LIBS_DIR + "/" + jarPath))
                 .endContainer()
                 .endSpec()
                 .endTemplate()
