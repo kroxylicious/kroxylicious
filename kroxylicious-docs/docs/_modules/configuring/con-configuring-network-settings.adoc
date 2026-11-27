@@ -42,5 +42,7 @@ Units can be combined, for example `1m30s`.
 
 * The `workerThreadCount` setting allows tuning for high-concurrency deployments. Increasing this value can improve throughput when handling many simultaneous client connections.
 * The `shutdownQuietPeriod` and `shutdownTimeout` settings together control graceful shutdown behaviour. `shutdownQuietPeriod` should always be less than or equal to `shutdownTimeout`.
+* Any per-virtual cluster connection draining timeout (`drainTimeout`) must be strictly less than `shutdownTimeout` so that in-flight requests have time to complete before Netty initiates forced channel close.
+
 
 
