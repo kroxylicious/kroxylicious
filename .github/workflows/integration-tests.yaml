@@ -35,6 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Discover ITs'
         id: discover
         run: |
@@ -77,6 +78,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: 'Get operand image'
         id: build_image
         env:
@@ -126,6 +128,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
@@ -254,6 +257,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'

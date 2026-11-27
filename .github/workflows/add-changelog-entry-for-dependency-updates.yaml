@@ -63,10 +63,11 @@ jobs:
 
       - name: 'Check out repository'
         if: env.CHANGELOG_TOKEN_SET == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # zizmor: ignore[artipacked] pushes the changelog commit to the PR branch
         with:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.KROXYLICIOUS_CHANGELOG_TOKEN }}
+          persist-credentials: true
 
       - name: 'Check whether changelog entry is needed'
         if: env.CHANGELOG_TOKEN_SET == 'true'

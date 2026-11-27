@@ -61,10 +61,11 @@ jobs:
           egress-policy: audit
 
       - name: 'Check out repository'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # zizmor: ignore[artipacked] stage-release.sh pushes the release branches
         with:
           ref: ${{ github.event.inputs.branch }}
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          persist-credentials: true
 
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
