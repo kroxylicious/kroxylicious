@@ -1,0 +1,4 @@
+title: "build(deps): bump kafka.version from 4.3.1 to 4.4.0"
+type: build
+merge_requests:
+  - 5123
