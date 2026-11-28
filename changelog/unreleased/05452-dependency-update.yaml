@@ -1,0 +1,4 @@
+title: "build(deps): bump org.apache.maven:maven-plugin-api from 3.10.1 to 3.10.2"
+type: build
+merge_requests:
+  - 5452
