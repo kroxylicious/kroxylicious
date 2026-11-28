@@ -58,7 +58,7 @@ class KeyVaultClientIT {
     BearerTokenService bearerTokenService;
 
     LowkeyVaultContainer startVault() {
-        String image = "nagyesta/lowkey-vault:7.4.0-ubi10-minimal@sha256:7d78373738e77b7782195e8dc1103c6ea0883947d639dab9373d0407dda8b499";
+        String image = "nagyesta/lowkey-vault:7.4.30-ubi10-minimal@sha256:360f25173aaa0da6bb2417a69a107af1a733c5bb6c67f9b74f3fda65331f0240";
         final DockerImageName imageName = DockerImageName.parse("mirror.gcr.io/" + image)
                 .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
         final LowkeyVaultContainer lowkeyVaultContainer = lowkeyVault(imageName)
