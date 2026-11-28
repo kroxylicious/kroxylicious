@@ -61,11 +61,11 @@ jobs:
 
       # Reports all findings to code scanning (does not fail the job)
       - name: Report findings to code scanning
-        uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        uses: zizmorcore/zizmor-action@1b4550e929643b8b26a62303c6bd64814271a4f1 # v0.9.2
 
       # Fails the job on medium and higher findings
       - name: Check for medium and higher findings
-        uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        uses: zizmorcore/zizmor-action@1b4550e929643b8b26a62303c6bd64814271a4f1 # v0.9.2
         with:
           advanced-security: false
           annotations: true
