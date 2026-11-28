@@ -10,9 +10,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -21,10 +28,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.channel.local.LocalChannel;
 import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.kafka.common.message.FetchRequestData;
@@ -60,6 +71,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -92,10 +104,22 @@ class RoutingHandlerTest {
 
     private EmbeddedChannel channel;
 
+    // Real event loop for tests that complete router futures off the loop; EmbeddedChannel's inEventLoop() is always true.
+    private DefaultEventLoop eventLoop;
+    private LocalChannel localChannel;
+    private final List<Integer> writtenCorrelationIds = new CopyOnWriteArrayList<>();
+    private final Queue<Thread> clientChannelCallThreads = new ConcurrentLinkedQueue<>();
+
     @AfterEach
     void tearDown() {
         if (channel != null) {
             channel.finishAndReleaseAll();
+        }
+        if (localChannel != null && localChannel.isOpen()) {
+            localChannel.close().syncUninterruptibly();
+        }
+        if (eventLoop != null) {
+            eventLoop.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
         }
     }
 
@@ -171,6 +195,10 @@ class RoutingHandlerTest {
         var frame = new OpaqueRequestFrame(buf, apiKey.id, (short) 12, correlationId, false, 0, true);
         frame.setRouting(new PathElement.Route(routeName, PathElement.ClientOrigin.INSTANCE));
         return frame;
+    }
+
+    private static InternalRequestFrame<ProduceRequestData> internalProduceFrame(int correlationId) {
+        return new InternalRequestFrame<>((short) 9, correlationId, true, produceFrame(correlationId).header(), new ProduceRequestData());
     }
 
     private InternalRequestFrame<ProduceRequestData> oobProduceFrame(int correlationId, CompletableFuture<?> promise) {
@@ -533,6 +561,365 @@ class RoutingHandlerTest {
                 .isNotNull();
         assertThat(out.header().correlationId()).isEqualTo(CORRELATION_ID + 1);
         verify(ccsm).requestClose(CloseReason.routerRequested());
+    }
+
+    @Test
+    void topLevel_shouldHandleRouterCompletionOnEventLoopWhenRouterCompletesOffEventLoop() throws Exception {
+        // Given
+        var completionThread = captureRoutedRequestCompleteThread();
+        var pendingFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), produceFrame(CORRELATION_ID));
+
+        // When
+        completeOffEventLoop(() -> pendingFuture.complete(produceResponse()));
+
+        // Then
+        assertClientChannelUsedOnlyOnEventLoop();
+        assertHandledOnEventLoop(completionThread.get());
+        assertThat(writtenCorrelationIds).containsExactly(CORRELATION_ID);
+    }
+
+    @Test
+    void topLevel_shouldHandleRouterFailureOnEventLoopWhenRouterFailsOffEventLoop() throws Exception {
+        // Given
+        var completionThread = captureRoutedRequestCompleteThread();
+        var pendingFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), produceFrame(CORRELATION_ID));
+
+        // When
+        completeOffEventLoop(() -> pendingFuture.completeExceptionally(new IllegalStateException("router failed")));
+
+        // Then
+        assertClientChannelUsedOnlyOnEventLoop();
+        assertHandledOnEventLoop(completionThread.get());
+        assertThat(localChannel.closeFuture()).succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void topLevel_shouldHandleRouterCompletionInlineWhenRouterCompletesOnEventLoop() throws Exception {
+        // Given
+        var completionThread = captureRoutedRequestCompleteThread();
+        var pendingFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), produceFrame(CORRELATION_ID));
+
+        // When
+        var handledBeforeCompleteReturned = eventLoop.submit(() -> {
+            pendingFuture.complete(produceResponse());
+            return completionThread.get() != null;
+        }).get(5, TimeUnit.SECONDS);
+
+        // Then
+        assertThat(handledBeforeCompleteReturned)
+                .as("a completion already on the event loop must be handled inline, not re-queued")
+                .isTrue();
+    }
+
+    @Test
+    void topLevel_shouldHandleOobRouterCompletionOnEventLoopWhenRouterCompletesOffEventLoop() throws Exception {
+        // Given
+        var completionThread = captureRoutedRequestCompleteThread();
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), oobProduceFrame(CORRELATION_ID, promise, DEFAULT_ROUTE));
+
+        // When
+        completeOffEventLoop(() -> routerFuture.complete(oobErrorResponse()));
+
+        // Then
+        assertHandledOnEventLoop(completionThread.get());
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withMessageContaining("oob-error");
+    }
+
+    @Test
+    void nested_shouldHandleOobRouterCompletionOnEventLoopWhenRouterCompletesOffEventLoop() throws Exception {
+        // Given
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var completionThread = promise.handle((response, error) -> Thread.currentThread());
+        var routerFuture = routeOnEventLoop(nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0))),
+                nestedOobProduceFrame(CORRELATION_ID, promise, ACTIVATION_ROUTE));
+
+        // When
+        completeOffEventLoop(() -> routerFuture.complete(oobErrorResponse()));
+
+        // Then
+        assertThat(completionThread).succeedsWithin(Duration.ofSeconds(5))
+                .satisfies(this::assertHandledOnEventLoop);
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withMessageContaining("oob-error");
+    }
+
+    @Test
+    void topLevel_shouldDeliverBufferedResponseWhenEarlierRequestCompletesOffEventLoop() throws Exception {
+        // Given
+        var completionThread = captureRoutedRequestCompleteThread();
+        var first = new CompletableFuture<RouterResponse>();
+        var second = new CompletableFuture<RouterResponse>();
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(first.minimalCompletionStage(), second.minimalCompletionStage());
+        registerOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE));
+        readOnEventLoop(produceFrame(CORRELATION_ID));
+        readOnEventLoop(produceFrame(CORRELATION_ID + 1));
+        eventLoop.submit(() -> second.complete(produceResponse())).get(5, TimeUnit.SECONDS);
+
+        // When
+        completeOffEventLoop(() -> first.complete(new RouterResponseImpl.RespondWithoutReply(false)));
+
+        // Then
+        assertClientChannelUsedOnlyOnEventLoop();
+        assertHandledOnEventLoop(completionThread.get());
+        assertThat(writtenCorrelationIds).containsExactly(CORRELATION_ID + 1);
+    }
+
+    @Test
+    void topLevel_shouldFailOobPromiseWhenEventLoopTerminatesBeforeRouterCompletes() throws Exception {
+        // Given
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), oobProduceFrame(CORRELATION_ID, promise, DEFAULT_ROUTE));
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RejectedExecutionException.class);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void nested_shouldFailOobPromiseWhenEventLoopTerminatesBeforeRouterCompletes() throws Exception {
+        // Given
+        when(routerChainFactory.createRouter(eq(NESTED_ROUTER_NAME), eq(VIRTUAL_CLUSTER), any(RequestSender.class))).thenReturn(router);
+        when(router.staticRoutes()).thenReturn(Map.of());
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var routerFuture = routeOnEventLoop(nestedHandler(Map.of("inner-r", clusterRoute("inner-r", 0))),
+                nestedOobProduceFrame(CORRELATION_ID, promise, ACTIVATION_ROUTE));
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RejectedExecutionException.class);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void topLevel_shouldIgnoreRejectedCompletionForFireAndForgetInternalRequest() throws Exception {
+        // Given
+        var frame = internalProduceFrame(CORRELATION_ID);
+        frame.setRouting(new PathElement.Route(DEFAULT_ROUTE, PathElement.ClientOrigin.INSTANCE));
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), frame);
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertCompletionCallbackDidNotThrow(routerFuture);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void topLevel_shouldIgnoreRejectedCompletionForInternalRequestWithoutRouting() throws Exception {
+        // Given
+        var frame = internalProduceFrame(CORRELATION_ID);
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), frame);
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertCompletionCallbackDidNotThrow(routerFuture);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void topLevel_shouldIgnoreRejectedCompletionForClientRequest() throws Exception {
+        // Given
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), produceFrame(CORRELATION_ID));
+        terminateEventLoop();
+
+        // When
+        completeOnAnotherThread(routerFuture, produceResponse());
+
+        // Then
+        assertCompletionCallbackDidNotThrow(routerFuture);
+        assertNothingLoopConfinedTouched();
+    }
+
+    @Test
+    void topLevel_shouldCloseConnectionWhenLiveEventLoopRejectsRouterCompletion() throws Exception {
+        // Given
+        var rejectingLoop = new RejectNextExecuteEventLoop();
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE), produceFrame(CORRELATION_ID), rejectingLoop);
+
+        // When
+        rejectingLoop.rejectNextExecute();
+        completeOnAnotherThread(routerFuture, produceResponse());
+
+        // Then
+        assertNothingLoopConfinedTouched();
+        assertThat(localChannel.closeFuture()).succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void topLevel_shouldFailOobPromiseAndCloseConnectionWhenLiveEventLoopRejectsRouterCompletion() throws Exception {
+        // Given
+        var rejectingLoop = new RejectNextExecuteEventLoop();
+        var promise = new CompletableFuture<ProduceResponseData>();
+        var routerFuture = routeOnEventLoop(topLevelHandlerWithRoute(DEFAULT_ROUTE),
+                oobProduceFrame(CORRELATION_ID, promise, DEFAULT_ROUTE), rejectingLoop);
+
+        // When
+        rejectingLoop.rejectNextExecute();
+        completeOnAnotherThread(routerFuture, oobErrorResponse());
+
+        // Then
+        assertThat(promise).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(RejectedExecutionException.class);
+        assertNothingLoopConfinedTouched();
+        assertThat(localChannel.closeFuture()).succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Records the stages derived from it, so a test can observe an exception thrown inside the
+     * handler's {@code whenComplete} callback, which would otherwise be silently swallowed.
+     */
+    private static final class DependentRecordingFuture<T> extends CompletableFuture<T> {
+        private final Queue<CompletableFuture<?>> dependents = new ConcurrentLinkedQueue<>();
+
+        @Override
+        public <U> CompletableFuture<U> newIncompleteFuture() {
+            var dependent = new CompletableFuture<U>();
+            dependents.add(dependent);
+            return dependent;
+        }
+    }
+
+    private static void assertCompletionCallbackDidNotThrow(DependentRecordingFuture<?> routerFuture) {
+        assertThat(routerFuture.dependents)
+                .as("the handler never attached a completion callback")
+                .isNotEmpty();
+        assertThat(routerFuture.dependents)
+                .as("the handler's completion callback threw")
+                .allSatisfy(dependent -> assertThat(dependent).succeedsWithin(Duration.ofSeconds(5)));
+    }
+
+    private void assertNothingLoopConfinedTouched() {
+        verify(ccsm, never()).onRoutedRequestComplete();
+        verify(ccsm, never()).requestClose(any());
+        assertThat(writtenCorrelationIds).isEmpty();
+    }
+
+    private void terminateEventLoop() throws Exception {
+        localChannel.close().get(5, TimeUnit.SECONDS);
+        eventLoop.shutdownGracefully(0, 1, TimeUnit.SECONDS).get(5, TimeUnit.SECONDS);
+    }
+
+    private AtomicReference<Thread> captureRoutedRequestCompleteThread() {
+        var thread = new AtomicReference<Thread>();
+        doAnswer(invocation -> {
+            thread.set(Thread.currentThread());
+            return null;
+        }).when(ccsm).onRoutedRequestComplete();
+        return thread;
+    }
+
+    private void assertHandledOnEventLoop(Thread completionThread) {
+        assertThat(completionThread)
+                .as("router completion was never handled")
+                .isNotNull();
+        assertThat(eventLoop.inEventLoop(completionThread))
+                .as("router completion must be handled on the channel's event loop, not the thread that completed the router future")
+                .isTrue();
+    }
+
+    private void assertClientChannelUsedOnlyOnEventLoop() {
+        assertThat(clientChannelCallThreads)
+                .as("router completion never wrote to or flushed the client channel")
+                .isNotEmpty();
+        assertThat(clientChannelCallThreads)
+                .as("the client channel must only be written and flushed from its event loop")
+                .allMatch(eventLoop::inEventLoop);
+    }
+
+    private DependentRecordingFuture<RouterResponse> routeOnEventLoop(RoutingHandler handler, Object frame) throws Exception {
+        return routeOnEventLoop(handler, frame, new DefaultEventLoop());
+    }
+
+    private DependentRecordingFuture<RouterResponse> routeOnEventLoop(RoutingHandler handler, Object frame, DefaultEventLoop loop) throws Exception {
+        var routerFuture = new DependentRecordingFuture<RouterResponse>();
+        when(router.onRequest(any(), anyShort(), any(), any(), any())).thenReturn(routerFuture);
+        registerOnEventLoop(handler, loop);
+        readOnEventLoop(frame);
+        return routerFuture;
+    }
+
+    private static RouterResponse oobErrorResponse() {
+        return new RouterResponseImpl.RespondWithError(new RequestHeaderData(), new ProduceRequestData(), Errors.UNKNOWN_SERVER_ERROR, "oob-error", false);
+    }
+
+    private static RouterResponse produceResponse() {
+        return new RouterResponseImpl.RespondWith(null, new ProduceResponseData(), false);
+    }
+
+    private void registerOnEventLoop(RoutingHandler handler) throws Exception {
+        registerOnEventLoop(handler, new DefaultEventLoop());
+    }
+
+    private void registerOnEventLoop(RoutingHandler handler, DefaultEventLoop loop) throws Exception {
+        eventLoop = loop;
+        localChannel = new LocalChannel() {
+            @Override
+            public ChannelFuture write(Object msg) {
+                clientChannelCallThreads.add(Thread.currentThread());
+                return super.write(msg);
+            }
+
+            @Override
+            public ChannelFuture writeAndFlush(Object msg) {
+                clientChannelCallThreads.add(Thread.currentThread());
+                return super.writeAndFlush(msg);
+            }
+
+            @Override
+            public Channel flush() {
+                clientChannelCallThreads.add(Thread.currentThread());
+                return super.flush();
+            }
+        };
+        eventLoop.register(localChannel).get(5, TimeUnit.SECONDS);
+        localChannel.pipeline().addLast(handler, new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise p) {
+                if (msg instanceof DecodedResponseFrame<?> frame) {
+                    writtenCorrelationIds.add(frame.header().correlationId());
+                }
+                ReferenceCountUtil.release(msg);
+                p.setSuccess();
+            }
+        });
+    }
+
+    private void readOnEventLoop(Object msg) throws Exception {
+        eventLoop.submit(() -> localChannel.pipeline().fireChannelRead(msg)).get(5, TimeUnit.SECONDS);
+    }
+
+    private void completeOffEventLoop(Runnable completer) throws Exception {
+        CompletableFuture.runAsync(completer).get(5, TimeUnit.SECONDS);
+        // Wait for the completion queued onto the loop to run.
+        eventLoop.submit(() -> null).get(5, TimeUnit.SECONDS);
+    }
+
+    private static void completeOnAnotherThread(CompletableFuture<RouterResponse> routerFuture, RouterResponse response) throws Exception {
+        CompletableFuture.runAsync(() -> routerFuture.complete(response)).get(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -1317,5 +1704,25 @@ class RoutingHandlerTest {
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
         assertThat(out.header().correlationId()).isEqualTo(CORRELATION_ID);
+    }
+
+    /**
+     * An event loop that rejects the next task, simulating a full task queue on a loop that is
+     * still running.
+     */
+    private static final class RejectNextExecuteEventLoop extends DefaultEventLoop {
+        private final AtomicBoolean rejectNext = new AtomicBoolean();
+
+        void rejectNextExecute() {
+            rejectNext.set(true);
+        }
+
+        @Override
+        public void execute(Runnable task) {
+            if (rejectNext.compareAndSet(true, false)) {
+                throw new RejectedExecutionException("task queue is full");
+            }
+            super.execute(task);
+        }
     }
 }
